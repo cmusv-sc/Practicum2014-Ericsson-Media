@@ -52,6 +52,8 @@ public class DiscoveryService implements Runnable {
             StringBuilder sb = new StringBuilder(50);
             sb.append("NodeStatus#");
             sb.append(localHostName);
+            sb.append(":");
+            sb.append(nodeType);
             sb.append("#");
             sb.append(queueName);
             String publishName = sb.toString();
@@ -80,9 +82,14 @@ public class DiscoveryService implements Runnable {
 	
 	                if (nodeType.equals("master")) {
 	                	nl.addNode(splitMsg[1], splitMsg[2]);
+	                	/*
 	                	// temp testing. HI message from master
 	                	if (!splitMsg[2].equals(queueName))
 	                		this.hiMsg(splitMsg[2]);
+	                	*/
+	                	if(nl.numNodes == 2) {
+	                		this.sourceStartCmd();
+	                	}
 	                }
                 }
                 else if (message.startsWith("Info#")) {
@@ -109,6 +116,26 @@ public class DiscoveryService implements Runnable {
             tchannel.queueDeclare(qName, false, false, false, null);
             String message = "Info#Hi from Master Node";
             tchannel.basicPublish("", qName, null, message.getBytes());
+            System.out.println(" [-] Master sent "+message+" to "+ qName);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void sourceStartCmd() {
+    	// In case of problem discovering source queue, message is sent to master
+    	String qName = this.queueName;
+    	for (String hostname : this.nl.nodeMap.keySet()) {
+    		String[] splitHostname = hostname.split(":");
+    		if (splitHostname[1].equals("source")) {
+    			qName = this.nl.nodeMap.get(hostname);
+    			break;
+    		}
+    	}
+    	
+        try {
+            String message = "Cmd#start";
+            channel.basicPublish("", qName, null, message.getBytes());
             System.out.println(" [-] Master sent "+message+" to "+ qName);
         } catch (Exception e) {
             e.printStackTrace();

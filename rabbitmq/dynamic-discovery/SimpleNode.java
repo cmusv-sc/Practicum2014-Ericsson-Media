@@ -4,7 +4,7 @@ public class SimpleNode {
         NodeList nl = null;
 
         if (args.length < 1) {
-            System.out.println("Usage: java SimpleNode <master/source/client>");
+            System.out.println("Usage: java SimpleNode <master/source/sink>");
             System.exit(1);
         }
 

@@ -12,9 +12,9 @@ public class NodeList {
     public void addNode(String hostname, String queueName) {
         // the number at the end is temporary 
         // to handle nodes running on same host
-        String uhostname = hostname.concat(numNodes.toString());
+        //String uhostname = hostname.concat(numNodes.toString());
         numNodes++;
-        nodeMap.put(uhostname, queueName);
+        nodeMap.put(hostname, queueName);
     }
 
     public void listNode() {
