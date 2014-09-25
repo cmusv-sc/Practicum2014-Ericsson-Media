@@ -10,8 +10,13 @@ public class SimpleNode {
 
         String nType = args[0];
 
-        if (nType.equals("master"))
+        if (nType.equals("master")) {
             nl = new NodeList();
+        } else if (nType.equals("source")) {
+        	// source
+        } else if (nType.equals("client")) {
+        	// client
+        }
 
         Thread discoverThread = new Thread(new DiscoveryService(nl, nType));
         discoverThread.start();

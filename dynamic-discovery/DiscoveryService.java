@@ -50,8 +50,9 @@ public class DiscoveryService implements Runnable {
             // Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
             String localHostName = java.net.InetAddress.getLocalHost().getHostName();
             StringBuilder sb = new StringBuilder(50);
+            sb.append("NodeStatus#");
             sb.append(localHostName);
-            sb.append(":");
+            sb.append("#");
             sb.append(queueName);
             String publishName = sb.toString();
             // send out the discovery message to the exchange
@@ -73,16 +74,24 @@ public class DiscoveryService implements Runnable {
                 QueueingConsumer.Delivery delivery = consumer.nextDelivery();
                 String message = new String(delivery.getBody());
 
-                System.out.println(" [x] Node " + message + " is up");
-
-                if (nodeType.equals("master")) {
-                	String[] splitMsg = message.split(":");
-                	nl.addNode(splitMsg[0], splitMsg[1]);
-                	// temp testing. HI message from master
-                	if (!splitMsg[1].equals(queueName))
-                		this.hiMsg(splitMsg[1]);
+                if (message.startsWith("NodeStatus#")) {
+                	String[] splitMsg = message.split("#");
+	                System.out.println(" [x] Node " + splitMsg[2] + " is up");
+	
+	                if (nodeType.equals("master")) {
+	                	nl.addNode(splitMsg[1], splitMsg[2]);
+	                	// temp testing. HI message from master
+	                	if (!splitMsg[2].equals(queueName))
+	                		this.hiMsg(splitMsg[2]);
+	                }
                 }
-
+                else if (message.startsWith("Info#")) {
+                	System.out.println(" [x] "+message);
+                }
+                else if (message.startsWith("Cmd#")) {
+                	String[] splitMsg = message.split("#");
+                	System.out.println(message);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -98,9 +107,9 @@ public class DiscoveryService implements Runnable {
             Channel tchannel = connection.createChannel();
 
             tchannel.queueDeclare(qName, false, false, false, null);
-            String message = "Hi from Master Node";
+            String message = "Info#Hi from Master Node";
             tchannel.basicPublish("", qName, null, message.getBytes());
-            System.out.println(" [-] Master sent hi to node "+ qName);
+            System.out.println(" [-] Master sent "+message+" to "+ qName);
         } catch (Exception e) {
             e.printStackTrace();
         }
