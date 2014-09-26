@@ -80,7 +80,7 @@ public class DiscoveryService implements Runnable {
                 	String[] splitMsg = message.split("#");
 	                System.out.println(" [x] Node " + splitMsg[2] + " is up");
 	
-	                if (nodeType.equals("master")) {
+	                if (nodeType.equals("master") && !splitMsg[2].equals(queueName)) {
 	                	nl.addNode(splitMsg[1], splitMsg[2]);
 	                	/*
 	                	// temp testing. HI message from master
@@ -88,7 +88,10 @@ public class DiscoveryService implements Runnable {
 	                		this.hiMsg(splitMsg[2]);
 	                	*/
 	                	if(nl.numNodes == 2) {
-	                		this.sourceStartCmd();
+	                		this.startCmd("sink");
+	                		// Just to make sure the sink is up and listening
+	                		Thread.sleep(1000);
+	                		this.startCmd("source");
 	                	}
 	                }
                 }
@@ -98,6 +101,20 @@ public class DiscoveryService implements Runnable {
                 else if (message.startsWith("Cmd#")) {
                 	String[] splitMsg = message.split("#");
                 	System.out.println(message);
+                	if (this.nodeType.equals("source")) {
+                		// source
+                		String serverIp = "localhost";
+                		int packageSize = 10240;
+                		int rate = 5;
+                		int serverPort = Integer.parseInt(splitMsg[2]);
+                		SourceNode sourceNode = new SourceNode();
+                		sourceNode.send(serverIp, serverPort,packageSize, rate);
+                	} else if (this.nodeType.equals("sink")) {
+                		// sink
+                		int listenPort = Integer.parseInt(splitMsg[2]);
+                		SinkNode sinkNode = new SinkNode();
+                		sinkNode.listenAtPort(listenPort);
+                	}
                 }
             }
         } catch (Exception e) {
@@ -122,19 +139,19 @@ public class DiscoveryService implements Runnable {
         }
     }
     
-    public void sourceStartCmd() {
+    public void startCmd(String nType) {
     	// In case of problem discovering source queue, message is sent to master
     	String qName = this.queueName;
     	for (String hostname : this.nl.nodeMap.keySet()) {
     		String[] splitHostname = hostname.split(":");
-    		if (splitHostname[1].equals("source")) {
+    		if (splitHostname[1].equals(nType)) {
     			qName = this.nl.nodeMap.get(hostname);
     			break;
     		}
     	}
     	
         try {
-            String message = "Cmd#start";
+            String message = "Cmd#start#5554";
             channel.basicPublish("", qName, null, message.getBytes());
             System.out.println(" [-] Master sent "+message+" to "+ qName);
         } catch (Exception e) {
