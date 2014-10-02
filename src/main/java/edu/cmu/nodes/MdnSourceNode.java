@@ -15,14 +15,14 @@ public class MdnSourceNode extends MdnAbstractNode {
 
 
 	/**
-	 * Transfers bytesToTransfer number of bytes at rate bytes/second 
+	 * Transfers bytesToTransfer number of bytes at rate kb/second 
 	 * to destination with address destAddr and port destPort with streamId 
 	 * as identifier
 	 * @param streamId
 	 * @param destAddr
 	 * @param destPort
 	 * @param bytesToTransfer
-	 * @param rate - must be multiples of 1024 (the standard datagram size)
+	 * @param rate - kb/sec
 	 * @param mdnSource
 	 */
 	public void sendAndReport(String streamId, InetAddress destAddr, 
@@ -32,11 +32,12 @@ public class MdnSourceNode extends MdnAbstractNode {
 		final long MILLIS_IN_SECOND = 1000;
 		long millisRemaining = MILLIS_IN_SECOND;
 		int bytesThisSecond = 0;
-		if (rate % STD_DATAGRAM_SIZE != 0) {
-			System.out.println("rate must be a multiple of 1024"
-					+ "(the standard datagram size)");
-			return;
-		}
+		int totalBytesTransferred = 0;
+//		if (rate % STD_DATAGRAM_SIZE != 0) {
+//			System.out.println("rate must be a multiple of 1024"
+//					+ "(the standard datagram size)");
+//			return;
+//		}
 		
 		byte[] buf = new byte[STD_DATAGRAM_SIZE];
 		DatagramSocket sourceSocket = null;
@@ -71,12 +72,14 @@ public class MdnSourceNode extends MdnAbstractNode {
 				// TODO Auto-generated catch block
 				ioe.printStackTrace();
 			}
-			bytesToTransfer -= buf.length;
+			bytesToTransfer -= packet.getLength();
+			totalBytesTransferred += packet.getLength();
+			bytesThisSecond += packet.getLength();
 			
 			long end = System.currentTimeMillis();
 			millisRemaining = MILLIS_IN_SECOND - (end - begin);
 			
-			if (bytesThisSecond >= rate) {
+			if (bytesThisSecond >= (rate*STD_DATAGRAM_SIZE)) {
 				bytesThisSecond = 0;
 				try {
 					Thread.sleep(millisRemaining);
@@ -95,8 +98,10 @@ public class MdnSourceNode extends MdnAbstractNode {
 		// TODO report the statistics to the master node
 		SourceReportMessage srcReportMsg = new SourceReportMessage();
 		srcReportMsg.setStreamId(streamId);
-		srcReportMsg.setTotalBytes_transferred(bytesToTransfer);
+		srcReportMsg.setTotalBytes_transferred(totalBytesTransferred);
 		//mdnSource.sourceReport(srcReportMsg);
+		System.out.println("Source finished sending data. StreamId "+srcReportMsg.getStreamId()+
+				" bytes transferred "+srcReportMsg.getTotalBytes_transferred());
 		
 	} // sendAndReport
 }

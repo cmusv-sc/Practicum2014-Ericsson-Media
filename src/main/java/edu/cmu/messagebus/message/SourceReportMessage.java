@@ -2,13 +2,14 @@ package edu.cmu.messagebus.message;
 
 public class SourceReportMessage {
 
-	String _streamId = "defaultStreamId";
-	int _totalBytes_transferred = 0;
+	String _streamId;
+	int _totalBytes_transferred;
 	
 	public SourceReportMessage() {
 		super();
+		_streamId = "defaultStreamId";
+		_totalBytes_transferred = 0;
 	}
-	
 	
 	public String getStreamId() {
 		return _streamId;

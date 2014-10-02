@@ -2,9 +2,9 @@ package edu.cmu.messagebus.message;
 
 public class SinkReportMessage {
 	
-	String _streamId = "defaultStreamId";
-	long _totalTime = 0;
-	int _totalBytes = 0;
+	String _streamId;
+	long _totalTime;
+	int _totalBytes;
 	
 	public SinkReportMessage() {
 		_streamId = "defaultStreamID";

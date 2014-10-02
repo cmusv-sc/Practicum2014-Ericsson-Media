@@ -6,7 +6,7 @@ public class PrepRcvDataMessage {
 	private String _sourceWarpURI;
 	
 	private int _dataSize;
-	private int _streamRate;
+	private int _dataRate;
 	private String _streamID;
 	
 	public PrepRcvDataMessage () {
@@ -16,7 +16,7 @@ public class PrepRcvDataMessage {
 	public PrepRcvDataMessage(String sourceWarpURI) {
 		_sourceWarpURI = sourceWarpURI;
 		_dataSize = 1024;
-		_streamRate = 1;
+		_dataRate = 1;
 		_streamID = "";
 	}
 	
@@ -28,8 +28,8 @@ public class PrepRcvDataMessage {
 		return _dataSize;
 	}
 	
-	public int getstreamRate() {
-		return _streamRate;
+	public int getDataRate() {
+		return _dataRate;
 	}
 	
 	public String getStreamID() {
@@ -44,8 +44,8 @@ public class PrepRcvDataMessage {
 		_dataSize = dataSize;
 	}
 	
-	public void setStreamRate(int streamRate) {
-		_streamRate = streamRate;
+	public void setDataRate(int streamRate) {
+		_dataRate = streamRate;
 	}
 	
 	public void setStreamID(String streamID) {

@@ -85,7 +85,7 @@ public class MDNManager {
 		
 		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
 		prepRcvDataMsg.setDataSize(request.getDataSize());
-		prepRcvDataMsg.setStreamRate(request.getStreamRate());
+		prepRcvDataMsg.setDataRate(request.getStreamRate());
 		prepRcvDataMsg.setStreamID(request.getStreamID());
 		
 		if (ClusterConfig.DEBUG) {
