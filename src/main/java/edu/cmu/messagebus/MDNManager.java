@@ -68,7 +68,7 @@ public class MDNManager {
 			return "source-" + this.namingFactor;
 		} else if (type == NodeType.SINK){
 			return "sink-" + this.namingFactor;
-		} else if (type == NodeType.WEBCLIENT){
+		} else if (type == NodeType.WEB_CLIENT){
 			return "webclient-" + this.namingFactor;
 		}else{
 			return "VOID";
@@ -84,6 +84,8 @@ public class MDNManager {
 	}
 	
 	public void startSimulation(StartSimulationRequest request) {
+		//TODO: Store the WebClient warp uri in the hash map
+		
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
 		

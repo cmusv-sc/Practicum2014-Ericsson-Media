@@ -1,0 +1,59 @@
+<html>
+<head>warp.js<title>Hello</title>
+
+</head>
+<body>
+	<div>Media Delivery Network Simulator</div>
+	<div id="main">
+	<form>
+      <input id = "btnStart" type="button" value="Start" onclick="startSimulation();" />
+      <div id="container">        
+        <div id="graph-container"></div>
+      </div>
+    </div>
+    </form>
+    <script type="text/javascript">
+	/* Connection code - not required as it creates a temp user automatically
+	Warp.connect({
+		guid: "warp://warp:anon/test",
+		secret: "test"
+	},
+	{
+		connect: function() {
+			alert("Warp is connected!");
+		},
+		disconnect: function() {
+			alert("We have been disconnected");
+		}
+	});*/
+	Warp.on("connect", function() {
+		console.log("Now registered at " + Warp.uri);
+		//init();
+	});
+	/*function init(){
+		console.log(Warp.uri);
+		init = {warpURI: Warp.uri, nodeIP: "", port: "", type: "WEB_CLIENT"};
+		Warp.send({to: "warp://cmu-sv:mdn-manager/discover",data: init});
+	}*/
+	function startSimulation(){
+		//Warp.send({to: "warp://demo:rest/webclient/",data: "hello from web client"});
+		start = {sourceNodeName: "source-1", sinkNodeName: "sink-2", dataSize: 10000, 
+					streamRate: 5, streamID: "1"};
+		Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
+	}
+	
+	Warp.on({
+		/* message: function(m) {
+			alert("Received message with text: " + m.text);
+		},
+		post: function(m) {
+			alert("POST data: " + m.text);
+		} */
+		message: function(m) {
+			console.log("Got JSON: ", m.object);
+		}
+	});
+
+</script>
+</body>
+</html>

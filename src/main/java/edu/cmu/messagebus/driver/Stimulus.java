@@ -1,4 +1,4 @@
-package edu.cmu.messagebus.test;
+package edu.cmu.messagebus.driver;
 
 import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpException;

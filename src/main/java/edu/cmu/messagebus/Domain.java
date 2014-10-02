@@ -1,7 +1,9 @@
 package edu.cmu.messagebus;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
+import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
 import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpDomain;
@@ -17,7 +19,10 @@ public class Domain {
     	super();
     }
     
-    public void init() throws WarpException {
+    static WarpDomain getWarpDomain(){
+    	return _warpDomain;
+    }
+    public void init() throws WarpException, IOException, TrapException{
     	 JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
          DomainInit domainInit = Warp.init().domain();
          
@@ -31,13 +36,15 @@ public class Domain {
          _warpDomain = domainInit.loadWarpEnabled(true).create();
          
          System.out.println(_warpDomain.getTestClientURI());
+         
+         //Load the WebClient
+         WebClient webClient = new WebClient();
+         webClient.load(_warpDomain);
     }
     
-    public static void main(String[] args) throws WarpException, InterruptedException {
-       
+    public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
     	Domain mdnDomain = new Domain();
     	mdnDomain.init();
-
     }
     
 }
