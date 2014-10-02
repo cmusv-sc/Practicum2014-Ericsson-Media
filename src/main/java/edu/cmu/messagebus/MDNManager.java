@@ -122,7 +122,9 @@ public class MDNManager {
 			return "source-" + this.namingFactor;
 		} else if (type == NodeType.SINK){
 			return "sink-" + this.namingFactor;
-		} else {
+		} else if (type == NodeType.WEBCLIENT){
+			return "webclient-" + this.namingFactor;
+		}else{
 			return "VOID";
 		}
 	}
