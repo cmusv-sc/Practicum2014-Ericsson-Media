@@ -5,6 +5,11 @@ public class SourceReportMessage {
 	String _streamId = "defaultStreamId";
 	int _totalBytes_transferred = 0;
 	
+	public SourceReportMessage() {
+		super();
+	}
+	
+	
 	public String getStreamId() {
 		return _streamId;
 	}

@@ -6,6 +6,12 @@ public class SinkReportMessage {
 	long _totalTime = 0;
 	int _totalBytes = 0;
 	
+	public SinkReportMessage() {
+		_streamId = "defaultStreamID";
+		_totalTime = 0;
+		_totalBytes = 0;
+	}
+	
 	public String getStreamId() {
 		return _streamId;
 	}
