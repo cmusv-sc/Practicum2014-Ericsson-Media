@@ -26,8 +26,6 @@ public abstract class MDNNode {
 
 	protected NodeType _type;
 
-	private String _managerWarpURI;
-
 	public MDNNode(NodeType type) {
 		_type = type;
 	}
@@ -61,36 +59,12 @@ public abstract class MDNNode {
 						NodeRegistrationRequest registMsg = new NodeRegistrationRequest();
 						registMsg.setType(MDNNode.this._type);
 						registMsg.setWarpURI(nodeURI.toString());
+						
 						try {
-
-							Warp.request(
-									WarpURI.create("warp://cmu-sv:mdn-manager/discover"),
-									"POST", JSON.toJSON(registMsg).getBytes(),
-									null, new AbstractMessageListener() {
-
-										@Override
-										public boolean receiveMessage(
-												Message reply, Resource resource) {
-											_managerWarpURI = JSON
-													.fromJSON(
-															new String(reply
-																	.getData()),
-															NodeRegistrationReply.class)
-													.getManagerWarpURI();
-											if (ClusterConfig.DEBUG) {
-												System.out
-														.println("[DEBUG] MDNNode.config(): Get the manager WarpURI:"
-																+ _managerWarpURI);
-											}
-											return true;
-										}
-
-									});
-
+							Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/discover"),"POST", JSON.toJSON(registMsg).getBytes());
 						} catch (WarpException e) {
 							e.printStackTrace();
 						}
-
 					}
 				}, true);
 

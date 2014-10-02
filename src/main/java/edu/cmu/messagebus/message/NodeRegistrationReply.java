@@ -4,7 +4,9 @@ public class NodeRegistrationReply {
 	
 	private String _managerWarpURI;
 	
-	public NodeRegistrationReply(){}
+	public NodeRegistrationReply(){
+		super();
+	}
 	
 	public NodeRegistrationReply(String managerWarpURI) {
 		_managerWarpURI = managerWarpURI;

@@ -8,6 +8,9 @@ public class SndDataMessage {
 	private int _dataRate;
 	private String _streamID;
 	
+	public SndDataMessage() {
+		super();
+	}
 	
 	public SndDataMessage(String sinkIP, int sinkPort) {
 		_sinkIP = sinkIP;

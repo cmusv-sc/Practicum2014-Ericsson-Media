@@ -9,6 +9,9 @@ public class PrepRcvDataMessage {
 	private int _streamRate;
 	private String _streamID;
 	
+	public PrepRcvDataMessage () {
+		super();
+	}
 	
 	public PrepRcvDataMessage(String sourceWarpURI) {
 		_sourceWarpURI = sourceWarpURI;

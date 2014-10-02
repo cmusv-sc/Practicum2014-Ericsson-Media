@@ -19,7 +19,7 @@ public class MDNSink extends MDNNode {
 	public void config() throws WarpException {
 		super.config();
 		
-		Warp.addMethodListener("/sink/prep", "GET", this, "prepRcvData");
+		Warp.addMethodListener("/sink/prep", "POST", this, "prepRcvData");
 		
 	}
 	
@@ -45,7 +45,12 @@ public class MDNSink extends MDNNode {
 		sndDataMsg.setStreamID(msg.getStreamID());
 		
 		WarpContext.setApplication(_client);
-		Warp.send("/sink/prep", WarpURI.create(msg.getSourceWarpURI()), "POST", JSON.toJSON(sndDataMsg).getBytes());
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG] MDNSink.prepRcvData(): Ready to receive data. Sending control message to:" + msg.getSourceWarpURI());
+		}
+		
+		Warp.send("/source/prep", WarpURI.create(msg.getSourceWarpURI()), "POST", JSON.toJSON(sndDataMsg).getBytes());
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNSink.prepRcvData(): Open new port to receive data.");
 		}
