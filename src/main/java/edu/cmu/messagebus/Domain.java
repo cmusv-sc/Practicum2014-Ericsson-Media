@@ -29,6 +29,8 @@ public class Domain {
          
          // Add any additional (built-in servers) in the com.ericsson.research.warp.spi.enabled package and start
          _warpDomain = domainInit.loadWarpEnabled(true).create();
+         
+         System.out.println(_warpDomain.getTestClientURI());
     }
     
     public static void main(String[] args) throws WarpException, InterruptedException {

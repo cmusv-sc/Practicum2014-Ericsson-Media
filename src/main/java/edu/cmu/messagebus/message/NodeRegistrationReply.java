@@ -4,6 +4,8 @@ public class NodeRegistrationReply {
 	
 	private String _managerWarpURI;
 	
+	public NodeRegistrationReply(){}
+	
 	public NodeRegistrationReply(String managerWarpURI) {
 		_managerWarpURI = managerWarpURI;
 	}
