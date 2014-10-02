@@ -24,7 +24,7 @@ public class MDNManager {
 	//key: WarpURI, value: 
 	private ConcurrentHashMap<String, NodeRegistrationRequest> _nodeTbl = 
 			new ConcurrentHashMap<String, NodeRegistrationRequest>();
-	
+	private WarpURI _webClientURI;
 	private static WarpService _svc;
 	private NamingService _namingService;
 	
@@ -70,9 +70,10 @@ public class MDNManager {
 		}
 	}
 	
-	public void startSimulation(StartSimulationRequest request) {
-		//TODO: Store the WebClient warp uri in the hash map
+	public void startSimulation(Message msg, StartSimulationRequest request) {
+		_webClientURI = msg.getFrom();
 		
+		System.out.println(_webClientURI);
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
 		

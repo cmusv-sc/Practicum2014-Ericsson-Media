@@ -37,7 +37,7 @@
 	}*/
 	function startSimulation(){
 		//Warp.send({to: "warp://demo:rest/webclient/",data: "hello from web client"});
-		start = {sourceNodeName: "source-1", sinkNodeName: "sink-2", dataSize: 10000, 
+		start = {sourceNodeName: "source-1", sinkNodeName: "sink-1", dataSize: 10000, 
 					streamRate: 5, streamID: "1"};
 		Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
 	}
