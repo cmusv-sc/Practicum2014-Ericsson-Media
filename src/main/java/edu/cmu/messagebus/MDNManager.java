@@ -11,13 +11,10 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpService;
 import com.ericsson.research.warp.api.WarpURI;
 import com.ericsson.research.warp.api.configuration.ServicePropertyName;
-import com.ericsson.research.warp.api.listeners.AbstractMessageListener;
 import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.api.resources.Resource;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.message.NodeRegistrationReply;
 import edu.cmu.messagebus.message.NodeRegistrationRequest;
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
 import edu.cmu.messagebus.message.StartSimulationRequest;
@@ -25,20 +22,22 @@ import edu.cmu.messagebus.message.StartSimulationRequest;
 public class MDNManager {
 	
 	//key: WarpURI, value: 
-	private ConcurrentHashMap<String, NodeRegistrationRequest> nodeTbl_ = 
+	private ConcurrentHashMap<String, NodeRegistrationRequest> _nodeTbl = 
 			new ConcurrentHashMap<String, NodeRegistrationRequest>();
 	
-	private static WarpService svc;
-	private long namingFactor;
+	private static WarpService _svc;
+	private NamingService _namingService;
 	
 	public void init() throws WarpException {
         
+		_namingService = new NamingService();
+		
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
         
-		svc = Warp.init().service(MDNManager.class.getName(), "cmu-sv", "mdn-manager")
+		_svc = Warp.init().service(MDNManager.class.getName(), "cmu-sv", "mdn-manager")
         		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
         
-        svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
+        _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
             
             @Override
             public void receiveNotification(String name, Object sender, Object attachment) {
@@ -52,7 +51,7 @@ public class MDNManager {
         /* Add listener for web browser call (start simulation) */
         Warp.addMethodListener("/start_simulation", "POST", this, "startSimulation");
         
-        svc.register();
+        _svc.register();
 		
 	}
 
@@ -62,22 +61,10 @@ public class MDNManager {
 		manager.init();
 	}
 	
-	private synchronized String nameNode(NodeType type) {
-		this.namingFactor++;
-		if (type == NodeType.SOURCE) {
-			return "source-" + this.namingFactor;
-		} else if (type == NodeType.SINK){
-			return "sink-" + this.namingFactor;
-		} else if (type == NodeType.WEB_CLIENT){
-			return "webclient-" + this.namingFactor;
-		}else{
-			return "VOID";
-		}
-	}
 	
 	public void registerNode(Message request, NodeRegistrationRequest registMsg) throws WarpException {
-		String newNodeName = MDNManager.this.nameNode(registMsg.getType());
-		nodeTbl_.put(newNodeName, registMsg);
+		String newNodeName = MDNManager.this._namingService.nameNode(registMsg.getType());
+		_nodeTbl.put(newNodeName, registMsg);
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + request.getFrom().toString());
 		}
@@ -89,13 +76,11 @@ public class MDNManager {
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
 		
-		NodeRegistrationRequest sinkNode = MDNManager.this.nodeTbl_.get(sinkNodeName);
-		NodeRegistrationRequest sourceNode = MDNManager.this.nodeTbl_.get(sourceNodeName);
+		NodeRegistrationRequest sinkNode = MDNManager.this._nodeTbl.get(sinkNodeName);
+		NodeRegistrationRequest sourceNode = MDNManager.this._nodeTbl.get(sourceNodeName);
 		
-		//TODO: Check the sink resource
 		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";
 		
-		//TODO: Check the source resource
 		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
 		
 		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
@@ -111,6 +96,30 @@ public class MDNManager {
 			Warp.send("/", WarpURI.create(sinkResource), "POST", JSON.toJSON(prepRcvDataMsg).getBytes());
 		} catch (WarpException e) {
 			e.printStackTrace();
+		}
+	}
+	
+	
+	private class NamingService {
+		
+		private long _sourceCounter;
+		private long _sinkCounter;
+		
+		public NamingService() {
+			_sourceCounter = 0;
+			_sinkCounter = 0;
+		}
+		
+		public synchronized String nameNode(NodeType type) {
+			if (type == NodeType.SOURCE) {
+				_sourceCounter++;
+				return "source-" + _sourceCounter;
+			} else if (type == NodeType.SINK) {
+				_sinkCounter++;
+				return "sink-" + _sinkCounter;
+			} else {
+				return "";
+			}
 		}
 	}
 }
