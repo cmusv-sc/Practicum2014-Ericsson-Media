@@ -9,18 +9,18 @@ public class SndDataMessage {
 	private String _streamID;
 	
 	
-	public SndDataMessage(String sourceIP, int sourcePort) {
-		_sinkIP = sourceIP;
-		_sinkPort = sourcePort;
+	public SndDataMessage(String sinkIP, int sinkPort) {
+		_sinkIP = sinkIP;
+		_sinkPort = sinkPort;
 		_dataSize = 1024;
 		_dataRate = 1;
 	}
 	
-	public String getSourceIP() {
+	public String getSinkIP() {
 		return _sinkIP;
 	}
 	
-	public int getSourcePort() {
+	public int getSinkPort() {
 		return _sinkPort;
 	}
 	
@@ -36,12 +36,12 @@ public class SndDataMessage {
 		return _streamID;
 	}
 	
-	public void setSourceIP(String sourceIP) {
-		_sinkIP = sourceIP;
+	public void setSinkIP(String sinkIP) {
+		_sinkIP = sinkIP;
 	}
 	
-	public void setSourcePort(int sourcePort) {
-		_sinkPort = sourcePort;
+	public void setSinkPort(int sinkPort) {
+		_sinkPort = sinkPort;
 	}
 	
 	public void setDataSize(int dataSize) {

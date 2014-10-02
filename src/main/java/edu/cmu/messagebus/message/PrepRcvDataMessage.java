@@ -1,8 +1,10 @@
 package edu.cmu.messagebus.message;
 
+
 public class PrepRcvDataMessage {
 	
 	private String _sourceWarpURI;
+	
 	private int _dataSize;
 	private int _streamRate;
 	private String _streamID;

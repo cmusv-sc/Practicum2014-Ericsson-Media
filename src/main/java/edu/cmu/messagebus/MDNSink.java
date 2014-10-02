@@ -1,42 +1,33 @@
 package edu.cmu.messagebus;
 
-import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpContext;
 import com.ericsson.research.warp.api.WarpException;
-import com.ericsson.research.warp.api.listeners.AbstractMessageListener;
-import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.api.resources.Resource;
+import com.ericsson.research.warp.api.WarpURI;
+import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
+import edu.cmu.messagebus.message.SndDataMessage;
 
 public class MDNSink extends MDNNode {
 	
+	public MDNSink() {
+		super(NodeType.SINK);
+	}
+
 	@Override
 	public void config() throws WarpException {
 		super.config();
 		
-		/* Retrieve data from the source */
-		Warp.resourceAt("/retrieve_data").addMethodListener("GET", new AbstractMessageListener() {
-    		@Override
-    		public boolean receiveMessage(Message message, Resource resource) {
-    			System.err.println("UNICAST#" + message.getDataAsUtfString());
-        		return true;
-    		}
-		});
-		
 		Warp.addMethodListener("/sink/prep", "GET", this, "prepRcvData");
+		
 	}
 	
-	public void prepRcvData(PrepRcvDataMessage msg) {
+	public void prepRcvData(PrepRcvDataMessage msg) throws WarpException {
 		
 		//TODO: Substitute 0 to sink node data transfer implementation
 		int sinkPort = 0;
 		String sinkIP = "";
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNSink.prepRcvData(): Open new port to receive data.");
-		}
 		
 //		ThreadPool.executeCached(new Runnable() {
 //
@@ -48,9 +39,16 @@ public class MDNSink extends MDNNode {
 //			
 //		});
 //		
-//		msg.get
-//		Warp.send("/", , method, body);
+		SndDataMessage sndDataMsg = new SndDataMessage(sinkIP, sinkPort);
+		sndDataMsg.setDataSize(msg.getDataSize());
+		sndDataMsg.setDataRate(msg.getDataSize());
+		sndDataMsg.setStreamID(msg.getStreamID());
 		
+		WarpContext.setApplication(_client);
+		Warp.send("/sink/prep", WarpURI.create(msg.getSourceWarpURI()), "POST", JSON.toJSON(sndDataMsg).getBytes());
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG] MDNSink.prepRcvData(): Open new port to receive data.");
+		}
 	}
 	
 //	public void sendReport() {

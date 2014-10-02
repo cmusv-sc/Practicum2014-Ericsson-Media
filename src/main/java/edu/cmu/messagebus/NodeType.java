@@ -1,5 +1,5 @@
 package edu.cmu.messagebus;
 
 public enum NodeType {
-	SOURCE, SINK;
+	SOURCE, SINK, VOID;
 }

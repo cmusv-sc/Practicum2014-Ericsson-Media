@@ -3,20 +3,20 @@ package edu.cmu.messagebus.message;
 import edu.cmu.messagebus.NodeType;
 
 
-public class NodeRegistrationMessage {
+public class NodeRegistrationRequest {
 	
 	private String _warpURI;
 	private String _nodeIP;
 	private int _port;
 	private NodeType _type;
 	
-	public NodeRegistrationMessage() {
+	public NodeRegistrationRequest() {
 		_warpURI = null;
 		_nodeIP = "";
 		_port = 1099;
 	}
 	
-	public NodeRegistrationMessage(String uri, String ip, int port, NodeType type) {
+	public NodeRegistrationRequest(String uri, String ip, int port, NodeType type) {
 		this._warpURI = uri;
 		this._nodeIP = ip;
 		this._port = port;

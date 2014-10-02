@@ -11,19 +11,24 @@ import com.ericsson.research.warp.api.client.AnonymousClient;
 import com.ericsson.research.warp.api.client.Client;
 import com.ericsson.research.warp.api.client.Client.ConnectionPolicy;
 import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
-import com.ericsson.research.warp.api.listeners.AbstractMessageListener;
 import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.api.resources.Resource;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.message.NodeRegistrationMessage;
+import edu.cmu.messagebus.message.NodeRegistrationReply;
+import edu.cmu.messagebus.message.NodeRegistrationRequest;
 
 public abstract class MDNNode {
 	
 	protected AnonymousClient _client;
 	
+	protected NodeType _type;
+	
 	private String _managerWarpURI;
+	
+	public MDNNode(NodeType type) {
+		_type = type; 
+	}
 	
 	public void config() throws WarpException {
 		
@@ -42,11 +47,16 @@ public abstract class MDNNode {
 							Object attachment) {
 						WarpLogger.info("Connection successful. Time to do stuff!");
 						WarpURI nodeURI = Warp.uri();
-						NodeRegistrationMessage registMsg = new NodeRegistrationMessage();
+						NodeRegistrationRequest registMsg = new NodeRegistrationRequest();
+						registMsg.setType(MDNNode.this._type);
 						registMsg.setWarpURI(nodeURI.toString());
 						try {
-							Warp.send("/", WarpURI.create("warp://warp:pubsub/public/discover"),
-									"POST", JSON.toJSON(registMsg).getBytes());
+
+							Message reply = Warp.request(WarpURI.create("warp://cmu-sv:mdn-manager/discover"), "POST", JSON.toJSON(registMsg).getBytes(), null);
+							_managerWarpURI = JSON.fromJSON(new String(reply.getData()), NodeRegistrationReply.class).getManagerWarpURI();
+							if (ClusterConfig.DEBUG) {
+								System.out.println("[DEBUG] MDNNode.config(): Get the manager WarpURI:" + _managerWarpURI);
+							}
 						} catch (WarpException e) {
 							e.printStackTrace();
 						}
