@@ -69,9 +69,9 @@ public class MdnSinkNode extends MdnAbstractNode {
 	public void receiveAndReport(String streamId, MDNSink mdnSink) {
 		
 		boolean started = false;
-		Long startTime = (long) 0;
-		Long totalTime = (long) 0;
-		Integer totalBytes = 0;
+		long startTime = (long) 0;
+		long totalTime = (long) 0;
+		int totalBytes = 0;
 		
 		DatagramSocket socket;
 		if ((socket = streamSocketMap.get(streamId)) == null) {
@@ -100,7 +100,8 @@ public class MdnSinkNode extends MdnAbstractNode {
 					sinkReportMsg.setTotalBytes(totalBytes);
 					sinkReportMsg.setTotalTime(totalTime);
 					//mdnSink.sinkReport(sinkReportMsg);
-					
+					System.out.println("Sink finished receiving data.. StreamId "+sinkReportMsg.getStreamId()+
+							" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+sinkReportMsg.getTotalTime());
 					// cleanup resources
 					socket.close();
 					streamSocketMap.remove(streamId);

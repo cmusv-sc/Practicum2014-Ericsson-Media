@@ -4,7 +4,8 @@ import java.net.UnknownHostException;
 
 public abstract class MdnAbstractNode implements MdnNodeInterface {
 
-	public static final int STD_DATAGRAM_SIZE = 1024;
+	// 1 kilo byte
+	public static final int STD_DATAGRAM_SIZE = 1000;
 	String hostAddr;
 	
 	public MdnAbstractNode() {

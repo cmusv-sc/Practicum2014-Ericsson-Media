@@ -25,7 +25,7 @@ public class Stimulus extends MDNNode {
 		
 		Thread.sleep(1000 * 5);
 		StartSimulationRequest request = new StartSimulationRequest();
-		request.setDataSize(1000);
+		request.setDataSize(2048);
 		request.setStreamID("stream-123");
 		request.setStreamRate(1);
 		request.setSourceNodeName("source-1");
