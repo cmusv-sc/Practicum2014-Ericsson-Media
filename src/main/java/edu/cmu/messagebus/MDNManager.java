@@ -18,7 +18,7 @@ import com.ericsson.research.warp.api.resources.Resource;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.messagebus.message.NodeRegistrationMessage;
-import edu.cmu.messagebus.message.StartRetrieveDataMessage;
+import edu.cmu.messagebus.message.PrepRcvDataMessage;
 import edu.cmu.messagebus.message.StartSimulationRequest;
 
 public class MDNManager {
@@ -79,15 +79,24 @@ public class MDNManager {
 			public boolean receiveMessage(Message message, Resource resource) {
 				
 				StartSimulationRequest request = JSON.fromJSON(message.getDataAsUtfString(), StartSimulationRequest.class);
-				String targetNode = request.getNode();
-				NodeRegistrationMessage node = MDNManager.this.nodeTbl_.get(targetNode);
-				String dst = node.getWarpURI().toString() + "/retrive_data";
 				
-				StartRetrieveDataMessage requestMsg = new StartRetrieveDataMessage();
-				requestMsg.setSourceIP(node.getNodeIP());
-				requestMsg.setSourcePort(node.getPort());
+				String sinkNodeName = request.getSinkNodeName();
+				String sourceNodeName = request.getSourceNodeName();
+				
+				NodeRegistrationMessage sinkNode = MDNManager.this.nodeTbl_.get(sinkNodeName);
+				NodeRegistrationMessage sourceNode = MDNManager.this.nodeTbl_.get(sourceNodeName);
+				
+				//TODO: Check the sink resource
+				String sinkResource = sinkNode.getWarpURI().toString() + "/retrive_data";
+				
+				//TODO: Check the source resource
+				String sourceResource = sourceNode.getWarpURI().toString() + "send_data";
+				
+				PrepRcvDataMessage requestMsg = new PrepRcvDataMessage(sinkNode.getWarpURI());
+
+				
 				try {
-					Warp.send("/", WarpURI.create(dst), "POST", JSON.toJSON(requestMsg).getBytes());
+					Warp.send("/", WarpURI.create(sinkResource), "POST", JSON.toJSON(requestMsg).getBytes());
 				} catch (WarpException e) {
 					e.printStackTrace();
 				}

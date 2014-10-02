@@ -19,10 +19,13 @@ import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.messagebus.message.NodeRegistrationMessage;
 
-public class MDNNode {
+public abstract class MDNNode {
+	
 	private AnonymousClient _client;
-
-	public void init() throws WarpException {
+	
+	private String _managerWarpURI;
+	
+	public void config() throws WarpException {
 		
 		/* Initialize the message bus */
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
@@ -61,22 +64,10 @@ public class MDNNode {
 					}
 				}, true);
 		
-		
-		Warp.resourceAt("/retrieve_data").addMethodListener("GET", new AbstractMessageListener() {
-    		@Override
-    		public boolean receiveMessage(Message message, Resource resource) {
-    			System.err.println("UNICAST#" + message.getDataAsUtfString());
-        		return true;
-    		}
-		});
-		
-		_client.connect();
-		
 	}
 	
-	public static void main(String[] args) throws WarpException {
-		MDNNode node = new MDNNode();
-		node.init();
+	public void init() throws WarpException {
+		_client.connect();
 	}
 	
 }

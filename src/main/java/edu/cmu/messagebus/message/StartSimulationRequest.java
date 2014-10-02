@@ -2,22 +2,33 @@ package edu.cmu.messagebus.message;
 
 public class StartSimulationRequest {
 	
-	private String _nodeName;
+	private String _sourceNodeName;
+	private String _sinkNodeName;
 	
 	public StartSimulationRequest() {
-		_nodeName = "";
+		_sourceNodeName = "";
+		_sinkNodeName = "";
 	}
 	
-	public StartSimulationRequest (String name) {
-		_nodeName = name;
+	public StartSimulationRequest (String sourceNodeName, String sinkNodeName) {
+		_sourceNodeName = sourceNodeName;
+		_sinkNodeName = sinkNodeName;
 	}
 	
-	public String getNode() {
-		return _nodeName;
+	public String getSourceNodeName() {
+		return _sourceNodeName;
 	}
 	
-	public void setNode(String node) {
-		_nodeName = node;
+	public String getSinkNodeName() {
+		return _sinkNodeName;
+	}
+	
+	public void setSourceNodeName(String sourceNodeName) {
+		_sourceNodeName = sourceNodeName;
+	}
+	
+	public void setSinkNodeName(String sinkNodeName) {
+		_sinkNodeName = sinkNodeName;
 	}
 	
 }
