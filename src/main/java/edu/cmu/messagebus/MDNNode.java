@@ -21,7 +21,7 @@ import edu.cmu.messagebus.message.NodeRegistrationMessage;
 
 public abstract class MDNNode {
 	
-	private AnonymousClient _client;
+	protected AnonymousClient _client;
 	
 	private String _managerWarpURI;
 	
