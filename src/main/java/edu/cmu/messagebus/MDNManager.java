@@ -26,7 +26,7 @@ public class MDNManager {
 	//key: WarpURI, value: 
 	private ConcurrentHashMap<String, NodeRegistrationRequest> _nodeTbl = 
 			new ConcurrentHashMap<String, NodeRegistrationRequest>();
-	
+	private WarpURI _webClientURI;
 	private static WarpService _svc;
 	private NamingService _namingService;
 	
@@ -70,7 +70,6 @@ public class MDNManager {
 	}
 	
 	
-	
 	public void registerNode(Message request, NodeRegistrationRequest registMsg) throws WarpException {
 		String newNodeName = MDNManager.this._namingService.nameNode(registMsg.getType());
 		_nodeTbl.put(newNodeName, registMsg);
@@ -79,7 +78,10 @@ public class MDNManager {
 		}
 	}
 	
-	public void startSimulation(StartSimulationRequest request) {
+	public void startSimulation(Message msg, StartSimulationRequest request) {
+		_webClientURI = msg.getFrom();
+		
+		System.out.println(_webClientURI);
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
 		
