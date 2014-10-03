@@ -5,9 +5,12 @@ import java.net.UnknownHostException;
 
 import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpException;
+import com.ericsson.research.warp.api.WarpURI;
+import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.messagebus.message.SndDataMessage;
+import edu.cmu.messagebus.message.SourceReportMessage;
 import edu.cmu.nodes.MdnSourceNode;
 
 public class MDNSource extends MDNNode {
@@ -52,6 +55,14 @@ public class MDNSource extends MDNNode {
 				// TODO Auto-generated catch block
 				uhe.printStackTrace();
 			}
+	}
+	
+	public void sourceReport(SourceReportMessage srcRepMsg) {
+		try {
+			Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/source_report"),"POST", JSON.toJSON(srcRepMsg).getBytes());
+		} catch (WarpException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static void main(String[] args) {

@@ -8,6 +8,7 @@ import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
+import edu.cmu.messagebus.message.SinkReportMessage;
 import edu.cmu.messagebus.message.SndDataMessage;
 import edu.cmu.nodes.MdnSinkNode;
 
@@ -61,9 +62,13 @@ public class MDNSink extends MDNNode {
 		}
 	}
 	
-//	public void sendReport() {
-//		Warp.send(fromPath, to, method, body);
-//	}
+	public void sinkReport(SinkReportMessage sinkRepMsg) {
+		try {
+			Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/sink_report"),"POST", JSON.toJSON(sinkRepMsg).getBytes());
+		} catch (WarpException e) {
+			e.printStackTrace();
+		}
+	}
 	
 	public static void main(String[] args) throws WarpException {
 		MDNSink sink = new MDNSink();

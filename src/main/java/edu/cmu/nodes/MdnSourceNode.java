@@ -99,7 +99,7 @@ public class MdnSourceNode extends MdnAbstractNode {
 		SourceReportMessage srcReportMsg = new SourceReportMessage();
 		srcReportMsg.setStreamId(streamId);
 		srcReportMsg.setTotalBytes_transferred(totalBytesTransferred);
-		//mdnSource.sourceReport(srcReportMsg);
+		mdnSource.sourceReport(srcReportMsg);
 		System.out.println("Source finished sending data. StreamId "+srcReportMsg.getStreamId()+
 				" bytes transferred "+srcReportMsg.getTotalBytes_transferred());
 		
