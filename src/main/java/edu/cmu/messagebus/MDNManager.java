@@ -17,6 +17,8 @@ import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.messagebus.message.NodeRegistrationRequest;
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
+import edu.cmu.messagebus.message.SinkReportMessage;
+import edu.cmu.messagebus.message.SourceReportMessage;
 import edu.cmu.messagebus.message.StartSimulationRequest;
 
 public class MDNManager {
@@ -51,6 +53,12 @@ public class MDNManager {
         /* Add listener for web browser call (start simulation) */
         Warp.addMethodListener("/start_simulation", "POST", this, "startSimulation");
         
+        /* Source report listener */
+        Warp.addMethodListener("/source_report", "POST", this, "sourceReport");
+        
+        /* Sink report listener */
+        Warp.addMethodListener("/sink_report", "POST", this, "sinkReport");
+
         _svc.register();
 		
 	}
@@ -96,6 +104,16 @@ public class MDNManager {
 		} catch (WarpException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
+		System.out.println("Source finished sending data. StreamId "+srcMsg.getStreamId()+
+				" bytes transferred "+srcMsg.getTotalBytes_transferred());
+	}
+	
+	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
+		System.out.println("Sink finished receiving data.. StreamId "+sinkMsg.getStreamId()+
+				" Total bytes "+sinkMsg.getTotalBytes()+ " Total Time "+sinkMsg.getTotalTime());
 	}
 	
 	private class NamingService {

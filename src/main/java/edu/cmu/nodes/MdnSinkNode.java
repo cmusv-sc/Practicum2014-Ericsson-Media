@@ -99,7 +99,7 @@ public class MdnSinkNode extends MdnAbstractNode {
 					sinkReportMsg.setStreamId(streamId);
 					sinkReportMsg.setTotalBytes(totalBytes);
 					sinkReportMsg.setTotalTime(totalTime);
-					//mdnSink.sinkReport(sinkReportMsg);
+					mdnSink.sinkReport(sinkReportMsg);
 					System.out.println("Sink finished receiving data.. StreamId "+sinkReportMsg.getStreamId()+
 							" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+sinkReportMsg.getTotalTime());
 					// cleanup resources
