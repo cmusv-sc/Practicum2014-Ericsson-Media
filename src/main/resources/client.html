@@ -21,6 +21,8 @@ warp.js
 }
 </style>
 <script src="js/displayGraph.js"></script>
+
+
 </head>
 <body>
 	<div>Media Delivery Network Simulator</div>
@@ -31,21 +33,8 @@ warp.js
 			<div id="graph-container"></div>
 		</div>
 	</div>
-	
-	<script type="text/javascript">
-	/* Connection code - not required as it creates a temp user automatically
-	Warp.connect({
-		guid: "warp://warp:anon/test",
-		secret: "test"
-	},
-	{
-		connect: function() {
-			alert("Warp is connected!");
-		},
-		disconnect: function() {
-			alert("We have been disconnected");
-		}
-	});*/
+
+<script type="text/javascript">	
 	Warp.on("connect", function() {
 		console.log("Now registered at " + Warp.uri);
 		//init();
@@ -55,25 +44,26 @@ warp.js
 		init = {warpURI: Warp.uri, nodeIP: "", port: "", type: "WEB_CLIENT"};
 		Warp.send({to: "warp://cmu-sv:mdn-manager/discover",data: init});
 	}*/
-	function startSimulation(){
-		//Warp.send({to: "warp://demo:rest/webclient/",data: "hello from web client"});
+	function startSimulation(){		
 		start = {sourceNodeName: "source-1", sinkNodeName: "sink-1", dataSize: 10000, 
 					streamRate: 5, streamID: "1"};
 		Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
 	}
 	
-	Warp.on({
-		/* message: function(m) {
-			alert("Received message with text: " + m.text);
-		},
+	Warp.on({		
 		post: function(m) {
-			alert("POST data: " + m.text);
-		} */
+			console.log("POST data: " + m.text); //m.object for JSON
+		},
 		message: function(m) {
-			console.log("Got JSON: ", m.object);
-		}
+			console.log("Got uncaught message: " + m.text); //m.text for string			
+		}		
 	});
 
+	Warp.at("/update").on("message", function(m) {
+		console.log("Got message: " + m.object);
+		console.log(m.object.nodes);
+		console.log(m.object.edges);
+	});
 </script>
 </body>
 </html>

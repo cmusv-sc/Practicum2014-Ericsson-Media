@@ -2,7 +2,6 @@
 <script src="js/sigma.parsers.json.min.js"></script>
 <script src="js/sigma.layout.forceAtlas2.min.js"></script>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
-<script>
 sigma.utils.pkg('sigma.canvas.edges');
 sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	var color = edge.color,
@@ -136,4 +135,3 @@ function refreshGraph(updated_data){
 //	}); 
 //});
 
-</script>

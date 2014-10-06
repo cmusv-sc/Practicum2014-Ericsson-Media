@@ -20,6 +20,9 @@ import edu.cmu.messagebus.message.PrepRcvDataMessage;
 import edu.cmu.messagebus.message.SinkReportMessage;
 import edu.cmu.messagebus.message.SourceReportMessage;
 import edu.cmu.messagebus.message.StartSimulationRequest;
+import edu.cmu.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.messagebus.message.WebClientUpdateMessage.Edge;
+import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
 
 public class MDNManager {
 	
@@ -78,12 +81,28 @@ public class MDNManager {
 		}
 	}
 	
-	public void startSimulation(Message msg, StartSimulationRequest request) {
+	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
 		_webClientURI = msg.getFrom();
+		
 		
 		System.out.println(_webClientURI);
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
+		
+		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
+		Node[] nodes = {
+				webClientUpdateMessage.new Node("N1", sourceNodeName, 0.1, 0.1, "rgb(0,204,0)", 6, "This is source node"),
+				webClientUpdateMessage.new Node("N2", sinkNodeName, 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
+		};
+		Edge[] edges = {
+				webClientUpdateMessage.new Edge("E1","N1", "N2", "t")
+		};
+		
+		webClientUpdateMessage.setEdges(edges);
+		webClientUpdateMessage.setNodes(nodes);
+		
+		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
+				JSON.toJSON(webClientUpdateMessage).getBytes() );
 		
 		NodeRegistrationRequest sinkNode = MDNManager.this._nodeTbl.get(sinkNodeName);
 		NodeRegistrationRequest sourceNode = MDNManager.this._nodeTbl.get(sourceNodeName);
@@ -111,6 +130,8 @@ public class MDNManager {
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
 		System.out.println("Source finished sending data. StreamId "+srcMsg.getStreamId()+
 				" bytes transferred "+srcMsg.getTotalBytes_transferred());
+		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
+		
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
