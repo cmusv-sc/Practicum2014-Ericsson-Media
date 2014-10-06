@@ -4,7 +4,8 @@ public class SourceReportMessage {
 
 	String _streamId;
 	int _totalBytes_transferred;
-	
+	String _startTime;
+
 	public SourceReportMessage() {
 		super();
 		_streamId = "defaultStreamId";
@@ -25,4 +26,10 @@ public class SourceReportMessage {
 		this._totalBytes_transferred = _totalBytes_transferred;
 	}
 	
+	public String getStartTime() {
+		return _startTime;
+	}
+	public void setStartTime(String _startTime) {
+		this._startTime = _startTime;
+	}
 }

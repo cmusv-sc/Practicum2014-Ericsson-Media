@@ -1,5 +1,10 @@
 package edu.cmu.messagebus;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -32,10 +37,12 @@ public class MDNManager {
 	private WarpURI _webClientURI;
 	private static WarpService _svc;
 	private NamingService _namingService;
+	private HashMap<String, String> _startTimeMap;
 	
 	public void init() throws WarpException {
         
 		_namingService = new NamingService();
+		_startTimeMap = new HashMap<String, String>();
 		
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
         
@@ -143,6 +150,8 @@ public class MDNManager {
 				" bytes transferred "+srcMsg.getTotalBytes_transferred());
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() + " . Transferred " + srcMsg.getTotalBytes_transferred() + " bytes." ;
+		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
+		
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 		Node[] nodes = {
 				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,255,0)", 6,  sourceNodeMsg),
@@ -158,10 +167,23 @@ public class MDNManager {
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
-		System.out.println("Sink finished receiving data. StreamId "+sinkMsg.getStreamId()+
-				" Total bytes "+sinkMsg.getTotalBytes()+ " Total Time "+sinkMsg.getTotalTime());
+		long totalTime = 0;
+		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
+		try {
+			totalTime = df.parse(sinkMsg.getEndTime()).getTime() - 
+					df.parse(getStartTimeForStream(sinkMsg.getStreamId())).getTime();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			totalTime = -1;
+		}
 		
-		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + sinkMsg.getTotalBytes() + " bytes. Time Taken: " + sinkMsg.getTotalTime() + " ms." ;
+		System.out.println("Sink finished receiving data. StreamId "+sinkMsg.getStreamId()+
+				" Total bytes "+sinkMsg.getTotalBytes()+ " End Time "+sinkMsg.getEndTime());
+		
+		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
+				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
+		
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 		Node[] nodes = {
 				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
@@ -174,6 +196,13 @@ public class MDNManager {
 		webClientUpdateMessage.setEdges(edges);
 		webClientUpdateMessage.setNodes(nodes);
 		updateWebClient(webClientUpdateMessage);
+	}
+	
+	public void putStartTime(String streamId, String startTime) {
+		this._startTimeMap.put(streamId, startTime);
+	}
+	public String getStartTimeForStream(String streamId) {
+		return this._startTimeMap.get(streamId);
 	}
 	
 	private class NamingService {

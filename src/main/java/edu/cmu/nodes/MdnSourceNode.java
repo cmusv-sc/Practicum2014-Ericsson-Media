@@ -55,6 +55,13 @@ public class MdnSourceNode extends MdnAbstractNode {
 		if (sourceSocket == null) 
 			return;
 		
+		System.out.println("Source will start sending data. "
+				+ "Record satrt time and report to master");
+		SourceReportMessage srcReportMsg = new SourceReportMessage();
+		srcReportMsg.setStreamId(streamId);
+		srcReportMsg.setTotalBytes_transferred(bytesToTransfer);
+		srcReportMsg.setStartTime(this.currentTime());
+		mdnSource.sourceReport(srcReportMsg);
 		
 		while (bytesToTransfer > 0) {
 			long begin = System.currentTimeMillis();
@@ -94,14 +101,6 @@ public class MdnSourceNode extends MdnAbstractNode {
 		
 		// cleanup resources
 		sourceSocket.close();
-		
-		// TODO report the statistics to the master node
-		SourceReportMessage srcReportMsg = new SourceReportMessage();
-		srcReportMsg.setStreamId(streamId);
-		srcReportMsg.setTotalBytes_transferred(totalBytesTransferred);
-		mdnSource.sourceReport(srcReportMsg);
-		System.out.println("Source finished sending data. StreamId "+srcReportMsg.getStreamId()+
-				" bytes transferred "+srcReportMsg.getTotalBytes_transferred());
-		
+
 	} // sendAndReport
 }
