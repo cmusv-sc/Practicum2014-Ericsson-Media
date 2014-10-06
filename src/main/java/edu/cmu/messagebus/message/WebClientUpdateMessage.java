@@ -7,7 +7,7 @@ package edu.cmu.messagebus.message;
  * Represents sets of nodes and edges as required by the web client.
  */
 public class WebClientUpdateMessage {
-
+	
 	public class Node{
 		public String id;
 		public String label;
@@ -25,8 +25,7 @@ public class WebClientUpdateMessage {
 			this.color = color;
 			this.size = size;
 			this.tag = tag;
-		}
-		
+		}		
 	}
 	
 	public class Edge{
@@ -59,6 +58,5 @@ public class WebClientUpdateMessage {
 	public void setEdges(Edge[] edges) {
 		this.edges = edges;
 	}
-	
 	
 }

@@ -15,12 +15,17 @@ public class Domain {
     
     private static WarpDomain _warpDomain;
     
+    private static WebClient _webClient;
+    
     public Domain() {
     	super();
     }
     
     static WarpDomain getWarpDomain(){
     	return _warpDomain;
+    }
+    static WebClient getWebClient(){
+    	return _webClient;
     }
     public void init() throws WarpException, IOException, TrapException{
     	 JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
@@ -38,8 +43,8 @@ public class Domain {
          System.out.println(_warpDomain.getTestClientURI());
          
          //Load the WebClient
-         WebClient webClient = new WebClient();
-         webClient.load(_warpDomain);
+         _webClient = new WebClient();
+         _webClient.load(_warpDomain);
     }
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
