@@ -3,12 +3,11 @@ package edu.cmu.messagebus.message;
 public class SinkReportMessage {
 	
 	String _streamId;
-	long _totalTime;
 	int _totalBytes;
-	
+	String _endTime;
+
 	public SinkReportMessage() {
 		_streamId = "defaultStreamID";
-		_totalTime = 0;
 		_totalBytes = 0;
 	}
 	
@@ -19,18 +18,18 @@ public class SinkReportMessage {
 		this._streamId = _streamId;
 	}
 	
-	public long getTotalTime() {
-		return _totalTime;
-	}
-	public void setTotalTime(long _totalTime) {
-		this._totalTime = _totalTime;
-	}
-	
 	public int getTotalBytes() {
 		return _totalBytes;
 	}
 	public void setTotalBytes(int _totalBytes) {
 		this._totalBytes = _totalBytes;
+	}
+	
+	public String getEndTime() {
+		return _endTime;
+	}
+	public void setEndTime(String _endTime) {
+		this._endTime = _endTime;
 	}
 	
 }
