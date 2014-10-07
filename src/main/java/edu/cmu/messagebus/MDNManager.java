@@ -21,15 +21,51 @@ import edu.cmu.messagebus.message.SinkReportMessage;
 import edu.cmu.messagebus.message.SourceReportMessage;
 import edu.cmu.messagebus.message.StartSimulationRequest;
 
+/**
+ * MDNManager works as the master in the distributed systems. The MDNManager
+ * provides several functionalities:
+ * [1]Registration: MDNNode needs to register in MDNManager in order to join
+ * the cluster. 
+ * [2]Naming service: Providing human-friendly naming service to each MDNNode.
+ * [3]Control Simulation: It accepts the simulation request from web interface
+ * and coordinate cluster starts to transfer data.
+ *  
+ * @author JeremyFu
+ *
+ */
 public class MDNManager {
 	
-	//key: WarpURI, value: 
+	/**
+	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
+	 * MDNNode
+	 */
 	private ConcurrentHashMap<String, NodeRegistrationRequest> _nodeTbl = 
 			new ConcurrentHashMap<String, NodeRegistrationRequest>();
+	
+	/**
+	 * _webClientURI records the WarpURI of the web client
+	 */
 	private WarpURI _webClientURI;
+	
+	/**
+	 * _svc is the instance of WarpService
+	 */
 	private static WarpService _svc;
+	
+	/**
+	 * _namingService provides naming service
+	 */
 	private NamingService _namingService;
 	
+	/**
+	 * Initialization of MDNManger. Specifically, it registers itself with 
+	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
+	 * for service("warp://provider_name:service_name"); It also registers some
+	 * method listener to handle requests from Web interface and MDNNode in the
+	 * control message layer
+	 * 
+	 * @throws WarpException
+	 */
 	public void init() throws WarpException {
         
 		_namingService = new NamingService();
@@ -63,14 +99,17 @@ public class MDNManager {
 		
 	}
 
+
 	
-	public static void main(String[] args) throws WarpException {
-		MDNManager manager = new MDNManager();
-		manager.init();
-	}
-	
-	
-	public void registerNode(Message request, NodeRegistrationRequest registMsg) throws WarpException {
+	/**
+	 * The method listener for initialization of MDNNode. During the bootstrap 
+	 * of MDNNodes, they connect to MDNManager to register itself in the cluster
+	 * 
+	 * @param request The request message received by message bus
+	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
+	 * request
+	 */
+	public void registerNode(Message request, NodeRegistrationRequest registMsg) {
 		String newNodeName = MDNManager.this._namingService.nameNode(registMsg.getType());
 		_nodeTbl.put(newNodeName, registMsg);
 		if (ClusterConfig.DEBUG) {
@@ -118,17 +157,54 @@ public class MDNManager {
 				" Total bytes "+sinkMsg.getTotalBytes()+ " Total Time "+sinkMsg.getTotalTime());
 	}
 	
+	/**
+	 * The driver to start a MDNManger
+	 * 
+	 * @param args
+	 * @throws WarpException
+	 */
+	public static void main(String[] args) throws WarpException {
+		MDNManager manager = new MDNManager();
+		manager.init();
+	}
+	
 	private class NamingService {
 		
+		/**
+		 * The counter to track the accumulative Source Node registering on
+		 * the MDNManager
+		 */
 		private long _sourceCounter;
+		
+		/**
+		 * The counter to track the accumulative Sink Node registering on 
+		 * The MDNManager
+		 */
 		private long _sinkCounter;
 		
+		/**
+		 * The default constructor 
+		 */
 		public NamingService() {
 			_sourceCounter = 0;
 			_sinkCounter = 0;
 		}
 		
+		/**
+		 * This method provides the naming service. The node is named by its
+		 * NodeType.
+		 * 
+		 * 
+		 * @param type
+		 * @return
+		 */
 		public synchronized String nameNode(NodeType type) {
+			/*
+			 * TODO: Based client's requirement, each MDNNode should be regarded
+			 * as with full functionality. Therefore, the naming service should
+			 * be NodeType independent.
+			 * 
+			 */
 			if (type == NodeType.SOURCE) {
 				_sourceCounter++;
 				return "source-" + _sourceCounter;
