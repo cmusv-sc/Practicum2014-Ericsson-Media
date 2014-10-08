@@ -8,7 +8,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-import edu.cmu.messagebus.MDNSource;
+import edu.cmu.messagebus.MdnMsgBusWarpSource;
 import edu.cmu.messagebus.message.SourceReportMessage;
 
 public class MdnSourceNode extends MdnAbstractNode {
@@ -27,7 +27,7 @@ public class MdnSourceNode extends MdnAbstractNode {
 	 */
 	public void sendAndReport(String streamId, InetAddress destAddr, 
 			int destPort, int bytesToTransfer, int rate, 
-			MDNSource mdnSource) {
+			MdnMsgBusWarpSource mdnSource) {
 		
 		final long MILLIS_IN_SECOND = 1000;
 		long millisRemaining = MILLIS_IN_SECOND;

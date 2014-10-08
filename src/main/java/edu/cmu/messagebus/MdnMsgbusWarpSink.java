@@ -12,11 +12,11 @@ import edu.cmu.messagebus.message.SinkReportMessage;
 import edu.cmu.messagebus.message.SndDataMessage;
 import edu.cmu.nodes.MdnSinkNode;
 
-public class MDNSink extends MDNNode {
+public class MdnMsgbusWarpSink extends MdnMsgbusWarpNode {
 	
 	MdnSinkNode sinkNode;
 	
-	public MDNSink() {
+	public MdnMsgbusWarpSink() {
 		super(NodeType.SINK);
 		sinkNode = new MdnSinkNode();
 	}
@@ -40,7 +40,7 @@ public class MDNSink extends MDNNode {
 
 			@Override
 			public void run() {
-				MDNSink.this.sinkNode.receiveAndReport(streamId, MDNSink.this);
+				MdnMsgbusWarpSink.this.sinkNode.receiveAndReport(streamId, MdnMsgbusWarpSink.this);
 			}
 			
 		});
@@ -71,7 +71,7 @@ public class MDNSink extends MDNNode {
 	}
 	
 	public static void main(String[] args) throws WarpException {
-		MDNSink sink = new MDNSink();
+		MdnMsgbusWarpSink sink = new MdnMsgbusWarpSink();
 		sink.config();
 		sink.init();
 	}

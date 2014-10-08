@@ -8,7 +8,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 
-import edu.cmu.messagebus.MDNSink;
+import edu.cmu.messagebus.MdnMsgbusWarpSink;
 import edu.cmu.messagebus.message.SinkReportMessage;
 
 public class MdnSinkNode extends MdnAbstractNode {
@@ -66,7 +66,7 @@ public class MdnSinkNode extends MdnAbstractNode {
 	 * @param streamId
 	 * @param mdnSink
 	 */
-	public void receiveAndReport(String streamId, MDNSink mdnSink) {
+	public void receiveAndReport(String streamId, MdnMsgbusWarpSink mdnSink) {
 		
 		boolean started = false;
 		long startTime = (long) 0;

@@ -13,11 +13,11 @@ import edu.cmu.messagebus.message.SndDataMessage;
 import edu.cmu.messagebus.message.SourceReportMessage;
 import edu.cmu.nodes.MdnSourceNode;
 
-public class MDNSource extends MDNNode {
+public class MdnMsgBusWarpSource extends MdnMsgbusWarpNode {
 	
 	MdnSourceNode sourceNode;
 	
-	public MDNSource() {
+	public MdnMsgBusWarpSource() {
 		super(NodeType.SOURCE);
 		sourceNode = new MdnSourceNode();
 	}
@@ -45,8 +45,8 @@ public class MDNSource extends MDNNode {
 			WarpThreadPool.executeCached(new Runnable() {
 				@Override
 				public void run() {
-					MDNSource.this.sourceNode.sendAndReport(
-							streamId, destAddr, destPort, bytesToTransfer, rate, MDNSource.this
+					MdnMsgBusWarpSource.this.sourceNode.sendAndReport(
+							streamId, destAddr, destPort, bytesToTransfer, rate, MdnMsgBusWarpSource.this
 							);
 				}
 			});
@@ -66,7 +66,7 @@ public class MDNSource extends MDNNode {
 	}
 	
 	public static void main(String[] args) {
-		MDNSource source = new MDNSource();
+		MdnMsgBusWarpSource source = new MdnMsgBusWarpSource();
 		try {
 			source.config();
 			source.init();

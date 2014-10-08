@@ -5,11 +5,11 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpURI;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.MDNNode;
+import edu.cmu.messagebus.MdnMsgbusWarpNode;
 import edu.cmu.messagebus.NodeType;
 import edu.cmu.messagebus.message.StartSimulationRequest;
 
-public class CopyOfStimulus extends MDNNode {
+public class CopyOfStimulus extends MdnMsgbusWarpNode {
 	
 	
 	public CopyOfStimulus() {

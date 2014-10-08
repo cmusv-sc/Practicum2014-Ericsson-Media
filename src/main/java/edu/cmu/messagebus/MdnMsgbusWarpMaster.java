@@ -1,5 +1,6 @@
 package edu.cmu.messagebus;
 
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -8,13 +9,17 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
+import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
 import com.ericsson.research.warp.api.Notifications;
-import com.ericsson.research.warp.api.Notifications.Listener;
 import com.ericsson.research.warp.api.Warp;
+import com.ericsson.research.warp.api.WarpDomain;
 import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpService;
 import com.ericsson.research.warp.api.WarpURI;
+import com.ericsson.research.warp.api.Notifications.Listener;
+import com.ericsson.research.warp.api.WarpInit.DomainInit;
+import com.ericsson.research.warp.api.WarpInit.DomainInit.BuiltinService;
 import com.ericsson.research.warp.api.configuration.ServicePropertyName;
 import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
@@ -29,21 +34,16 @@ import edu.cmu.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
 
-/**
- * MDNManager works as the master in the distributed systems. The MDNManager
- * provides several functionalities:
- * [1]Registration: MDNNode needs to register in MDNManager in order to join
- * the cluster. 
- * [2]Naming service: Providing human-friendly naming service to each MDNNode.
- * [3]Control Simulation: It accepts the simulation request from web interface
- * and coordinate cluster starts to transfer data.
- *  
- * @author JeremyFu
- *
- */
-public class MDNManager {
-	
-	/**
+public class MdnMsgbusWarpMaster {
+    
+    private static WarpDomain _warpDomain;
+    
+    /**
+     * A TrapHostable that hosts the Web Interface for the Mdn Simulator
+     */
+    private static WebClient _webClient;
+    
+    /**
 	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
 	 * MDNNode
 	 */
@@ -65,52 +65,78 @@ public class MDNManager {
 	 */
 	private NamingService _namingService;
 	private HashMap<String, String> _startTimeMap;
-	
-	/**
-	 * Initialization of MDNManger. Specifically, it registers itself with 
+    
+    public MdnMsgbusWarpMaster() {
+    	super();
+    }
+    
+    static WarpDomain getWarpDomain(){
+    	return _warpDomain;
+    }
+    static WebClient getWebClient(){
+    	return _webClient;
+    }
+    
+    /**
+     * Initialize the Warp Domain and bind it to localhost
+     * 
+	 * Initialization of MdnMaster. Specifically, it registers itself with 
 	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
 	 * for service("warp://provider_name:service_name"); It also registers some
 	 * method listener to handle requests from Web interface and MDNNode in the
 	 * control message layer
 	 * 
-	 * @throws WarpException
+	 * @throws WarpException. IOException and TrapException
 	 */
-	public void init() throws WarpException {
-        
-		_namingService = new NamingService();
-		_startTimeMap = new HashMap<String, String>();
-		
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
-        
-		_svc = Warp.init().service(MDNManager.class.getName(), "cmu-sv", "mdn-manager")
-        		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
-        
-        _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
-            
-            @Override
-            public void receiveNotification(String name, Object sender, Object attachment) {
-                WarpLogger.info("Now registered...");
-            }
-        }, true);
-        
-        /* Register the discover channel to collect new nodes */
-        Warp.addMethodListener("/discover", "POST", this, "registerNode");
-        
-        /* Add listener for web browser call (start simulation) */
-        Warp.addMethodListener("/start_simulation", "POST", this, "startSimulation");
-        
-        /* Source report listener */
-        Warp.addMethodListener("/source_report", "POST", this, "sourceReport");
-        
-        /* Sink report listener */
-        Warp.addMethodListener("/sink_report", "POST", this, "sinkReport");
+    public void init() throws WarpException, IOException, TrapException{
+    	 JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
+         DomainInit domainInit = Warp.init().domain();
+         
+         // Configure the gateway (client connections) to go to http://127.0.0.1:8888 as initial connection
+         domainInit.getClientNetworkCfg().setBindHost("127.0.0.1").setBindPort("http", 8888).setBindPort("websocket", 8889).finish();
+         
+         // Configure the lookup service (service registry) to bind to http://127.0.0.1:9999 as initial connection
+         domainInit.getServiceNetworkCfg(BuiltinService.LOOKUP_SERVICE).setBindHost("127.0.0.1").setBindPort("websocket", 9999).finish();
+         
+         // Add any additional (built-in servers) in the com.ericsson.research.warp.spi.enabled package and start
+         _warpDomain = domainInit.loadWarpEnabled(true).create();
+         
+         System.out.println(_warpDomain.getTestClientURI());
+         
+         //Load the WebClient
+         _webClient = new WebClient();
+         _webClient.load(_warpDomain);
+         
+         _namingService = new NamingService();
+ 		_startTimeMap = new HashMap<String, String>();
+ 		
+ 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
+         
+ 		_svc = Warp.init().service(MdnMsgbusWarpMaster.class.getName(), "cmu-sv", "mdn-manager")
+         		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
+         
+         _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
+             
+             @Override
+             public void receiveNotification(String name, Object sender, Object attachment) {
+                 WarpLogger.info("Now registered...");
+             }
+         }, true);
+         
+         /* Register the discover channel to collect new nodes */
+         Warp.addMethodListener("/discover", "POST", this, "registerNode");
+         
+         /* Add listener for web browser call (start simulation) */
+         Warp.addMethodListener("/start_simulation", "POST", this, "startSimulation");
+         
+         /* Source report listener */
+         Warp.addMethodListener("/source_report", "POST", this, "sourceReport");
+         
+         /* Sink report listener */
+         Warp.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
-        _svc.register();
-        
-        
-	}
-
-
+         _svc.register();
+    }
 	
 	/**
 	 * The method listener for initialization of MDNNode. During the bootstrap 
@@ -121,7 +147,7 @@ public class MDNManager {
 	 * request
 	 */
 	public void registerNode(Message request, NodeRegistrationRequest registMsg) {
-		String newNodeName = MDNManager.this._namingService.nameNode(registMsg.getType());
+		String newNodeName = this._namingService.nameNode(registMsg.getType());
 		_nodeTbl.put(newNodeName, registMsg);
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + request.getFrom().toString());
@@ -155,8 +181,8 @@ public class MDNManager {
 		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/create"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 		
-		NodeRegistrationRequest sinkNode = MDNManager.this._nodeTbl.get(sinkNodeName);
-		NodeRegistrationRequest sourceNode = MDNManager.this._nodeTbl.get(sourceNodeName);
+		NodeRegistrationRequest sinkNode = this._nodeTbl.get(sinkNodeName);
+		NodeRegistrationRequest sourceNode = this._nodeTbl.get(sourceNodeName);
 		
 		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";		
 		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
@@ -243,19 +269,13 @@ public class MDNManager {
 	public String getStartTimeForStream(String streamId) {
 		return this._startTimeMap.get(streamId);
 	}
-	
-	/**
-	 * The driver to start a MDNManger
-	 * 
-	 * @param args
-	 * @throws WarpException
-	 */
-	public static void main(String[] args) throws WarpException {
-		MDNManager manager = new MDNManager();
-		manager.init();
-	}
-	
-	private class NamingService {
+    
+    public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
+    	MdnMsgbusWarpMaster mdnDomain = new MdnMsgbusWarpMaster();
+    	mdnDomain.init();
+    }
+    
+private class NamingService {
 		
 		/**
 		 * The counter to track the accumulative Source Node registering on

@@ -20,13 +20,13 @@ import com.ericsson.research.warp.util.JSON;
 import edu.cmu.messagebus.message.NodeRegistrationReply;
 import edu.cmu.messagebus.message.NodeRegistrationRequest;
 
-public abstract class MDNNode {
+public abstract class MdnMsgbusWarpNode {
 
 	protected AnonymousClient _client;
 
 	protected NodeType _type;
 
-	public MDNNode(NodeType type) {
+	public MdnMsgbusWarpNode(NodeType type) {
 		_type = type;
 	}
 
@@ -57,7 +57,7 @@ public abstract class MDNNode {
 								.info("Connection successful. Time to do stuff!");
 						WarpURI nodeURI = Warp.uri();
 						NodeRegistrationRequest registMsg = new NodeRegistrationRequest();
-						registMsg.setType(MDNNode.this._type);
+						registMsg.setType(MdnMsgbusWarpNode.this._type);
 						registMsg.setWarpURI(nodeURI.toString());
 						
 						try {
