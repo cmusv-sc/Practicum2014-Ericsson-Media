@@ -11,13 +11,13 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpInit.DomainInit;
 import com.ericsson.research.warp.api.WarpInit.DomainInit.BuiltinService;
 
-public class Domain {
+public class MDNDomain {
     
     private static WarpDomain _warpDomain;
     
     private static WebClient _webClient;
     
-    public Domain() {
+    public MDNDomain() {
     	super();
     }
     
@@ -48,7 +48,7 @@ public class Domain {
     }
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
-    	Domain mdnDomain = new Domain();
+    	MDNDomain mdnDomain = new MDNDomain();
     	mdnDomain.init();
     }
     
