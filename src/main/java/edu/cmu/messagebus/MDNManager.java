@@ -117,19 +117,25 @@ public class MDNManager {
 	 * of MDNNodes, they connect to MDNManager to register itself in the cluster
 	 * 
 	 * @param request The request message received by message bus
-	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
+	 * @param registrationMessage The NodeRegistrationRequest which is encapsulated in 
 	 * request
 	 */
-	public void registerNode(Message request, NodeRegistrationRequest registMsg) {
-		String newNodeName = MDNManager.this._namingService.nameNode(registMsg.getType());
-		_nodeTbl.put(newNodeName, registMsg);
+	public void registerNode(Message request, 
+			NodeRegistrationRequest registrationMessage) {
+		
+		//Request naming service
+		String newNodeName = MDNManager.this._namingService.nameNode(registrationMessage.getType());
+		
+		//Store the new node
+		_nodeTbl.put(newNodeName, registrationMessage);
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + request.getFrom().toString());
 		}
 		
+		//TODO: What is the purpose of the following code?
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 		WebClientUpdateMessage.Node newNode = webClientUpdateMessage.new Node(newNodeName, newNodeName, 
-				Math.random(), Math.random(), "rgb(0,204,0)", 6, registMsg.getType().toString());
+				Math.random(), Math.random(), "rgb(0,204,0)", 6, registrationMessage.getType().toString());
 		//Domain.getWebClient().addNode(newNode);
 	}
 	
@@ -140,16 +146,20 @@ public class MDNManager {
 		System.out.println(_webClientURI);
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
+		
 		//TODO: Update WebClient with initial nodes and edges configuration as per input script
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 		//Node[] nodes = (Node[]) Domain.getWebClient().getNodes().toArray();
+		
 		Node[] nodes = {
 				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
 				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
 		};
+		
 		Edge[] edges = {
 				webClientUpdateMessage.new Edge("E1",nodes[0].id, nodes[1].id, "")
-		};		
+		};
+		
 		webClientUpdateMessage.setEdges(edges);
 		webClientUpdateMessage.setNodes(nodes);
 		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/create"), "POST", 
@@ -185,10 +195,14 @@ public class MDNManager {
 	}
 	
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
+		
+		//TODO: Refactor the syso to Logger
 		System.out.println("Source finished sending data. StreamId "+srcMsg.getStreamId()+
 				" bytes transferred "+srcMsg.getTotalBytes_transferred());
+		
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() + " . Transferred " + srcMsg.getTotalBytes_transferred() + " bytes." ;
+		
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
 		
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
