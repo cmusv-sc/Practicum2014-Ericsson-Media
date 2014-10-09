@@ -1,9 +1,9 @@
 package edu.cmu.messagebus;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +19,7 @@ import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
 
 public class WebClient {
 	private static String js;  
+	private static String _separator = File.separator;
 	
 	private Map<String, WebClientUpdateMessage.Node> nodes = new HashMap<String, WebClientUpdateMessage.Node>();
 	/**
@@ -39,6 +40,7 @@ public class WebClient {
 		}
 		return bos.toByteArray();
 	}
+	
 	private static TrapHostable mainClientPage = new TrapHostable("text/html") {
 		@Override
 		public byte[] getBytes() {
@@ -50,25 +52,27 @@ public class WebClient {
 	private static TrapHostable displayGraphJs = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			return getResourceBytes("js\\displayGraph.js");
+			
+			return getResourceBytes("js"+ _separator + "displayGraph.js");
 		}
 	};
 	private static TrapHostable sigmaJs = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			return getResourceBytes("js\\sigma.min.js");
+			return getResourceBytes("js" + _separator + "sigma.min.js");
 		}
 	};
 	private static TrapHostable sigmaJsonParserJs = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			return getResourceBytes("js\\sigma.parsers.json.min.js");
+			return getResourceBytes("js" + _separator + "sigma.parsers.json.min.js");
 		}
 	};
 	private static TrapHostable sigmaForceAtlas2Js = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			return getResourceBytes("js\\sigma.layout.forceAtlas2.min.js");
+			System.err.println("JEREMY DEBUG:" + "js" + _separator + "sigma.layout.forceAtlas2.min.js");
+			return getResourceBytes("js" + _separator + "sigma.layout.forceAtlas2.min.js");
 		}
 	};
 
@@ -91,4 +95,6 @@ public class WebClient {
 	public List<WebClientUpdateMessage.Node> getNodes(){
 		return (List<Node>) this.nodes.values();
 	}
+	
+	
 }

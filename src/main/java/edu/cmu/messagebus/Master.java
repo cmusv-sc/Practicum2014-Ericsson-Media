@@ -34,7 +34,7 @@ import edu.cmu.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
 
-public class MdnMsgbusWarpMaster {
+public class Master {
     
     private static WarpDomain _warpDomain;
     
@@ -66,7 +66,7 @@ public class MdnMsgbusWarpMaster {
 	private NamingService _namingService;
 	private HashMap<String, String> _startTimeMap;
     
-    public MdnMsgbusWarpMaster() {
+    public Master() {
     	super();
     }
     
@@ -103,16 +103,12 @@ public class MdnMsgbusWarpMaster {
          
          System.out.println(_warpDomain.getTestClientURI());
          
-         //Load the WebClient
-         _webClient = new WebClient();
-         _webClient.load(_warpDomain);
-         
          _namingService = new NamingService();
  		_startTimeMap = new HashMap<String, String>();
  		
  		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
          
- 		_svc = Warp.init().service(MdnMsgbusWarpMaster.class.getName(), "cmu-sv", "mdn-manager")
+ 		_svc = Warp.init().service(Master.class.getName(), "cmu-sv", "mdn-manager")
          		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
          
          _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
@@ -136,6 +132,10 @@ public class MdnMsgbusWarpMaster {
          Warp.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
          _svc.register();
+         
+       //Load the WebClient
+         _webClient = new WebClient();
+         _webClient.load(_warpDomain);
     }
 	
 	/**
@@ -147,7 +147,7 @@ public class MdnMsgbusWarpMaster {
 	 * request
 	 */
 	public void registerNode(Message request, NodeRegistrationRequest registMsg) {
-		String newNodeName = this._namingService.nameNode(registMsg.getType());
+		String newNodeName = this._namingService.nameNode();
 		_nodeTbl.put(newNodeName, registMsg);
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + request.getFrom().toString());
@@ -155,15 +155,17 @@ public class MdnMsgbusWarpMaster {
 		
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 		WebClientUpdateMessage.Node newNode = webClientUpdateMessage.new Node(newNodeName, newNodeName, 
-				Math.random(), Math.random(), "rgb(0,204,0)", 6, registMsg.getType().toString());
+				Math.random(), Math.random(), "rgb(0,204,0)", 6, "TO BE CHANGED");
 		//Domain.getWebClient().addNode(newNode);
 	}
 	
 	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
 		_webClientURI = msg.getFrom();
 		
-		
-		System.out.println(_webClientURI);
+		if (ClusterConfig.DEBUG) {
+			System.out.print("[DEBUG] Master.startSimulation: web client URI:");
+			System.out.println(_webClientURI);
+		}
 		String sinkNodeName = request.getSinkNodeName();
 		String sourceNodeName = request.getSourceNodeName();
 		//TODO: Update WebClient with initial nodes and edges configuration as per input script
@@ -178,7 +180,7 @@ public class MdnMsgbusWarpMaster {
 		};		
 		webClientUpdateMessage.setEdges(edges);
 		webClientUpdateMessage.setNodes(nodes);
-		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/create"), "POST", 
+		Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 		
 		NodeRegistrationRequest sinkNode = this._nodeTbl.get(sinkNodeName);
@@ -186,6 +188,11 @@ public class MdnMsgbusWarpMaster {
 		
 		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";		
 		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG] Master.startSimulation(): sink node:" + sinkNodeName + "\tsink resource:" + sinkResource);
+			System.out.println("[DEBUG] Master.startSimulation(): source node:" + sourceNodeName + "\tsource resource:" + sourceResource);
+		}
 		
 		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
 		prepRcvDataMsg.setDataSize(request.getDataSize());
@@ -271,56 +278,42 @@ public class MdnMsgbusWarpMaster {
 	}
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
-    	MdnMsgbusWarpMaster mdnDomain = new MdnMsgbusWarpMaster();
+    	Master mdnDomain = new Master();
     	mdnDomain.init();
     }
     
 private class NamingService {
 		
 		/**
-		 * The counter to track the accumulative Source Node registering on
-		 * the MDNManager
+		 * The counter to track accumulatively the total nodes registering on
+		 * the Master
 		 */
-		private long _sourceCounter;
+		private long _counter;
 		
-		/**
-		 * The counter to track the accumulative Sink Node registering on 
-		 * The MDNManager
-		 */
-		private long _sinkCounter;
 		
 		/**
 		 * The default constructor 
 		 */
 		public NamingService() {
-			_sourceCounter = 0;
-			_sinkCounter = 0;
+			_counter = 0;
 		}
 		
 		/**
 		 * This method provides the naming service. The node is named by its
 		 * NodeType.
 		 * 
-		 * 
 		 * @param type
 		 * @return
 		 */
-		public synchronized String nameNode(NodeType type) {
+		public synchronized String nameNode() {
 			/*
 			 * TODO: Based client's requirement, each MDNNode should be regarded
 			 * as with full functionality. Therefore, the naming service should
 			 * be NodeType independent.
 			 * 
 			 */
-			if (type == NodeType.SOURCE) {
-				_sourceCounter++;
-				return "source-" + _sourceCounter;
-			} else if (type == NodeType.SINK) {
-				_sinkCounter++;
-				return "sink-" + _sinkCounter;
-			} else {
-				return "";
-			}
+			
+			return String.format("node-%04d", _counter++);
 		}
 	}
 }

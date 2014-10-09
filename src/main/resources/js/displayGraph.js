@@ -98,7 +98,7 @@ function refreshGraph(updated_data){
 		Warp.send({to: "warp://cmu-sv:mdn-manager/discover",data: init});
 	}*/
 	function startSimulation(){		
-		start = {sourceNodeName: "source-1", sinkNodeName: "sink-1", dataSize: 10000, 
+		start = {sourceNodeName: "node-0000", sinkNodeName: "node-0001", dataSize: 10000, 
 					streamRate: 1, streamID: "1"};
 		Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
 	}
