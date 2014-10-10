@@ -46,11 +46,6 @@ public class Master {
     MessageBusServer msgBusSvr;
     
     /**
-     * A TrapHostable that hosts the Web Interface for the Mdn Simulator
-     */
-    private static WebClient _webClient;
-    
-    /**
 	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
 	 * MDNNode
 	 */
@@ -58,9 +53,9 @@ public class Master {
 			new ConcurrentHashMap<String, NodeRegistrationRequest>();
 	
 	/**
-	 * _webClientURI records the WarpURI of the web client
+	 * _webClientURI records the URI of the web client
 	 */
-	private WarpURI _webClientURI;
+	private String _webClientURI;
 	
 	/**
 	 * _svc is the instance of WarpService
@@ -172,7 +167,7 @@ public class Master {
 		msgBusSvr.addMethodListener("/create-node", "PUT", this, "createNode");
 
 		/* Register the discover channel to collect new nodes */
-		msgBusSvr.addMethodListener("/discover", "POST", this, "registerNode");
+		msgBusSvr.addMethodListener("/register_node", "POST", this, "registerNode");
 
 		/* Add listener for web browser call (start simulation) */
 		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
@@ -184,13 +179,12 @@ public class Master {
 
 		/* Sink report listener */
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
+		
+		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
 
 		// _svc.register();
 		msgBusSvr.register();
-
-		// Load the WebClient
-		_webClient = new WebClient();
-		_webClient.load(msgBusSvr.getDomain());
+		
     }
 	
 	/**
@@ -216,6 +210,14 @@ public class Master {
 		//Domain.getWebClient().addNode(newNode);
 	}
 	
+	/**
+	 * Handler for the registration message from the web client hosting 
+	 * simulator front end
+	 * @param msg
+	 */
+	public void registerWebClient(Message request, String webClientUri) {
+		_webClientURI = webClientUri;
+	}
 	
 	/* */
 //	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
@@ -272,10 +274,13 @@ public class Master {
 //	}
 
 
-	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
-			throws WarpException {
-		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
-				JSON.toJSON(webClientUpdateMessage).getBytes() );
+	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage) {
+		try {
+			msgBusSvr.send("/", _webClientURI+"/update", "POST", webClientUpdateMessage);
+		} catch (MessageBusException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {

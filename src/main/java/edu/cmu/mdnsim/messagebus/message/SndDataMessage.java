@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class SndDataMessage {
+public class SndDataMessage extends MbMessage {
 
 	private String _sinkIP;
 	private int _sinkPort;

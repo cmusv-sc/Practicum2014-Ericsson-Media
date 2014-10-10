@@ -15,7 +15,7 @@ import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.messagebus.message.NodeRegistrationRequest;
 
 public class MessageBusClientWarpImpl implements MessageBusClient {
@@ -60,7 +60,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 						registMsg.setWarpURI(nodeURI.toString());
 						
 						try {
-							Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/discover"),
+							Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/register_node"),
 									"POST", JSON.toJSON(registMsg).getBytes());
 						} catch (WarpException e) {
 							e.printStackTrace();
@@ -108,7 +108,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	}
 
 	@Override
-	public void send(String fromPath, String dstURI, String method, Message msg)
+	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {
@@ -125,7 +125,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 
 
 	@Override
-	public void sendToMaster(String fromPath, String method, Message msg)
+	public void sendToMaster(String fromPath, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {

@@ -2,7 +2,7 @@ package edu.cmu.mdnsim.messagebus.message;
 
 
 
-public class NodeRegistrationRequest {
+public class NodeRegistrationRequest extends MbMessage {
 	
 	private String _warpURI;
 	private String _nodeIP;

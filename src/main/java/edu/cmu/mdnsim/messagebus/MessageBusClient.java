@@ -1,7 +1,7 @@
 package edu.cmu.mdnsim.messagebus;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 
 public interface MessageBusClient {
@@ -36,7 +36,7 @@ public interface MessageBusClient {
 	 * 
 	 * @throws MessageBusException
 	 */
-	public void send(String fromPath, String dstURI, String method, Message msg)
+	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException;
 	
 	
@@ -50,7 +50,7 @@ public interface MessageBusClient {
 	 * 
 	 * @throws MessageBusException
 	 */
-	public void sendToMaster(String fromPath, String method, Message msg)
+	public void sendToMaster(String fromPath, String method, MbMessage msg)
 			throws MessageBusException;
 	
 

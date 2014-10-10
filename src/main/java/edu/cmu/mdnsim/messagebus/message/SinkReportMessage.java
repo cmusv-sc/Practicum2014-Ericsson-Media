@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class SinkReportMessage extends Message {
+public class SinkReportMessage extends MbMessage {
 	
 	String _streamId;
 	int _totalBytes;

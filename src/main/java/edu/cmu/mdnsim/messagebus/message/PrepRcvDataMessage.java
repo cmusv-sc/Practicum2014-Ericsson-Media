@@ -1,7 +1,7 @@
 package edu.cmu.mdnsim.messagebus.message;
 
 
-public class PrepRcvDataMessage {
+public class PrepRcvDataMessage extends MbMessage{
 	
 	private String _sourceWarpURI;
 	

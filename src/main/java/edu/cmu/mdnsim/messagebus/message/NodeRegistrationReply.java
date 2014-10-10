@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class NodeRegistrationReply {
+public class NodeRegistrationReply extends MbMessage {
 	
 	private String _managerWarpURI;
 	

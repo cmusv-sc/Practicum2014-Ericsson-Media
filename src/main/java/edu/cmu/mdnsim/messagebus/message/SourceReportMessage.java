@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class SourceReportMessage extends Message {
+public class SourceReportMessage extends MbMessage {
 
 	String _streamId;
 	int _totalBytes_transferred;

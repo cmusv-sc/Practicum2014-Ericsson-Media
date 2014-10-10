@@ -3,9 +3,9 @@ package edu.cmu.mdnsim.messagebus.test;
 import java.util.List;
 import java.util.Map;
 
-import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
-public class WorkSpecification extends Message {
+public class WorkSpecification extends MbMessage {
 
 	private int id;
 	private int cIdx;

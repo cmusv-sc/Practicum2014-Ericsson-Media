@@ -84,8 +84,7 @@ public class WebClient {
 		return bos.toByteArray();
 	}
 
-	public void load(Object domainObj) throws WarpException, IOException, TrapException{
-		WarpDomain domain = (WarpDomain)domainObj;
+	public void load(WarpDomain domain) throws WarpException, IOException, TrapException{
 		domain.getJSLibraryURI(true);
 		
 		js = domain.getEmbeddedJSWithAuthToken(true, true);
