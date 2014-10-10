@@ -38,9 +38,7 @@ public class SinkNode extends AbstractNode {
 	@Override
 	public void config() throws MessageBusException {
 		msgBusClient.config();
-		msgBusClient.addMethodListener("/sink/exec", "POST", this, "executeTask");
-		
-		
+		msgBusClient.addMethodListener("/sink/exec", "POST", this, "executeTask");	
 	}
 
 	@Override
@@ -55,10 +53,12 @@ public class SinkNode extends AbstractNode {
 		int port = bindAvailablePortToStream((String)config.get("stream-id"));
 		WarpThreadPool.executeCached(new ReceiveDataThread((String)config.get("stream-id"), msgBusClient));
 		
-		ws.setReceiver(super.getHostAddr().getHostAddress(), port);
+		ws.setReceiverIpAndPort(super.getHostAddr().getHostAddress(), port);
 		String fromPath = "/" + super.getNodeName() + "/prep";
 		
 		try {
+			// Increment the work specification index to next node
+			ws.incrementNodeIdx();
 			msgBusClient.send(fromPath, ws.getNextNodeURI(), "POST", ws);
 		} catch (MessageBusException e) {
 			//TODO: add exception handler

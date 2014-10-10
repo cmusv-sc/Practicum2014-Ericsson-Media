@@ -86,6 +86,18 @@ public class Master {
 //    }
     
     
+    /**
+     * Takes in the MessageBus class name used for communicating among the nodes and 
+     * initializes the MessageBusServer interface with object of that class
+     * To add a new MessageBus implementation, simply add a class to the "edu.cmu.messagebus" 
+     * package and pass that class name to this method
+     * Currently the following MessageBus implementations are supported
+     * 1) Warp [Ericsson's system][ClassName: "MessageBusServerWarpImpl"]
+     * 
+     * @param className
+     * @return
+     * @throws MessageBusException
+     */
     private MessageBusServer instantiateMsgBusServer(String className) throws MessageBusException {
     	MessageBusServer server = null;
     	
@@ -150,33 +162,35 @@ public class Master {
 	 * @throws WarpException. IOException and TrapException
 	 * @throws MessageBusException 
 	 */
-    public void init() throws WarpException, IOException, TrapException, MessageBusException{
-         
-    	msgBusSvr.config();
-    	
-         _namingService = new NamingService();
- 		_startTimeMap = new HashMap<String, String>();
- 		
- 		msgBusSvr.addMethodListener("/create-node", "PUT", this, "createNode");
- 		
-         /* Register the discover channel to collect new nodes */
-         msgBusSvr.addMethodListener("/discover", "POST", this, "registerNode");
-         
-         /* Add listener for web browser call (start simulation) */
-         msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
-         
-         /* Source report listener */
-         msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
-         
-         /* Sink report listener */
-         msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
+    public void init() throws WarpException, IOException, TrapException, MessageBusException {
 
-//         _svc.register();
-         msgBusSvr.register();
- 
-         //Load the WebClient
-         _webClient = new WebClient();
-         _webClient.load(msgBusSvr.getDomain());
+		msgBusSvr.config();
+
+		_namingService = new NamingService();
+		_startTimeMap = new HashMap<String, String>();
+
+		msgBusSvr.addMethodListener("/create-node", "PUT", this, "createNode");
+
+		/* Register the discover channel to collect new nodes */
+		msgBusSvr.addMethodListener("/discover", "POST", this, "registerNode");
+
+		/* Add listener for web browser call (start simulation) */
+		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
+				"startSimulation");
+
+		/* Source report listener */
+		msgBusSvr.addMethodListener("/source_report", "POST", this,
+				"sourceReport");
+
+		/* Sink report listener */
+		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
+
+		// _svc.register();
+		msgBusSvr.register();
+
+		// Load the WebClient
+		_webClient = new WebClient();
+		_webClient.load(msgBusSvr.getDomain());
     }
 	
 	/**

@@ -45,11 +45,11 @@ public class SourceNode extends AbstractNode {
 	@Override
 	public void exectueTask(WorkSpecification ws) {
 		
-		Map<String, Object> config = ws.getConfig();
+		Map<String, Object> dsConfig = ws.getDownstreamConfig();
 		
-		sendAndReport((String)config.get("stream-id"), 
-				(String)config.get("dst-ip"), (Integer)config.get("dst-port"),
-				(Integer)config.get("byte-to-send"), (Integer)config.get("rate"), 
+		sendAndReport((String)dsConfig.get("stream-id"), 
+				(String)dsConfig.get("dst-ip"), (Integer)dsConfig.get("dst-port"),
+				(Integer)dsConfig.get("data-size"), (Integer)dsConfig.get("data-rate"), 
 				super.msgBusClient);
 	}
 	
