@@ -1,6 +1,6 @@
 package edu.cmu.messagebus.message;
 
-public class SinkReportMessage {
+public class SinkReportMessage extends Message {
 	
 	String _streamId;
 	int _totalBytes;

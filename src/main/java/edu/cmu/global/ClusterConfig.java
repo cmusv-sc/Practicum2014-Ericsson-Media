@@ -1,4 +1,4 @@
-package edu.cmu.messagebus;
+package edu.cmu.global;
 
 /**
  * This class is used to provide easy access to configuration

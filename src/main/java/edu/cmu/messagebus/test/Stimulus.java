@@ -5,10 +5,10 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpURI;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.NodeContainerImp;
 import edu.cmu.messagebus.message.StartSimulationRequest;
+import edu.cmu.nodes.NodeContainer;
 
-public class Stimulus extends NodeContainerImp {
+public class Stimulus extends NodeContainer {
 	
 	
 	public Stimulus() {

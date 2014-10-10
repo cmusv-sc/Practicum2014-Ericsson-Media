@@ -25,6 +25,7 @@ import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
+import edu.cmu.global.ClusterConfig;
 import edu.cmu.messagebus.message.NodeRegistrationRequest;
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
 import edu.cmu.messagebus.message.SinkReportMessage;
@@ -36,7 +37,7 @@ import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
 
 public class Master {
     
-    private static WarpDomain _warpDomain;
+    MessageBusServer msgBusSvr;
     
     /**
      * A TrapHostable that hosts the Web Interface for the Mdn Simulator
@@ -58,7 +59,7 @@ public class Master {
 	/**
 	 * _svc is the instance of WarpService
 	 */
-	private static WarpService _svc;
+//	
 	
 	/**
 	 * _namingService provides naming service
@@ -70,15 +71,18 @@ public class Master {
     	super();
     }
     
-    static WarpDomain getWarpDomain(){
-    	return _warpDomain;
-    }
-    static WebClient getWebClient(){
-    	return _webClient;
-    }
+//    static WarpDomain getWarpDomain(){
+//    	return _warpDomain;
+//    }
+    
+//    static WebClient getWebClient(){
+//    	return _webClient;
+//    }
+    
     
     /**
-     * Initialize the Warp Domain and bind it to localhost
+     * 
+     * Initialize the message bus server
      * 
 	 * Initialization of MdnMaster. Specifically, it registers itself with 
 	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
@@ -89,49 +93,28 @@ public class Master {
 	 * @throws WarpException. IOException and TrapException
 	 */
     public void init() throws WarpException, IOException, TrapException{
-    	 JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
-         DomainInit domainInit = Warp.init().domain();
          
-         // Configure the gateway (client connections) to go to http://127.0.0.1:8888 as initial connection
-         domainInit.getClientNetworkCfg().setBindHost("127.0.0.1").setBindPort("http", 8888).setBindPort("websocket", 8889).finish();
-         
-         // Configure the lookup service (service registry) to bind to http://127.0.0.1:9999 as initial connection
-         domainInit.getServiceNetworkCfg(BuiltinService.LOOKUP_SERVICE).setBindHost("127.0.0.1").setBindPort("websocket", 9999).finish();
-         
-         // Add any additional (built-in servers) in the com.ericsson.research.warp.spi.enabled package and start
-         _warpDomain = domainInit.loadWarpEnabled(true).create();
-         
-         System.out.println(_warpDomain.getTestClientURI());
-         
+    	msgBusSvr.config();
+    	
          _namingService = new NamingService();
  		_startTimeMap = new HashMap<String, String>();
  		
- 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
-         
- 		_svc = Warp.init().service(Master.class.getName(), "cmu-sv", "mdn-manager")
-         		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
-         
-         _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
-             
-             @Override
-             public void receiveNotification(String name, Object sender, Object attachment) {
-                 WarpLogger.info("Now registered...");
-             }
-         }, true);
-         
+ 		msgBusSvr.addMethodListener("/create-node", "PUT", this, "createNode");
+ 		
          /* Register the discover channel to collect new nodes */
-         Warp.addMethodListener("/discover", "POST", this, "registerNode");
+         msgBusSvr.addMethodListener("/discover", "POST", this, "registerNode");
          
          /* Add listener for web browser call (start simulation) */
-         Warp.addMethodListener("/start_simulation", "POST", this, "startSimulation");
+         msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
          
          /* Source report listener */
-         Warp.addMethodListener("/source_report", "POST", this, "sourceReport");
+         msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
          
          /* Sink report listener */
-         Warp.addMethodListener("/sink_report", "POST", this, "sinkReport");
+         msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
-         _svc.register();
+//         _svc.register();
+         msgBusSvr.register();
          
        //Load the WebClient
          _webClient = new WebClient();
@@ -146,7 +129,9 @@ public class Master {
 	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
 	 * request
 	 */
+    
 	public void registerNode(Message request, NodeRegistrationRequest registMsg) {
+		
 		String newNodeName = this._namingService.nameNode();
 		_nodeTbl.put(newNodeName, registMsg);
 		if (ClusterConfig.DEBUG) {
@@ -159,56 +144,60 @@ public class Master {
 		//Domain.getWebClient().addNode(newNode);
 	}
 	
-	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
-		_webClientURI = msg.getFrom();
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.print("[DEBUG] Master.startSimulation: web client URI:");
-			System.out.println(_webClientURI);
-		}
-		String sinkNodeName = request.getSinkNodeName();
-		String sourceNodeName = request.getSourceNodeName();
-		//TODO: Update WebClient with initial nodes and edges configuration as per input script
-		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-		//Node[] nodes = (Node[]) Domain.getWebClient().getNodes().toArray();
-		Node[] nodes = {
-				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
-				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
-		};
-		Edge[] edges = {
-				webClientUpdateMessage.new Edge("E1",nodes[0].id, nodes[1].id, "")
-		};		
-		webClientUpdateMessage.setEdges(edges);
-		webClientUpdateMessage.setNodes(nodes);
-		Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
-				JSON.toJSON(webClientUpdateMessage).getBytes() );
-		
-		NodeRegistrationRequest sinkNode = this._nodeTbl.get(sinkNodeName);
-		NodeRegistrationRequest sourceNode = this._nodeTbl.get(sourceNodeName);
-		
-		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";		
-		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] Master.startSimulation(): sink node:" + sinkNodeName + "\tsink resource:" + sinkResource);
-			System.out.println("[DEBUG] Master.startSimulation(): source node:" + sourceNodeName + "\tsource resource:" + sourceResource);
-		}
-		
-		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
-		prepRcvDataMsg.setDataSize(request.getDataSize());
-		prepRcvDataMsg.setDataRate(request.getStreamRate());
-		prepRcvDataMsg.setStreamID(request.getStreamID());
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.startSimulation(): Receive the stimulus to start simulation.");
-		}
-		
-		try {
-			Warp.send("/", WarpURI.create(sinkResource), "POST", JSON.toJSON(prepRcvDataMsg).getBytes());
-		} catch (WarpException e) {
-			e.printStackTrace();
-		}
-	}
+	
+	/* */
+//	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
+//		_webClientURI = msg.getFrom();
+//		
+//		if (ClusterConfig.DEBUG) {
+//			System.out.print("[DEBUG] Master.startSimulation: web client URI:");
+//			System.out.println(_webClientURI);
+//		}
+//		
+//		String sinkNodeName = request.getSinkNodeName();
+//		String sourceNodeName = request.getSourceNodeName();
+//		
+//		//TODO: Update WebClient with initial nodes and edges configuration as per input script
+//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
+//		//Node[] nodes = (Node[]) Domain.getWebClient().getNodes().toArray();
+//		Node[] nodes = {
+//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
+//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
+//		};
+//		Edge[] edges = {
+//				webClientUpdateMessage.new Edge("E1",nodes[0].id, nodes[1].id, "")
+//		};		
+//		webClientUpdateMessage.setEdges(edges);
+//		webClientUpdateMessage.setNodes(nodes);
+//		Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
+//				JSON.toJSON(webClientUpdateMessage).getBytes() );
+//		
+//		NodeRegistrationRequest sinkNode = this._nodeTbl.get(sinkNodeName);
+//		NodeRegistrationRequest sourceNode = this._nodeTbl.get(sourceNodeName);
+//		
+//		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";		
+//		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
+//		
+//		if (ClusterConfig.DEBUG) {
+//			System.out.println("[DEBUG] Master.startSimulation(): sink node:" + sinkNodeName + "\tsink resource:" + sinkResource);
+//			System.out.println("[DEBUG] Master.startSimulation(): source node:" + sourceNodeName + "\tsource resource:" + sourceResource);
+//		}
+//		
+//		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
+//		prepRcvDataMsg.setDataSize(request.getDataSize());
+//		prepRcvDataMsg.setDataRate(request.getStreamRate());
+//		prepRcvDataMsg.setStreamID(request.getStreamID());
+//		
+//		if (ClusterConfig.DEBUG) {
+//			System.out.println("[DEBUG] MDNManager.startSimulation(): Receive the stimulus to start simulation.");
+//		}
+//		
+//		try {
+//			Warp.send("/", WarpURI.create(sinkResource), "POST", JSON.toJSON(prepRcvDataMsg).getBytes());
+//		} catch (WarpException e) {
+//			e.printStackTrace();
+//		}
+//	}
 
 
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
@@ -282,7 +271,8 @@ public class Master {
     	mdnDomain.init();
     }
     
-private class NamingService {
+
+    private class NamingService {
 		
 		/**
 		 * The counter to track accumulatively the total nodes registering on

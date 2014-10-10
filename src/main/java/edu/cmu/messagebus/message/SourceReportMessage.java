@@ -1,6 +1,6 @@
 package edu.cmu.messagebus.message;
 
-public class SourceReportMessage {
+public class SourceReportMessage extends Message {
 
 	String _streamId;
 	int _totalBytes_transferred;

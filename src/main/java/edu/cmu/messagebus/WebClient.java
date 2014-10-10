@@ -69,7 +69,7 @@ public class WebClient {
 	public static byte[] getResourceBytes(String resourceName){
 		InputStream is = WebClient.class.getClassLoader().getResourceAsStream(resourceName);
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		byte[] buf = new byte[4096];				
+		byte[] buf = new byte[4096];
 		int read;				
 		try {
 			while ((read = is.read(buf)) > -1)
