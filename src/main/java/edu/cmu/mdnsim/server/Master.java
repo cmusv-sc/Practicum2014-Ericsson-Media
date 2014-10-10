@@ -1,6 +1,8 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.server;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -11,6 +13,7 @@ import java.util.logging.Level;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
+import com.ericsson.research.trap.utils.PackageScanner;
 import com.ericsson.research.warp.api.Notifications;
 import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpDomain;
@@ -25,15 +28,18 @@ import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.global.ClusterConfig;
-import edu.cmu.messagebus.message.NodeRegistrationRequest;
-import edu.cmu.messagebus.message.PrepRcvDataMessage;
-import edu.cmu.messagebus.message.SinkReportMessage;
-import edu.cmu.messagebus.message.SourceReportMessage;
-import edu.cmu.messagebus.message.StartSimulationRequest;
-import edu.cmu.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.messagebus.message.WebClientUpdateMessage.Edge;
-import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
+import edu.cmu.mdnsim.global.ClusterConfig;
+import edu.cmu.mdnsim.messagebus.MessageBusClient;
+import edu.cmu.mdnsim.messagebus.MessageBusServer;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.NodeRegistrationRequest;
+import edu.cmu.mdnsim.messagebus.message.PrepRcvDataMessage;
+import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
+import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
+import edu.cmu.mdnsim.messagebus.message.StartSimulationRequest;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
 
 public class Master {
     
@@ -67,8 +73,8 @@ public class Master {
 	private NamingService _namingService;
 	private HashMap<String, String> _startTimeMap;
     
-    public Master() {
-    	super();
+    public Master() throws MessageBusException {
+    	msgBusSvr = instantiateMsgBusServer("MessageBusServerWarpImpl");
     }
     
 //    static WarpDomain getWarpDomain(){
@@ -80,7 +86,58 @@ public class Master {
 //    }
     
     
-    /**
+    private MessageBusServer instantiateMsgBusServer(String className) throws MessageBusException {
+    	MessageBusServer server = null;
+    	
+    	Class<?>[] scan;
+		try {
+			scan = PackageScanner.scan("edu.cmu.messagebus");
+		} catch (IOException e) {
+			throw new MessageBusException(e);
+		}
+		
+		Class<?> objectiveMsgBusClass = null;
+		for (Class<?> msgClass : scan) {
+			if (msgClass.getName().equals(className)) {
+				objectiveMsgBusClass = msgClass;
+				break;
+			}
+		}
+		if (objectiveMsgBusClass == null) {
+			try {
+				throw new ClassNotFoundException("Message bus implementation " 
+						+ className + " cannot be found");
+			} catch (ClassNotFoundException e) {
+				throw new MessageBusException(e);
+			}
+		}
+		
+		Constructor<?> defaultConstructor;
+		try {
+			defaultConstructor = objectiveMsgBusClass.getConstructor();
+		} catch (SecurityException e) {
+			throw new MessageBusException(e);
+		} catch (NoSuchMethodException e) {
+			throw new MessageBusException(e);
+		}
+		
+		
+		try {
+			server = (MessageBusServer) defaultConstructor.newInstance();
+		} catch (IllegalArgumentException e) {
+			throw new MessageBusException(e);
+		} catch (InstantiationException e) {
+			throw new MessageBusException(e);
+		} catch (IllegalAccessException e) {
+			throw new MessageBusException(e);
+		} catch (InvocationTargetException e) {
+			throw new MessageBusException(e);
+		}
+
+		return server;
+	}
+
+	/**
      * 
      * Initialize the message bus server
      * 
@@ -91,8 +148,9 @@ public class Master {
 	 * control message layer
 	 * 
 	 * @throws WarpException. IOException and TrapException
+	 * @throws MessageBusException 
 	 */
-    public void init() throws WarpException, IOException, TrapException{
+    public void init() throws WarpException, IOException, TrapException, MessageBusException{
          
     	msgBusSvr.config();
     	
@@ -115,10 +173,10 @@ public class Master {
 
 //         _svc.register();
          msgBusSvr.register();
-         
-       //Load the WebClient
+ 
+         //Load the WebClient
          _webClient = new WebClient();
-         _webClient.load(_warpDomain);
+         _webClient.load(msgBusSvr.getDomain());
     }
 	
 	/**
@@ -266,7 +324,7 @@ public class Master {
 		return this._startTimeMap.get(streamId);
 	}
     
-    public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException {
+    public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();
     	mdnDomain.init();
     }

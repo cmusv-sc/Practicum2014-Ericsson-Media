@@ -1,7 +1,7 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.messagebus;
 
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.Message;
 
 
 public interface MessageBusClient {

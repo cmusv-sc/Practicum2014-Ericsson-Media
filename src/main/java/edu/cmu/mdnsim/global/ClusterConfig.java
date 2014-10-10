@@ -1,4 +1,4 @@
-package edu.cmu.global;
+package edu.cmu.mdnsim.global;
 
 /**
  * This class is used to provide easy access to configuration

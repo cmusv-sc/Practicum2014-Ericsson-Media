@@ -1,4 +1,4 @@
-package edu.cmu.nodes;
+package edu.cmu.mdnsim.nodes;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -8,10 +8,10 @@ import java.util.List;
 
 import com.ericsson.research.trap.utils.PackageScanner;
 
-import edu.cmu.global.ClusterConfig;
-import edu.cmu.messagebus.MessageBusClient;
-import edu.cmu.messagebus.MessageBusClientWarpImpl;
-import edu.cmu.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.global.ClusterConfig;
+import edu.cmu.mdnsim.messagebus.MessageBusClient;
+import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 
 

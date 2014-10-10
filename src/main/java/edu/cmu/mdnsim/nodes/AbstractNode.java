@@ -1,4 +1,4 @@
-package edu.cmu.nodes;
+package edu.cmu.mdnsim.nodes;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -12,9 +12,9 @@ import java.util.Locale;
 
 import com.ericsson.research.trap.utils.PackageScanner;
 
-import edu.cmu.messagebus.MessageBusClient;
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.test.WorkSpecification;
+import edu.cmu.mdnsim.messagebus.MessageBusClient;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
 public abstract class AbstractNode {
 	

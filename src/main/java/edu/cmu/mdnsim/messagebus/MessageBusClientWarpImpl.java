@@ -1,4 +1,4 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.messagebus;
 
 import java.util.logging.Level;
 
@@ -14,9 +14,9 @@ import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
 import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.message.Message;
-import edu.cmu.messagebus.message.NodeRegistrationRequest;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.NodeRegistrationRequest;
 
 public class MessageBusClientWarpImpl implements MessageBusClient {
 

@@ -1,7 +1,9 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.messagebus;
 
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.message.Message;
+import com.ericsson.research.warp.api.WarpURI;
+
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.Message;
 
 public interface MessageBusServer {
 
@@ -13,5 +15,6 @@ public interface MessageBusServer {
 	
 	public void addMethodListener(String path, String method, Object object, String objectMethod) throws MessageBusException;
 	
+	public Object getDomain();
 	
 }

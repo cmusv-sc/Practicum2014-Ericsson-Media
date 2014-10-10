@@ -1,9 +1,9 @@
-package edu.cmu.messagebus.test;
+package edu.cmu.mdnsim.messagebus.test;
 
 import java.util.List;
 import java.util.Map;
 
-import edu.cmu.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.Message;
 
 public class WorkSpecification extends Message {
 

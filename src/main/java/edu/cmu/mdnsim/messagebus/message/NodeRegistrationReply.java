@@ -1,4 +1,4 @@
-package edu.cmu.messagebus.message;
+package edu.cmu.mdnsim.messagebus.message;
 
 public class NodeRegistrationReply {
 	

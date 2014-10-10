@@ -1,4 +1,4 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.messagebus;
 
 import java.util.logging.Level;
 
@@ -16,8 +16,9 @@ import com.ericsson.research.warp.api.configuration.ServicePropertyName;
 import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.server.Master;
 
 public class MessageBusServerWarpImpl implements MessageBusServer {
 	
@@ -106,6 +107,11 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		} catch (WarpException e) {
 			throw new MessageBusException(e);
 		}
+	}
+
+	@Override
+	public Object getDomain() {
+		return _warpDomain;
 	}
 
 	

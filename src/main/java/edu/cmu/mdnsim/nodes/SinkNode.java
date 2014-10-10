@@ -1,4 +1,4 @@
-package edu.cmu.nodes;
+package edu.cmu.mdnsim.nodes;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -14,11 +14,11 @@ import java.util.Map;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
 
-import edu.cmu.global.ClusterConfig;
-import edu.cmu.messagebus.MessageBusClient;
-import edu.cmu.messagebus.exception.MessageBusException;
-import edu.cmu.messagebus.message.SinkReportMessage;
-import edu.cmu.messagebus.test.WorkSpecification;
+import edu.cmu.mdnsim.global.ClusterConfig;
+import edu.cmu.mdnsim.messagebus.MessageBusClient;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
+import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
 public class SinkNode extends AbstractNode {
 	

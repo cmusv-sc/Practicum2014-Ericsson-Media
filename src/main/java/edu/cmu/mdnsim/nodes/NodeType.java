@@ -1,4 +1,4 @@
-package edu.cmu.nodes;
+package edu.cmu.mdnsim.nodes;
 
 public enum NodeType {
 	

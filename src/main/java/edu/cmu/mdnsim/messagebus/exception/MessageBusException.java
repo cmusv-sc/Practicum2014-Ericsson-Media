@@ -1,4 +1,4 @@
-package edu.cmu.messagebus.exception;
+package edu.cmu.mdnsim.messagebus.exception;
 
 public class MessageBusException extends Exception {
 

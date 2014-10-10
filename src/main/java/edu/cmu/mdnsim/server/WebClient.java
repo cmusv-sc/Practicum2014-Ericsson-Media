@@ -1,4 +1,4 @@
-package edu.cmu.messagebus;
+package edu.cmu.mdnsim.server;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -10,12 +10,16 @@ import java.util.Map;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.spi.TrapHostingTransport.TrapHostable;
+import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpDomain;
 import com.ericsson.research.warp.api.WarpException;
+import com.ericsson.research.warp.api.WarpInit.DomainInit;
+import com.ericsson.research.warp.api.WarpInit.DomainInit.BuiltinService;
+import com.ericsson.research.warp.spi.WarpInitImpl;
 import com.ericsson.research.warp.util.StringUtil;
 
-import edu.cmu.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.messagebus.message.WebClientUpdateMessage.Node;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
 
 public class WebClient {
 	private static String js;  
@@ -80,8 +84,10 @@ public class WebClient {
 		return bos.toByteArray();
 	}
 
-	public void load(WarpDomain domain) throws WarpException, IOException, TrapException{
+	public void load(Object domainObj) throws WarpException, IOException, TrapException{
+		WarpDomain domain = (WarpDomain)domainObj;
 		domain.getJSLibraryURI(true);
+		
 		js = domain.getEmbeddedJSWithAuthToken(true, true);
 		
 		//TODO: purpose of printing out the information? REVIEWED BY JEREMY
