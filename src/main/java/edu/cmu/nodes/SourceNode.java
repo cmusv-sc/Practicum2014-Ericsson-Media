@@ -31,6 +31,19 @@ public class SourceNode extends AbstractNode {
 	}
 	
 	@Override
+	public void config() throws MessageBusException {
+		msgBusClient.config();
+		msgBusClient.addMethodListener("/source/exec", "POST", this, "executeTask");
+		
+		
+	}
+
+	@Override
+	public void connect() throws MessageBusException {
+		msgBusClient.connect();
+	}
+	
+	@Override
 	public void exectueTask(WorkSpecification ws) {
 		
 		Map<String, Object> config = ws.getConfig();

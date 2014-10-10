@@ -59,13 +59,9 @@ public abstract class AbstractNode {
 		laddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public void config() throws MessageBusException {
-		msgBusClient.config();
-	}
+	public abstract void config() throws MessageBusException;
 	
-	public void connect() throws MessageBusException {
-		msgBusClient.connect();
-	}
+	public abstract void connect() throws MessageBusException;
 	
 	public InetAddress getHostAddr() {
 		return laddr;

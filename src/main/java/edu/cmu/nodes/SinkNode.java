@@ -34,6 +34,19 @@ public class SinkNode extends AbstractNode {
 		super(msgBusClientImplName, NodeType.SINK);
 		_streamSocketMap = new HashMap<String, DatagramSocket>(); 
 	}
+	
+	@Override
+	public void config() throws MessageBusException {
+		msgBusClient.config();
+		msgBusClient.addMethodListener("/sink/exec", "POST", this, "executeTask");
+		
+		
+	}
+
+	@Override
+	public void connect() throws MessageBusException {
+		msgBusClient.connect();
+	}
 
 	@Override
 	public void exectueTask(WorkSpecification ws) {
@@ -183,4 +196,7 @@ public class SinkNode extends AbstractNode {
 			return dateFormat.format(date);
 		}
 	}
+
+
+
 }
