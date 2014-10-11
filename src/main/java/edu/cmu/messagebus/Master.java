@@ -1,11 +1,16 @@
 package edu.cmu.messagebus;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -25,6 +30,7 @@ import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
+import edu.cmu.config.StreamConfig;
 import edu.cmu.global.ClusterConfig;
 import edu.cmu.messagebus.message.NodeRegistrationRequest;
 import edu.cmu.messagebus.message.PrepRcvDataMessage;
@@ -306,4 +312,21 @@ public class Master {
 			return String.format("node-%04d", _counter++);
 		}
 	}
+    
+	public StreamConfig readScript(String fileName){
+		if(fileName == null){
+			return null;
+		}
+		
+		InputStream inputStream = null;
+		try {
+			inputStream = new FileInputStream(new File(fileName));
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return JSON.fromJSON(inputStream, StreamConfig.class);
+	}
+	
 }

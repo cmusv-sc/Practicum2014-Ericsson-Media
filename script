@@ -1,0 +1,13 @@
+{
+    "id": "1",
+    "flow": [
+        {
+        	"nodeType": "Source",
+            "bitrate": 500
+        },
+        {
+        	"nodeType": "Sink",
+            "bitrate": 500
+        }
+    ]
+}
