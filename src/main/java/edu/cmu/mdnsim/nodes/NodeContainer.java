@@ -3,15 +3,16 @@ package edu.cmu.mdnsim.nodes;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.utils.PackageScanner;
 
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
-import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 
 
 
@@ -19,67 +20,83 @@ public class NodeContainer {
 
 	private MessageBusClient msgBusClient;
 	
-	private List<AbstractNode> nodeList;
+	private Map<String, AbstractNode> nodeMap;
 	
 	private String label;
 	
 	public NodeContainer() throws MessageBusException {
-		msgBusClient = new MessageBusClientWarpImpl();
-		nodeList = new ArrayList<AbstractNode>();
-		label = "default";
+		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl");
 	}
 	
 	public NodeContainer(String messageBusImpl) throws MessageBusException {
-		
-		msgBusClient = instantiateMsgBusClient(messageBusImpl);
-		nodeList = new ArrayList<AbstractNode>();
-		NodeContainer.this.label = "default";
+		this(messageBusImpl, "default");
 	}
 	
 	public NodeContainer(String messageBusImpl, String label) throws MessageBusException {
 		
 		msgBusClient= instantiateMsgBusClient(messageBusImpl);
-		nodeList = new ArrayList<AbstractNode>();
+		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
 		NodeContainer.this.label = label;
 		
 	}
 	
 	public void config() throws MessageBusException {
 		msgBusClient.config();
-		msgBusClient.addMethodListener("/create-node", "PUT", this, "createNode");
-		msgBusClient.connect();
+		msgBusClient.addMethodListener("/nodes", "PUT", this, "createNode");
 	}
 	
-	public void createNode(String nodeType) 
+	public void connect() throws MessageBusException {
+		
+		msgBusClient.connect();
+		
+		RegisterNodeContainerRequest req = new RegisterNodeContainerRequest();
+		
+		req.setLabel(label);
+		req.setNcURI(msgBusClient.getURI());
+
+		msgBusClient.sendToMaster("/", "/node-containers", "PUT", req);
+	}
+	
+	public void createNode(CreateNodeRequest req) 
 			throws SecurityException, NoSuchMethodException, 
 			IllegalArgumentException, InstantiationException, 
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
 		
+		System.out.println("Create a NODE!!!!! class:" + req.getNodeClass());
+		
 		Class<?>[] scan = null;
 		try {
-			scan = PackageScanner.scan("edu.cmu.Nodes");
+			scan = PackageScanner.scan("edu.cmu.mdnsim.nodes");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
 		Class<?> objectiveNodeClass = null;
 		for (Class<?> nodeClass : scan) {
-			if (nodeClass.getName().equals(nodeType)) {
+			if (nodeClass.getName().equals(req.getNodeClass())) {
 				objectiveNodeClass = nodeClass;
 				break;
 			}
 		}
 		
 		if (objectiveNodeClass == null) {
-			throw new ClassNotFoundException("Class (" + nodeType + ") cannot"
+			throw new ClassNotFoundException("Class (" + req.getNodeClass() + ") cannot"
 					+ " be found.");
 		}
 		
 		Constructor<?> constructor = objectiveNodeClass.getConstructor();
 		AbstractNode newNode = (AbstractNode)constructor.newInstance();
+		try {
+			newNode.config();
+			newNode.connect();
+			
+		} catch (MessageBusException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
-		nodeList.add(newNode);
+		nodeMap.put(newNode.getNodeName(), newNode);
 		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] NodeContainer.createNode(): Instantiate"
@@ -92,16 +109,17 @@ public class NodeContainer {
 	private MessageBusClient instantiateMsgBusClient (String className) throws MessageBusException {
 		
 		MessageBusClient client = null;
-		
+
 		Class<?>[] scan;
 		try {
-			scan = PackageScanner.scan("edu.cmu.messagebus");
+			scan = PackageScanner.scan("edu.cmu.mdnsim.messagebus");
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}
 		
 		Class<?> objectiveMsgBusClass = null;
 		for (Class<?> msgClass : scan) {
+			System.out.println(msgClass.getCanonicalName());
 			if (msgClass.getName().equals(className)) {
 				objectiveMsgBusClass = msgClass;
 				break;
@@ -139,6 +157,12 @@ public class NodeContainer {
 		}
 		
 		return client;
+	}
+	
+	public static void main(String[] args) throws MessageBusException {
+		NodeContainer nc = new NodeContainer();
+		nc.config();
+		nc.connect();
 	}
 
 }

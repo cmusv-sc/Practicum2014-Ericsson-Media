@@ -1,7 +1,5 @@
 package edu.cmu.mdnsim.messagebus;
 
-import com.ericsson.research.warp.api.WarpURI;
-
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.Message;
 

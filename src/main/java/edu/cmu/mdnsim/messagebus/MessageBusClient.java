@@ -2,6 +2,7 @@ package edu.cmu.mdnsim.messagebus;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.nodes.NodeType;
 
 
 public interface MessageBusClient {
@@ -40,17 +41,22 @@ public interface MessageBusClient {
 			throws MessageBusException;
 	
 	
+	public Message request(String fromPath, String dstURI, String method, Message msg)
+			throws MessageBusException;
+	
+	
 	/**
 	 * 
 	 * Send the message to the master
 	 * 
 	 * @param fromPath The resource of the sender
+	 * @param dstPath The resource of the master
 	 * @param method The REST method at the master
 	 * @param msg The message to be sent
 	 * 
 	 * @throws MessageBusException
 	 */
-	public void sendToMaster(String fromPath, String method, Message msg)
+	public void sendToMaster(String fromPath, String dstPath, String method, Message msg)
 			throws MessageBusException;
 	
 
@@ -68,5 +74,22 @@ public interface MessageBusClient {
 	 */
 	public void addMethodListener(String resource, String method, Object object,
 			String objectMethod) throws MessageBusException;
+	
+	
+	/**
+	 * 
+	 * Obtain the URI in the domain
+	 * 
+	 * @return
+	 */
+	public String getURI();
+	
+	/**
+	 * 
+	 * Test if the client has been connected to the node
+	 * 
+	 * @return
+	 */
+	public boolean isConnected();
 	
 }

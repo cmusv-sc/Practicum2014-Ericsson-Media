@@ -16,11 +16,15 @@ import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.Message;
-import edu.cmu.mdnsim.messagebus.message.NodeRegistrationRequest;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.nodes.NodeType;
 
 public class MessageBusClientWarpImpl implements MessageBusClient {
 
+	
 	private AnonymousClient _client;
+	
+	private boolean connected = false;
 
 	@Override
 	public void config() throws MessageBusException {
@@ -33,15 +37,10 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 				+ "trap.transport.loopback.enabled=false";
 
 		try {
-			_client = Warp
-					.init()
-					.client()
-					.setRemoteConfig(trapCfg)
-					.setAuth(
-							new PlaintextAuthenticator(WarpURI
-									.create("warp:anon/foo"), "secret"))
-					.setPolicy(ConnectionPolicy.CLOSE_ON_DISCONNECT)
-					.createAnonymous();
+			_client = Warp.init().client().setRemoteConfig(trapCfg)
+						.setAuth(new PlaintextAuthenticator(WarpURI.create("warp:anon/foo"), "secret"))
+						.setPolicy(ConnectionPolicy.CLOSE_ON_DISCONNECT)
+						.createAnonymous();
 		} catch (WarpException e1) {
 			throw new MessageBusException(e1);
 		}
@@ -52,19 +51,8 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 					@Override
 					public void receiveNotification(String name, Object sender,
 							Object attachment) {
-						WarpLogger
-								.info("Connection successful. Time to do stuff!");
-						WarpURI nodeURI = Warp.uri();
-						NodeRegistrationRequest registMsg = 
-								new NodeRegistrationRequest();
-						registMsg.setWarpURI(nodeURI.toString());
-						
-						try {
-							Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/discover"),
-									"POST", JSON.toJSON(registMsg).getBytes());
-						} catch (WarpException e) {
-							e.printStackTrace();
-						}
+						WarpLogger.info("Connection successful. Time to do stuff!");
+						connectToDomain();
 					}
 				}, true);
 
@@ -125,14 +113,52 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 
 
 	@Override
-	public void sendToMaster(String fromPath, String method, Message msg)
+	public void sendToMaster(String fromPath, String dstPath, String method, Message msg)
 			throws MessageBusException {
 		
 		try {
-			Warp.send(fromPath, WarpURI.create("warp://cmu-sv:mdn-manager/report"), method, JSON.toJSON(msg).getBytes());
+			Warp.send(fromPath, WarpURI.create("warp://cmu-sv:mdn-manager" + dstPath), method, JSON.toJSON(msg).getBytes());
 		} catch (WarpException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		
 		}
 	}
+
+	
+	@Override
+	public Message request(String fromPath, String dstURI, String method,
+			Message msg) throws MessageBusException {
+		
+		com.ericsson.research.warp.api.message.Message reply = null;
+		try {
+			reply = Warp.request(WarpURI.create(dstURI), method, JSON.toJSON(msg).getBytes(), null, 1000 * 10);
+		} catch (WarpException e) {
+			throw new MessageBusException(e);
+		}
+
+		return JSON.fromJSON(new String(reply.getData()), Message.class);
+
+	}
+	
+	@Override
+	public String getURI() {
+		
+		while (!isConnected()) {
+			
+		}
+		
+		return Warp.uri().toString();
+		
+	}
+	
+	
+	public synchronized boolean isConnected() {
+		return connected;
+	}
+	
+	private synchronized void connectToDomain() {
+		connected = true;
+	}
+
+	
 }

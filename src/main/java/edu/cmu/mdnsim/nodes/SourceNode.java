@@ -33,17 +33,13 @@ public class SourceNode extends AbstractNode {
 	@Override
 	public void config() throws MessageBusException {
 		msgBusClient.config();
-		msgBusClient.addMethodListener("/source/exec", "POST", this, "executeTask");
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
 		
 	}
 
-	@Override
-	public void connect() throws MessageBusException {
-		msgBusClient.connect();
-	}
 	
 	@Override
-	public void exectueTask(WorkSpecification ws) {
+	public void executeTask(WorkSpecification ws) {
 		
 		Map<String, Object> dsConfig = ws.getDownstreamConfig();
 		
@@ -135,7 +131,7 @@ public class SourceNode extends AbstractNode {
 			
 			try {
 				String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
-				msgBusClient.sendToMaster(fromPath, "POST", srcReportMsg);
+				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
 				//TODO: Add exception handler
 				e.printStackTrace();
