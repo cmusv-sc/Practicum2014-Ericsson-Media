@@ -12,12 +12,12 @@ import com.ericsson.research.warp.api.client.Client;
 import com.ericsson.research.warp.api.client.Client.ConnectionPolicy;
 import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
 import com.ericsson.research.warp.api.logging.WarpLogger;
+import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.Message;
-import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.nodes.NodeType;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
+
 
 public class MessageBusClientWarpImpl implements MessageBusClient {
 
@@ -53,6 +53,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 							Object attachment) {
 						WarpLogger.info("Connection successful. Time to do stuff!");
 						connectToDomain();
+
 					}
 				}, true);
 
@@ -96,7 +97,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	}
 
 	@Override
-	public void send(String fromPath, String dstURI, String method, Message msg)
+	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {
@@ -113,7 +114,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 
 
 	@Override
-	public void sendToMaster(String fromPath, String dstPath, String method, Message msg)
+	public void sendToMaster(String fromPath, String dstPath, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {
@@ -126,8 +127,8 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 
 	
 	@Override
-	public Message request(String fromPath, String dstURI, String method,
-			Message msg) throws MessageBusException {
+	public MbMessage request(String fromPath, String dstURI, String method,
+			MbMessage msg) throws MessageBusException {
 		
 		com.ericsson.research.warp.api.message.Message reply = null;
 		try {
@@ -136,7 +137,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 			throw new MessageBusException(e);
 		}
 
-		return JSON.fromJSON(new String(reply.getData()), Message.class);
+		return JSON.fromJSON(new String(reply.getData()), MbMessage.class);
 
 	}
 	

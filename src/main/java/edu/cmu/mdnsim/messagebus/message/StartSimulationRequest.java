@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class StartSimulationRequest {
+public class StartSimulationRequest extends MbMessage {
 	
 	private String _sourceNodeName;
 	private String _sinkNodeName;

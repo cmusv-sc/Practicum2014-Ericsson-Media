@@ -6,7 +6,7 @@ package edu.cmu.mdnsim.messagebus.message;
 /**
  * Represents sets of nodes and edges as required by the web client.
  */
-public class WebClientUpdateMessage {
+public class WebClientUpdateMessage extends MbMessage {
 	
 	public class Node{
 		public String id;

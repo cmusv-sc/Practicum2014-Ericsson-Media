@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class RegisterNodeContainerRequest extends Message{
+public class RegisterNodeContainerRequest extends MbMessage{
 	
 	private String label;
 	private String nodeName;

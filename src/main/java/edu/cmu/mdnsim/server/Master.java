@@ -28,11 +28,6 @@ public class Master {
     MessageBusServer msgBusSvr;
     
     /**
-     * A TrapHostable that hosts the Web Interface for the Mdn Simulator
-     */
-    private static WebClient _webClient;
-    
-    /**
 	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
 	 * MDNNode
 	 */
@@ -46,9 +41,9 @@ public class Master {
 			new ConcurrentHashMap<String, RegisterNodeContainerRequest>();
 	
 	/**
-	 * _webClientURI records the WarpURI of the web client
+	 * _webClientURI records the URI of the web client
 	 */
-	private WarpURI _webClientURI;
+	private String _webClientURI;
 	
 	/**
 	 * _svc is the instance of WarpService
@@ -185,12 +180,14 @@ public class Master {
 //		/* Sink report listener */
 //		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
+
 		// _svc.register();
 		msgBusSvr.register();
 
+
 		// Load the WebClient
-		_webClient = new WebClient();
-		_webClient.load(msgBusSvr.getDomain());
+//		_webClient = new WebClient();
+//		_webClient.load(msgBusSvr.getDomain());
     }
     
     public void createNode(Message message, CreateNodeRequest req) {
@@ -210,7 +207,7 @@ public class Master {
     	if (ClusterConfig.DEBUG) {
     		System.out.println("[DEBUG]Master.createNode(): message sent");
     	}
-    	
+
     }
 	
 	/**
@@ -258,6 +255,14 @@ public class Master {
 	}
 
 	
+	/**
+	 * Handler for the registration message from the web client hosting 
+	 * simulator front end
+	 * @param msg
+	 */
+	public void registerWebClient(Message request, String webClientUri) {
+		_webClientURI = webClientUri;
+	}
 	
 	/* */
 //	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
@@ -379,6 +384,7 @@ public class Master {
 //	public String getStartTimeForStream(String streamId) {
 //		return this._startTimeMap.get(streamId);
 //	}
+
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();

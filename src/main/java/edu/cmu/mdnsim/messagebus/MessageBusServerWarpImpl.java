@@ -1,7 +1,9 @@
 package edu.cmu.mdnsim.messagebus;
 
+import java.io.IOException;
 import java.util.logging.Level;
 
+import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
 import com.ericsson.research.warp.api.Notifications;
 import com.ericsson.research.warp.api.Notifications.Listener;
@@ -17,13 +19,19 @@ import com.ericsson.research.warp.api.logging.WarpLogger;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.Message;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.server.Master;
+import edu.cmu.mdnsim.server.WebClient;
 
 public class MessageBusServerWarpImpl implements MessageBusServer {
 	
 	private static WarpDomain _warpDomain;
 	
+    /**
+     * A TrapHostable that hosts the Web Interface for the Mdn Simulator
+     */
+    private static WebClient _webClient;
+    	
 	private static WarpService _svc;
 	
 	@Override
@@ -31,6 +39,22 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
 		configDomain();
+		
+		// Load the WebClient
+		_webClient = new WebClient();
+		try {
+			_webClient.load(_warpDomain);
+		} catch (WarpException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TrapException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		configService();
 	}
 
@@ -46,7 +70,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	}
 
 	@Override
-	public void send(String fromPath, String dstURI, String method, Message msg)
+	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {
@@ -108,11 +132,5 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 			throw new MessageBusException(e);
 		}
 	}
-
-	@Override
-	public Object getDomain() {
-		return _warpDomain;
-	}
-
 	
 }

@@ -1,28 +1,25 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-import edu.cmu.mdnsim.nodes.NodeType;
 
 
-
-public class RegisterNodeRequest extends MbMessage {
+public class NodeRegistrationRequest extends MbMessage {
 	
 	private String _warpURI;
 	private String _nodeIP;
 	private int _port;
-	private NodeType _type;
+//	private NodeType _type;
 	
-	public RegisterNodeRequest() {
+	public NodeRegistrationRequest() {
 		_warpURI = null;
 		_nodeIP = "";
 		_port = 1099;
-		_type = NodeType.UNDEF;
 	}
 	
-	public RegisterNodeRequest(String uri, String ip, int port, NodeType type) {
+	public NodeRegistrationRequest(String uri, String ip, int port) {
 		this._warpURI = uri;
 		this._nodeIP = ip;
 		this._port = port;
-		this._type = type;
+//		this._type = type;
 	}
 	
 	public String getWarpURI() {
@@ -37,9 +34,9 @@ public class RegisterNodeRequest extends MbMessage {
 		return _port;
 	}
 	
-	public NodeType getType() {
-		return _type;
-	}
+//	public NodeType getType() {
+//		return _type;
+//	}
 	
 	public void setWarpURI(String uri) {
 		_warpURI = uri;
@@ -53,7 +50,7 @@ public class RegisterNodeRequest extends MbMessage {
 		_port = port;
 	}
 	
-	public void setType(NodeType type) {
-		_type = type;
-	}
+//	public void setType(NodeType type) {
+//		_type = type;
+//	}
 }

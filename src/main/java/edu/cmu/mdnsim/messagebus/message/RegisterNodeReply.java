@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-public class RegisterNodeReply extends Message {
+public class RegisterNodeReply extends MbMessage {
 
 	private String nodeName;
 	
