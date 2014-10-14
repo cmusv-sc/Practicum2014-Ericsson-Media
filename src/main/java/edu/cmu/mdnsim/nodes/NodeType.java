@@ -1,7 +1,9 @@
 package edu.cmu.mdnsim.nodes;
 
-public enum NodeType {
+import java.io.Serializable;
+
+public enum NodeType implements Serializable {
 	
-	SOURCE, SINK, UNDEF;
+	SOURCE, SINK, NODE_CONTAINER, UNDEF;
 
 }

@@ -1,39 +1,60 @@
-//package edu.cmu.mdnsim.messagebus.test;
-//
-//import com.ericsson.research.warp.api.Warp;
-//import com.ericsson.research.warp.api.WarpException;
-//import com.ericsson.research.warp.api.WarpURI;
-//import com.ericsson.research.warp.util.JSON;
-//
-//import edu.cmu.mdnsim.messagebus.message.StartSimulationRequest;
-//import edu.cmu.nodes.NodeContainer;
-//
-//public class Stimulus extends NodeContainer {
-//	
-//	
-//	public Stimulus() {
-//		super();
-//	}
-//
-//	public static void main(String[] args) throws WarpException {
-//		
-//		Stimulus stimulus = new Stimulus();
-//
-//		stimulus.config();
-//		stimulus.init();
-//		
-//		try {
-//			Thread.sleep(1000 * 5);
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		StartSimulationRequest request = new StartSimulationRequest();
-//		request.setDataSize(2048);
-//		request.setStreamID("stream-123");
-//		request.setStreamRate(1);
-//		request.setSourceNodeName("node-0000");
-//		request.setSinkNodeName("node-0001");
-//		Warp.send("/", WarpURI.create("warp://cmu-sv:mdn-manager/start_simulation"), "POST", JSON.toJSON(request).getBytes());
-//	}
-//}
+package edu.cmu.mdnsim.messagebus.test;
+
+import java.net.UnknownHostException;
+import java.util.LinkedList;
+import java.util.List;
+
+import edu.cmu.mdnsim.messagebus.MessageBusClient;
+import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
+import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.nodes.AbstractNode;
+import edu.cmu.mdnsim.nodes.NodeType;
+
+
+
+
+public class Stimulus extends AbstractNode {
+	
+	List<MessageBusTestCase> testCaseList = new LinkedList<MessageBusTestCase>();
+	
+	public Stimulus() throws UnknownHostException, MessageBusException {
+		super();
+	}
+	
+	
+	public void config() throws MessageBusException {
+		msgBusClient.config();
+	}
+	
+	public void addTestCase(MessageBusTestCase testCase) {
+		testCaseList.add(testCase);
+	}
+	
+	public void runTestCase(int index) throws MessageBusException {
+		
+		testCaseList.get(index).execute();
+		
+	}
+	
+	
+	public static void main(String[] args) throws MessageBusException, InterruptedException, UnknownHostException {
+		
+		Stimulus stimulus = new Stimulus();
+		stimulus.config();
+		stimulus.connect();
+		Thread.sleep(1000 * 5);
+		MessageBusTestCase testCase = new CreateNodeTest(stimulus.msgBusClient);
+		stimulus.addTestCase(testCase);
+		stimulus.runTestCase(0);
+	}
+
+
+	@Override
+	public void executeTask(WorkSpecification ws) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	
+}
+

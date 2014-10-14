@@ -17,6 +17,8 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
@@ -26,8 +28,7 @@ public class SinkNode extends AbstractNode {
 	
 	
 	public SinkNode() throws UnknownHostException, MessageBusException {
-		super(NodeType.SINK);
-		_streamSocketMap = new HashMap<String, DatagramSocket>(); 
+		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl");
 	}
 	
 	public SinkNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
@@ -38,16 +39,14 @@ public class SinkNode extends AbstractNode {
 	@Override
 	public void config() throws MessageBusException {
 		msgBusClient.config();
-		msgBusClient.addMethodListener("/sink/exec", "POST", this, "executeTask");	
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
+		
 	}
+	
+	
 
 	@Override
-	public void connect() throws MessageBusException {
-		msgBusClient.connect();
-	}
-
-	@Override
-	public void exectueTask(WorkSpecification ws) {
+	public void executeTask(WorkSpecification ws) {
 		
 		Map<String, Object> config = ws.getConfig();
 		int port = bindAvailablePortToStream((String)config.get("stream-id"));
@@ -165,7 +164,7 @@ public class SinkNode extends AbstractNode {
 						String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
 						
 						try {
-							msgBusClient.sendToMaster(fromPath, "POST", sinkReportMsg);
+							msgBusClient.sendToMaster(fromPath, "reports", "POST", sinkReportMsg);
 						} catch (MessageBusException e) {
 							//TODO: add exception handler
 							e.printStackTrace();

@@ -14,6 +14,8 @@ import com.ericsson.research.trap.utils.PackageScanner;
 
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
 public abstract class AbstractNode {
@@ -22,9 +24,11 @@ public abstract class AbstractNode {
 	
 	private String nodeName;
 
-	private NodeType nodeType;
+	protected NodeType nodeType;
 	
 	private InetAddress laddr;
+	
+	private boolean registered = false;
 	
 	/* 1 kb */
 	public static final int STD_DATAGRAM_SIZE = 1000;
@@ -36,21 +40,15 @@ public abstract class AbstractNode {
 	 *
 	 */
 	public AbstractNode() throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient("MessageBusClientWarpImpl");
-		nodeType = NodeType.UNDEF;
-		laddr = java.net.InetAddress.getLocalHost();
+		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", NodeType.UNDEF);
 	}
 
 	public AbstractNode(NodeType nodeType) throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient("MessageBusClientWarpImpl");
-		AbstractNode.this.nodeType = nodeType;
-		laddr = java.net.InetAddress.getLocalHost();
+		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", nodeType);
 	}
 	
 	public AbstractNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient(msgBusClientImplName);
-		nodeType = NodeType.UNDEF;
-		laddr = java.net.InetAddress.getLocalHost();
+		this(msgBusClientImplName, NodeType.UNDEF);
 	}
 	
 	public AbstractNode(String msgBusClientImplName, NodeType nodeType) throws UnknownHostException, MessageBusException {
@@ -60,8 +58,29 @@ public abstract class AbstractNode {
 	}
 	
 	public abstract void config() throws MessageBusException;
+
+
+	public void registerNodeReply(RegisterNodeReply reply) {		
+		nodeName = reply.getNodeName();
+		setRegistered();
+	}
 	
-	public abstract void connect() throws MessageBusException;
+	
+	
+	public void connect() throws MessageBusException {
+		msgBusClient.addMethodListener("/nodename", "POST", this, "registerNodeReply");
+		msgBusClient.connect();
+		RegisterNodeRequest req = new RegisterNodeRequest();
+		req.setType(nodeType);
+		while (!msgBusClient.isConnected()) {
+			
+		}
+		msgBusClient.sendToMaster("/", "/nodes", "PUT", req);
+		while (!isRegistered()) {
+			
+		}
+		
+	}
 	
 	public InetAddress getHostAddr() {
 		return laddr;
@@ -75,8 +94,12 @@ public abstract class AbstractNode {
 		return nodeName;
 	}
 	
+	public void setNodeName(String name) {
+		this.nodeName = name;
+	}
 	
-	public abstract void exectueTask(WorkSpecification ws);
+	
+	public abstract void executeTask(WorkSpecification ws);
 	
 	public String currentTime(){
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
@@ -84,6 +107,13 @@ public abstract class AbstractNode {
 		return dateFormat.format(date);
 	}
 
+	private synchronized void setRegistered() {
+		registered = true;
+	}
+	
+	private synchronized boolean isRegistered() {
+		return registered;
+	}
 	
 	private MessageBusClient instantiateMsgBusClient (String className) throws MessageBusException {
 		
@@ -91,7 +121,7 @@ public abstract class AbstractNode {
 		
 		Class<?>[] scan;
 		try {
-			scan = PackageScanner.scan("edu.cmu.messagebus");
+			scan = PackageScanner.scan("edu.cmu.mdnsim.messagebus");
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}
