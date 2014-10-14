@@ -90,6 +90,7 @@ function refreshGraph(updated_data){
 
 	Warp.on("connect", function() {
 		console.log("Now registered at " + Warp.uri);
+		Warp.send({to: "warp://cmu-sv:mdn-manager/register_webclient", data: Warp.uri});
 		//init();
 	});
 	/*function init(){
