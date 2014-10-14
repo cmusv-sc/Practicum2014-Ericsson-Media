@@ -36,21 +36,15 @@ public abstract class AbstractNode {
 	 *
 	 */
 	public AbstractNode() throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient("MessageBusClientWarpImpl");
-		nodeType = NodeType.UNDEF;
-		laddr = java.net.InetAddress.getLocalHost();
+		this("MessageBusClientWarpImpl", NodeType.UNDEF);
 	}
 
 	public AbstractNode(NodeType nodeType) throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient("MessageBusClientWarpImpl");
-		AbstractNode.this.nodeType = nodeType;
-		laddr = java.net.InetAddress.getLocalHost();
+		this("MessageBusClientWarpImpl", nodeType);
 	}
 	
 	public AbstractNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
-		msgBusClient = instantiateMsgBusClient(msgBusClientImplName);
-		nodeType = NodeType.UNDEF;
-		laddr = java.net.InetAddress.getLocalHost();
+		this(msgBusClientImplName, NodeType.UNDEF);
 	}
 	
 	public AbstractNode(String msgBusClientImplName, NodeType nodeType) throws UnknownHostException, MessageBusException {
@@ -78,14 +72,7 @@ public abstract class AbstractNode {
 	
 	public abstract void exectueTask(WorkSpecification ws);
 	
-	public String currentTime(){
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
-		Date date = new Date();
-		return dateFormat.format(date);
-	}
-
-	
-	private MessageBusClient instantiateMsgBusClient (String className) throws MessageBusException {
+	private MessageBusClient instantiateMsgBusClient(String className) throws MessageBusException {
 		
 		MessageBusClient client = null;
 		

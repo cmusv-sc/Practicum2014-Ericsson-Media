@@ -127,8 +127,8 @@ public class SinkNode extends AbstractNode {
 		public void run() {
 			
 			boolean started = false;
-			long startTime = (long) 0;
-			long totalTime = (long) 0;
+			long startTime = 0;
+			long totalTime = 0;
 			int totalBytes = 0;
 			
 			DatagramSocket socket;

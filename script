@@ -1,13 +1,37 @@
 {
-    "id": "1",
-    "flow": [
-        {
-        	"nodeType": "Source",
-            "bitrate": 500
-        },
-        {
-        	"nodeType": "Sink",
-            "bitrate": 500
-        }
-    ]
+	"streamConfigList":[{
+    	"id": "1",
+    	"size": "200",
+    	"flow": [
+        	{
+        		"nodeType": "Source",
+            	"bitrate": 100,
+	            "id": "us-west-1"
+	        },
+	        {
+	        	"nodeType": "Sink",
+	            "bitrate": 200,
+	            "id": "us-west-2",
+	            "upStreamNodeId": "us-west-1"
+	        }
+	    ]
+	},
+	{
+	    "id": "2",
+	    "size": "300",
+	    "flow": [
+	        {
+	        	"nodeType": "Source",
+	            "bitrate": 100,
+	            "id": "us-west-3"
+	        },
+	        {
+	        	"nodeType": "Sink",
+	            "bitrate": 200,
+	            "id": "us-west-4",
+	            "upStreamNodeId": "us-west-3"
+	        }
+	    ]
+	}]
 }
+

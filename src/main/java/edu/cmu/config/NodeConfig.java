@@ -2,21 +2,24 @@ package edu.cmu.config;
 
 public class NodeConfig {
 
-	 private String nodeType; 
-	 private String label; 
-	 private int bitrate;
-	 private String URI;
-	 private String desIP;
-	 private int desPort;
+	private String id;
+	private String nodeType; 
+	private String label; 
+	private int bitrate;
+	private String URI;
 	 
-	 
+	private String upStreamNodeId;
+	private String desIP;
+	private int desPort;
+	 	 
 	public static class Builder{
 		
 		private final String nodeType; 
-		
+		private String id = "";
 		private String label = ""; 
 		private int bitrate = 500;
 		private String URI = "";
+		private String upStreamNodeId = "";
 		private String desIP = "";
 		private int desPort = 0;
 		 
@@ -24,6 +27,10 @@ public class NodeConfig {
 			this.nodeType = nodeType;
 		}
 		
+		public Builder id(String id){
+			this.id = id;
+			return this;
+		}
 		public Builder label(String label){
 			this.label = label;
 			return this;
@@ -44,6 +51,10 @@ public class NodeConfig {
 			this.desPort = desPort;
 			return this;
 		}
+		public Builder upStreamNodeId(String upStreamNodeId){
+			this.upStreamNodeId = upStreamNodeId;
+			return this;
+		}
 		
 		public NodeConfig build(){
 			return new NodeConfig(this);
@@ -55,11 +66,13 @@ public class NodeConfig {
 	
 	public NodeConfig(Builder builder){
 		this.nodeType = builder.nodeType;
+		this.id = builder.id;
 		this.label = builder.label;
 		this.bitrate = builder.bitrate;
 		this.URI = builder.URI;
 		this.desIP = builder.desIP;
 		this.desPort = builder.desPort;
+		this.upStreamNodeId = builder.upStreamNodeId;
 	}
 	
 	public String getNodeType() {
@@ -97,6 +110,18 @@ public class NodeConfig {
 	}
 	public void setDesPort(int desPort) {
 		this.desPort = desPort;
+	}
+	 public String getId() {
+		return id;
+	}
+	public void setId(String id) {
+		this.id = id;
+	}
+	public String getUpStreamNodeId() {
+		return upStreamNodeId;
+	}
+	public void setUpStreamNodeId(String upStreamNodeId) {
+		this.upStreamNodeId = upStreamNodeId;
 	}
 	
 }
