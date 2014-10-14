@@ -19,20 +19,21 @@ import edu.cmu.messagebus.MessageBusClient;
 import edu.cmu.messagebus.exception.MessageBusException;
 import edu.cmu.messagebus.message.SinkReportMessage;
 import edu.cmu.messagebus.test.WorkSpecification;
+import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
 	
-	private HashMap<String, DatagramSocket> _streamSocketMap;
+	private HashMap<String, DatagramSocket> streamSocketMap;
 	
 	
 	public SinkNode() throws UnknownHostException, MessageBusException {
 		super(NodeType.SINK);
-		_streamSocketMap = new HashMap<String, DatagramSocket>(); 
+		streamSocketMap = new HashMap<String, DatagramSocket>(); 
 	}
 	
 	public SinkNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
 		super(msgBusClientImplName, NodeType.SINK);
-		_streamSocketMap = new HashMap<String, DatagramSocket>(); 
+		streamSocketMap = new HashMap<String, DatagramSocket>(); 
 	}
 	
 	@Override
@@ -88,15 +89,15 @@ public class SinkNode extends AbstractNode {
 		}
 
 		
-		if (_streamSocketMap.containsKey(streamId)) {
+		if (streamSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():"
 						+ "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
-			return _streamSocketMap.get(streamId).getPort();
+			return streamSocketMap.get(streamId).getPort();
 		} else {
-			_streamSocketMap.put(streamId, udpSocekt);
+			streamSocketMap.put(streamId, udpSocekt);
 			return udpSocekt.getLocalPort();
 		}
 		
@@ -118,7 +119,6 @@ public class SinkNode extends AbstractNode {
 		
 		private String streamId;
 		
-		
 		public ReceiveDataThread(String streamId, MessageBusClient msgBusClient) {
 			ReceiveDataThread.this.streamId = streamId;
 		}
@@ -131,8 +131,8 @@ public class SinkNode extends AbstractNode {
 			long totalTime = 0;
 			int totalBytes = 0;
 			
-			DatagramSocket socket;
-			if ((socket = _streamSocketMap.get(streamId)) == null) {
+			DatagramSocket socket = null;
+			if ((socket = streamSocketMap.get(streamId)) == null) {
 				// TODO handle potential error condition
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():"
@@ -159,7 +159,7 @@ public class SinkNode extends AbstractNode {
 						SinkReportMessage sinkReportMsg = new SinkReportMessage();
 						sinkReportMsg.setStreamId(streamId);
 						sinkReportMsg.setTotalBytes(totalBytes);
-						sinkReportMsg.setEndTime(this.currentTime());
+						sinkReportMsg.setEndTime(Utility.currentTime());
 						//sinkReportMsg.setTotalTime(totalTime);
 						
 						String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
@@ -177,7 +177,7 @@ public class SinkNode extends AbstractNode {
 								" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+totalTime);
 						// cleanup resources
 						socket.close();
-						_streamSocketMap.remove(streamId);
+						streamSocketMap.remove(streamId);
 						
 						break;
 					}
@@ -188,12 +188,6 @@ public class SinkNode extends AbstractNode {
 				}
 			}
 			
-		}
-		
-		private String currentTime() {
-			DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
-			Date date = new Date();
-			return dateFormat.format(date);
 		}
 	}
 
