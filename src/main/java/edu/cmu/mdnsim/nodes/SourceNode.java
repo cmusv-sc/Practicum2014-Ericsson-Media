@@ -18,7 +18,11 @@ import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
-	
+	/**
+	 * Uses the default MessageBusClientWarpImpl as the message bus implementation
+	 * @throws UnknownHostException
+	 * @throws MessageBusException
+	 */
 	public SourceNode() throws UnknownHostException, MessageBusException {
 		super(NodeType.SOURCE);
 	}

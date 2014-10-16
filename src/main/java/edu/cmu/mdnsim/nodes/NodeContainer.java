@@ -14,8 +14,6 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 
-
-
 public class NodeContainer {
 
 	private MessageBusClient msgBusClient;
@@ -54,7 +52,7 @@ public class NodeContainer {
 		req.setLabel(label);
 		req.setNcURI(msgBusClient.getURI());
 
-		msgBusClient.sendToMaster("/", "/node-containers", "PUT", req);
+		msgBusClient.sendToMaster("/", "/node_containers", "PUT", req);
 	}
 	
 	public void createNode(CreateNodeRequest req) 

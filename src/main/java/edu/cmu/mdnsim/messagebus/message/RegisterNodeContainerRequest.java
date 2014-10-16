@@ -3,16 +3,16 @@ package edu.cmu.mdnsim.messagebus.message;
 public class RegisterNodeContainerRequest extends MbMessage{
 	
 	private String label;
-	private String nodeName;
+	private String containerLabel;
 	private String ncURI;
 	
 	public RegisterNodeContainerRequest() {
 		
 	}
 	
-	public RegisterNodeContainerRequest(String label, String nodeName, String ncURI) {
+	public RegisterNodeContainerRequest(String label, String containerLabel, String ncURI) {
 		this.label = label;
-		this.nodeName = nodeName;
+		this.containerLabel = containerLabel;
 		this.ncURI = ncURI;
 	}
 	
@@ -20,8 +20,8 @@ public class RegisterNodeContainerRequest extends MbMessage{
 		return label;
 	}
 	
-	public String getNodeName() {
-		return nodeName;
+	public String getContainerLabel() {
+		return containerLabel;
 	}
 	
 	public String getNcURI() {
@@ -32,8 +32,8 @@ public class RegisterNodeContainerRequest extends MbMessage{
 		this.label = label;
 	}
 	
-	public void setNodeName(String nodeName) {
-		this.nodeName = nodeName;
+	public void setContainerLabel(String containerName) {
+		this.containerLabel = containerName;
 	}
 	
 	public void setNcURI(String uri) {

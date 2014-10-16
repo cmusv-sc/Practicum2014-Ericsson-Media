@@ -11,15 +11,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-
 import com.ericsson.research.warp.util.WarpThreadPool;
-
-
-
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
@@ -191,7 +186,4 @@ public class SinkNode extends AbstractNode {
 			
 		}
 	}
-
-
-
 }

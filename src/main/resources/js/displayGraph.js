@@ -146,18 +146,28 @@ function refreshGraph(updated_data){
  */
 function startSimulation(){
 	console.log("startSimulation");
-	var files = $("#wsinput")[0].files;
-	//For each file selected send message to Master node
-	for (var i = 0, file; file = files[i]; i++) {
-		console.log(file);
+	Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: "start"});
+}
+
+function handleWsFileSelect(evt) {
+	var files = evt.target.files; // FileList object
+	// Loop through the FileList and render image files as thumbnails.
+	for (var i = 0, f; f = files[i]; i++) {
 		var reader = new FileReader();
-		reader.onload = function(e) {
-			Warp.send({to: "warp://cmu-sv:mdn-manager/validate_user_spec", data: reader.result});
-			console.log("File data:" + reader.result);
-		};
-		reader.readAsBinaryString(file);
+
+		// Closure to capture the file information.
+		reader.onload = (function(theFile) {
+			return function(e) {
+				Warp.send({to: "warp://cmu-sv:mdn-manager/validate_user_spec", data: e.target.result});
+				console.log("Hello from handleWsFileSelect");
+			};
+		})(f);
+
+		// Read in the image file as a data URL.
+		reader.readAsBinaryString(f);
 	}
 }
+
 /**
  * Warp related functions
  */
@@ -200,6 +210,10 @@ $(document).ready(function() {
 	$("#btnStart").click(function(e){
 		startSimulation();
 	});
+	
+	document.getElementById('wsinput').onchange = function(event) {
+		handleWsFileSelect(event);
+	};
 });
 /**
  * Escapes the special characters reserved by jquery 

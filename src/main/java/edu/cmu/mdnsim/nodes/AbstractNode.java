@@ -15,7 +15,6 @@ import com.ericsson.research.trap.utils.PackageScanner;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
 public abstract class AbstractNode {
@@ -57,15 +56,7 @@ public abstract class AbstractNode {
 		laddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public abstract void config() throws MessageBusException;
-
-
-	public void registerNodeReply(RegisterNodeReply reply) {		
-		nodeName = reply.getNodeName();
-		setRegistered();
-	}
-	
-	
+	public abstract void config() throws MessageBusException;	
 	
 	public void connect() throws MessageBusException {
 		msgBusClient.addMethodListener("/nodename", "POST", this, "registerNodeReply");

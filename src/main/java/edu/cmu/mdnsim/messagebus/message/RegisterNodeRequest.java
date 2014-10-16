@@ -8,6 +8,7 @@ public class RegisterNodeRequest extends MbMessage {
 	
 	private String _warpURI;
 	private String _nodeIP;
+	private String _nodeName;
 	private int _port;
 	private NodeType _type;
 	
@@ -55,5 +56,13 @@ public class RegisterNodeRequest extends MbMessage {
 	
 	public void setType(NodeType type) {
 		_type = type;
+	}
+	
+	public String getNodeName() {
+		return _nodeName;
+	}
+
+	public void setNodeName(String _nodeName) {
+		this._nodeName = _nodeName;
 	}
 }
