@@ -6,10 +6,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Map;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
@@ -18,6 +14,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
+import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
@@ -34,7 +31,6 @@ public class SourceNode extends AbstractNode {
 	public void config() throws MessageBusException {
 		msgBusClient.config();
 		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
-		
 	}
 
 	
@@ -94,96 +90,61 @@ public class SourceNode extends AbstractNode {
 		
 		@Override
 		public void run() {
-			final long MILLIS_IN_SECOND = 1000;
-			long millisRemaining = MILLIS_IN_SECOND;
-			int bytesThisSecond = 0;
-			int totalBytesTransferred = 0;
-//			if (rate % STD_DATAGRAM_SIZE != 0) {
-//				System.out.println("rate must be a multiple of 1024"
-//						+ "(the standard datagram size)");
-//				return;
-//			}
+			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
+			long millisecondPerPacket = (long)(1 / packetPerSecond) * 1000; 
 			
-			byte[] buf = new byte[STD_DATAGRAM_SIZE];
 			DatagramSocket sourceSocket = null;
-			InetAddress laddr, destAddr = null;
+			InetAddress laddr = null;
 			try {
 				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
-				destAddr = InetAddress.getByName(dstAddrStr);
 				sourceSocket = new DatagramSocket(0, laddr);
 			} catch (UnknownHostException uhe) {
-				// TODO Auto-generated catch block
 				uhe.printStackTrace();
 			} catch (SocketException se) {
-				// TODO Auto-generated catch block
 				se.printStackTrace();
 			}
 			
-			System.out.println("[INFO] SourceNode.SendDataThread.run(): "
-					+ "Source will start sending data. "
+			System.out.println("[INFO] SourceNode.SendDataThread.run(): " + "Source will start sending data. "
 					+ "Record satrt time and report to master");
 			
 			SourceReportMessage srcReportMsg = new SourceReportMessage();
 			srcReportMsg.setStreamId(streamId);
 			srcReportMsg.setTotalBytes_transferred(bytesToTransfer);
-			srcReportMsg.setStartTime(this.currentTime());
-			
-			
+			srcReportMsg.setStartTime(Utility.currentTime());	
+			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
-				String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
-				//TODO: Add exception handler
 				e.printStackTrace();
 			};
 			
+			byte[] buf = null;
 			while (bytesToTransfer > 0) {
 				long begin = System.currentTimeMillis();
 				
-				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? 
-						bytesToTransfer : STD_DATAGRAM_SIZE];
-				// 0 indicates the end of transmission marker
-				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);
-				
-				DatagramPacket packet = new DatagramPacket(buf, buf.length, 
-						destAddr, dstPort);
+				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? bytesToTransfer : STD_DATAGRAM_SIZE];
+				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);			
+				DatagramPacket packet = null;
 				try {
+					packet = new DatagramPacket(buf, buf.length, InetAddress.getByName(dstAddrStr), dstPort);
 					sourceSocket.send(packet);
 				} catch (IOException ioe) {
-					// TODO Auto-generated catch block
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
-				totalBytesTransferred += packet.getLength();
-				bytesThisSecond += packet.getLength();
 				
 				long end = System.currentTimeMillis();
-				millisRemaining = MILLIS_IN_SECOND - (end - begin);
-				
-				if (bytesThisSecond >= (rate*STD_DATAGRAM_SIZE)) {
-					bytesThisSecond = 0;
+				long millisRemaining = millisecondPerPacket - (end - begin);
+				if (millisRemaining > 0) {
 					try {
 						Thread.sleep(millisRemaining);
-						millisRemaining = MILLIS_IN_SECOND;
 					} catch (InterruptedException ie) {
-						// TODO Auto-generated catch block
 						ie.printStackTrace();
 					}
-				} // while (bytesThisSecond >= rate)
-				
-			} // while(bytesToTransfer > 0)
-			
-			// cleanup resources
+				}
+			} 
 			sourceSocket.close();
-			
 		}
-		
-		private String currentTime(){
-			DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
-			Date date = new Date();
-			return dateFormat.format(date);
-		}
-		
 	}
 
 	

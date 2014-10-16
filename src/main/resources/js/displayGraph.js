@@ -200,7 +200,6 @@ $(document).ready(function() {
 	$("#btnStart").click(function(e){
 		startSimulation();
 	});
-
 });
 /**
  * Escapes the special characters reserved by jquery 

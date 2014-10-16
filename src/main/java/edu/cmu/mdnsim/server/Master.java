@@ -27,6 +27,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
+import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.mdnsim.nodes.NodeType;
 /**
  * It represents the Master Node of the Simulator.

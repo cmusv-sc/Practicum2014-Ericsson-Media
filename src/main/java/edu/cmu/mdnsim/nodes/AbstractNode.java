@@ -101,6 +101,7 @@ public abstract class AbstractNode {
 	
 	public abstract void executeTask(WorkSpecification ws);
 	
+
 	public String currentTime(){
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		Date date = new Date();
