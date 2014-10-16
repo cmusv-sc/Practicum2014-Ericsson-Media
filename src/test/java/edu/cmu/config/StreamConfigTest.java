@@ -9,6 +9,9 @@ import org.junit.Test;
 
 import com.ericsson.research.warp.util.JSON;
 
+import edu.cmu.mdnsim.config.NodeConfig;
+import edu.cmu.mdnsim.config.StreamConfig;
+
 public class StreamConfigTest {
 
 	@Test

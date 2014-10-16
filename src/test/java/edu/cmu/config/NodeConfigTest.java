@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import edu.cmu.mdnsim.config.NodeConfig;
+
 public class NodeConfigTest extends NodeConfig {
 
 	@Test

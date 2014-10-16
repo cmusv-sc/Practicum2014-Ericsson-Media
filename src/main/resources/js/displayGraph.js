@@ -46,12 +46,12 @@ var s = null;
 
 function createGraph(initial_data){
 	console.log(initial_data);
-	// initial_data = {"edges":
-	// [{"source":"1","target":"2","id":"100"},{"source":"1","target":"3","id":"101"}],
-	// "nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
-	//          {"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
-	//          {"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}
-	//          ]}
+//	 initial_data1 = {"edges":
+//	 [{"source":"1","target":"2","id":"100"},{"source":"1","target":"3","id":"101"}],
+//	 "nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
+//	          {"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
+//	          {"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}
+//	          ]}
 	s = new sigma({
 		graph: initial_data,
 		//container: 'graph-container'
@@ -87,48 +87,78 @@ function refreshGraph(updated_data){
 	s.refresh();  
 }
 
+/*function init(){
+	console.log(Warp.uri);
+	init = {warpURI: Warp.uri, nodeIP: "", port: "", type: "WEB_CLIENT"};
+	Warp.send({to: "warp://cmu-sv:mdn-manager/discover",data: init});
+}*/
+function handleWsFileSelect(evt) {
+    var files = evt.target.files; // FileList object
 
-	Warp.on("connect", function() {
-		console.log("Now registered at " + Warp.uri);
-		Warp.send({to: "warp://cmu-sv:mdn-manager/register_webclient", data: Warp.uri});
-		//init();
-	});
-	/*function init(){
-		console.log(Warp.uri);
-		init = {warpURI: Warp.uri, nodeIP: "", port: "", type: "WEB_CLIENT"};
-		Warp.send({to: "warp://cmu-sv:mdn-manager/discover",data: init});
-	}*/
-	function startSimulation(){		
-		start = {sourceNodeName: "node-0000", sinkNodeName: "node-0001", dataSize: 10000, 
-					streamRate: 1, streamID: "1"};
-		Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
-	}
-	
-	Warp.on({		
-		post: function(m) {
-			console.log("POST data: " + m.text); //m.object for JSON
-		},
-		message: function(m) {
-			console.log("Got uncaught message: " + m.text); //m.text for string			
-		}		
-	});
-	Warp.at("/create").on("message", function(m) {
-		console.log("Got message: " + m.object);
-		createGraph(m.object);
-	});
-	Warp.at("/update").on("message", function(m) {
-		console.log("Got message: " + m.object);
-		refreshGraph(m.object);
-	});
-	//Initialization
+    // Loop through the FileList and render image files as thumbnails.
+    for (var i = 0, f; f = files[i]; i++) {
+
+//      // Only process image files.
+//      if (!f.type.match('image.*')) {
+//        continue;
+//      }
+
+      var reader = new FileReader();
+
+      // Closure to capture the file information.
+      reader.onload = (function(theFile) {
+        return function(e) {
+        	Warp.send({to: "warp://cmu-sv:mdn-manager/validate_user_spec", data: e.target.result});
+        	console.log("Hello from handleWsFileSelect");
+        };
+      })(f);
+
+      // Read in the image file as a data URL.
+      reader.readAsBinaryString(f);
+    }
+  }
+
+function startSimulation(){		
+	start = {sourceNodeName: "node-0000", sinkNodeName: "node-0001", dataSize: 10000, 
+				streamRate: 1, streamID: "1"};
+	Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: start});
+}
+
+Warp.on("connect", function() {
+	console.log("Now registered at " + Warp.uri);
+	Warp.send({to: "warp://cmu-sv:mdn-manager/register_webclient", data: Warp.uri});
+});
+Warp.on({		
+	post: function(m) {
+		console.log("POST data: " + m.text); //m.object for JSON
+	},
+	message: function(m) {
+		console.log("Got uncaught message: " + m.text); //m.text for string			
+	}		
+});
+Warp.at("/create").on("message", function(m) {
+	console.log("Got message: " + m.object);
+	$("#graph-container").css("bottom",0);
+	$("#graph-container").css("right",0);
+	createGraph(m.object);
+});
+Warp.at("/update").on("message", function(m) {
+	console.log("Got message: " + m.object);
+	refreshGraph(m.object);
+});
+
+//Initialization
 $(document).ready(function() {
 	$("#btnStart").click(function(e){
 		//e.preventDefault();
 		//Make a call to start simulation
 		//ajax_request(START_URL);
 		startSimulation();
-		$("#graph-container").css("bottom",0);
-		$("#graph-container").css("right",0);
 
-	}); 
+	});
+	
+	document.getElementById('wsinput').onchange = function(event) {
+		handleWsFileSelect(event);
+	};
 });
+

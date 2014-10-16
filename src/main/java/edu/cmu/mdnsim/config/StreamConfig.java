@@ -1,4 +1,4 @@
-package edu.cmu.config;
+package edu.cmu.mdnsim.config;
 import java.util.List;
 
 public class StreamConfig {

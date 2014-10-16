@@ -3,7 +3,9 @@ package edu.cmu.mdnsim.server;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
@@ -12,7 +14,9 @@ import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpURI;
 import com.ericsson.research.warp.api.message.Message;
+import com.ericsson.research.warp.util.JSON;
 
+import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusServer;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -21,6 +25,9 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
+import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
+import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.mdnsim.nodes.NodeType;
 
 public class Master {
@@ -168,6 +175,12 @@ public class Master {
 		
 		/* Register a new node. This is called from a Node Container */
 		msgBusSvr.addMethodListener("/node-containers", "PUT", this, "registerNodeContainer");
+		
+		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
+		msgBusSvr.addMethodListener("/validate_user_spec", "POST", this, "validateUserSpec");
+		
+		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
+		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
 //
 //		/* Add listener for web browser call (start simulation) */
 //		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
@@ -254,6 +267,86 @@ public class Master {
 		}
 	}
 
+	/**
+	 * Method handler to handle validate user spec message.
+	 * Validates user spec and creates the graph
+	 * @param msg
+	 * @param ws
+	 */
+	public void validateUserSpec(Message mesg, StreamSpec ws) {
+		System.out.println("Stream Id is "+ws.StreamId);
+		System.out.println("DataSize is "+ws.DataSize);
+		System.out.println("ByteRate is "+ws.ByteRate);
+		
+		HashSet<String> nodeSet = new HashSet<String>();
+		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
+		ArrayList<Node> nodeList = new ArrayList<WebClientUpdateMessage.Node>();
+		ArrayList<Edge> edgeList = new ArrayList<WebClientUpdateMessage.Edge>();
+		double x = 0.1;
+		double y = 0.1;
+		String srcRgb = "rgb(0,204,0)";
+		String sinkRgb = "rgb(0,204,204)";
+		String srcMsg = "This is a Source Node";
+		String sinkMsg = "This is a Sink Node";
+		int nodeSize = 6;
+		
+		for (HashMap<String, String> node : ws.Flow) {
+			x = Math.random();
+			y = Math.random();
+			String nType = node.get("NodeType");
+			String nId = node.get("NodeId");
+			String upstreamNode = node.get("UpstreamId");
+			String rgb = "";
+			String msg = "";
+			String edgeId = nId+"-"+upstreamNode;
+			String edgeType = "";
+			
+			if (nType.equals("SOURCE")) {
+				rgb = srcRgb;
+				msg = srcMsg;
+			} else if (nType.equals("SINK")) {
+				rgb = sinkRgb;
+				msg = sinkMsg;
+			}
+			if (!nodeSet.contains(nId)) {
+				/*
+				 * This node list is used to ensure that the node is added only once to the node list.
+				 * This situation can arise if a sink node is connected to two upstream sources at the 
+				 * same time
+				 */
+				nodeList.add(webClientUpdateMessage.new Node(nId, nId, x, y, rgb, nodeSize,  msg));
+				nodeSet.add(nId);
+			}
+			if(!upstreamNode.equals("NULL"))
+				edgeList.add(webClientUpdateMessage.new Edge(edgeId, upstreamNode, nId, edgeType));
+			System.out.println("**** Node in Flow ****");
+			System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
+		}
+		Node[] nodes = new Node[nodeList.size()];
+		Edge[] edges = new Edge[edgeList.size()];
+		nodeList.toArray(nodes);
+		edgeList.toArray(edges);
+		webClientUpdateMessage.setEdges(edges);
+		webClientUpdateMessage.setNodes(nodes);
+		
+//		Node[] nodes1 = {
+//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
+//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
+//		};
+//		Edge[] edges1 = {
+//				webClientUpdateMessage.new Edge("E1",nodes1[0].id, nodes1[1].id, "")
+//		};
+//		webClientUpdateMessage.setEdges(edges1);
+//		webClientUpdateMessage.setNodes(nodes1);
+
+		try {
+			Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
+					JSON.toJSON(webClientUpdateMessage).getBytes() );
+		} catch (WarpException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	
 	/**
 	 * Handler for the registration message from the web client hosting 
@@ -262,6 +355,7 @@ public class Master {
 	 */
 	public void registerWebClient(Message request, String webClientUri) {
 		_webClientURI = webClientUri;
+		System.out.println("Web client URI is "+_webClientURI.toString());
 	}
 	
 	/* */
@@ -319,11 +413,11 @@ public class Master {
 //	}
 
 
-//	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
-//			throws WarpException {
-//		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
-//				JSON.toJSON(webClientUpdateMessage).getBytes() );
-//	}
+	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
+			throws WarpException {
+		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
+				JSON.toJSON(webClientUpdateMessage).getBytes() );
+	}
 //	
 //	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
 //		System.out.println("Source finished sending data. StreamId "+srcMsg.getStreamId()+

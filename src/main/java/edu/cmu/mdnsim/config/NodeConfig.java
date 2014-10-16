@@ -1,4 +1,4 @@
-package edu.cmu.config;
+package edu.cmu.mdnsim.config;
 
 public class NodeConfig {
 
