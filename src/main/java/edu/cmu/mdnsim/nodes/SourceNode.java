@@ -36,6 +36,13 @@ public class SourceNode extends AbstractNode {
 		msgBusClient.config();
 		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
 	}
+	
+	@Override
+	public void config(String nodeName) throws MessageBusException {
+		msgBusClient.config();
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
+		this.setNodeName(nodeName);
+	}
 
 	
 	@Override

@@ -56,20 +56,21 @@ public abstract class AbstractNode {
 		laddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public abstract void config() throws MessageBusException;	
+	public abstract void config() throws MessageBusException;
+	public abstract void config(String nodeName) throws MessageBusException;
 	
 	public void connect() throws MessageBusException {
-		msgBusClient.addMethodListener("/nodename", "POST", this, "registerNodeReply");
+		//msgBusClient.addMethodListener("/nodename", "POST", this, "registerNodeReply");
 		msgBusClient.connect();
+		while (!msgBusClient.isConnected()) {}
+		
 		RegisterNodeRequest req = new RegisterNodeRequest();
 		req.setType(nodeType);
-		while (!msgBusClient.isConnected()) {
-			
-		}
+		req.setNodeName(getNodeName());
+		req.setURI(msgBusClient.getURI());
 		msgBusClient.sendToMaster("/", "/nodes", "PUT", req);
-		while (!isRegistered()) {
-			
-		}
+		
+//		while (!isRegistered()) {}
 		
 	}
 	

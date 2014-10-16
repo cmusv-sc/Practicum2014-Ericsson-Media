@@ -6,28 +6,28 @@ import edu.cmu.mdnsim.nodes.NodeType;
 
 public class RegisterNodeRequest extends MbMessage {
 	
-	private String _warpURI;
+	private String _URI;
 	private String _nodeIP;
 	private String _nodeName;
 	private int _port;
 	private NodeType _type;
 	
 	public RegisterNodeRequest() {
-		_warpURI = null;
+		_URI = null;
 		_nodeIP = "";
 		_port = 1099;
 		_type = NodeType.UNDEF;
 	}
 	
 	public RegisterNodeRequest(String uri, String ip, int port, NodeType type) {
-		this._warpURI = uri;
+		this._URI = uri;
 		this._nodeIP = ip;
 		this._port = port;
 		this._type = type;
 	}
 	
-	public String getWarpURI() {
-		return _warpURI;
+	public String getURI() {
+		return _URI;
 	}
 	
 	public String getNodeIP() {
@@ -42,8 +42,8 @@ public class RegisterNodeRequest extends MbMessage {
 		return _type;
 	}
 	
-	public void setWarpURI(String uri) {
-		_warpURI = uri;
+	public void setURI(String uri) {
+		_URI = uri;
 	}
 	
 	public void setNodeIP(String ip) {

@@ -54,6 +54,13 @@ public class Stimulus extends AbstractNode {
 		// TODO Auto-generated method stub
 		
 	}
+
+
+	@Override
+	public void config(String nodeName) throws MessageBusException {
+		// TODO Auto-generated method stub
+		
+	}
 	
 	
 }

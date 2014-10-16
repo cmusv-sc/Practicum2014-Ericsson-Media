@@ -40,7 +40,7 @@ public class NodeContainer {
 	
 	public void config() throws MessageBusException {
 		msgBusClient.config();
-		msgBusClient.addMethodListener("/nodes", "PUT", this, "createNode");
+		msgBusClient.addMethodListener("/create_node", "PUT", this, "createNode");
 	}
 	
 	public void connect() throws MessageBusException {
@@ -86,9 +86,8 @@ public class NodeContainer {
 		Constructor<?> constructor = objectiveNodeClass.getConstructor();
 		AbstractNode newNode = (AbstractNode)constructor.newInstance();
 		try {
-			newNode.config();
+			newNode.config(req.getNcLabel());
 			newNode.connect();
-			
 		} catch (MessageBusException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -158,7 +157,14 @@ public class NodeContainer {
 	}
 	
 	public static void main(String[] args) throws MessageBusException {
-		NodeContainer nc = new NodeContainer();
+		NodeContainer nc = null;
+		int beginIndex = 6; // the node label will start after the prefix "label:" i.e. the 7th char
+		if (args[0] != null && args[0].startsWith("label:")) {
+			nc = new NodeContainer("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", 
+					args[0].substring(beginIndex));
+		}
+		else
+			nc = new NodeContainer();
 		nc.config();
 		nc.connect();
 	}

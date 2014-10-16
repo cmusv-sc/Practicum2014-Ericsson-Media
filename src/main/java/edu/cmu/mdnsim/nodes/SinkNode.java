@@ -11,7 +11,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+
 import com.ericsson.research.warp.util.WarpThreadPool;
+
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -41,7 +43,12 @@ public class SinkNode extends AbstractNode {
 		
 	}
 	
-	
+	@Override
+	public void config(String nodeName) throws MessageBusException {
+		msgBusClient.config();
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
+		this.setNodeName(nodeName);
+	}
 
 	@Override
 	public void executeTask(WorkSpecification ws) {
