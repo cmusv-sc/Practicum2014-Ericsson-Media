@@ -22,16 +22,26 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
 
 public class WebClient {
-	private static String js;  
+	/**
+	 * used to include Warp.js code in the html file.
+	 */
+	private static String js;
+	/**
+	 * Used to handle platform specific file separators
+	 */
 	private static String _separator = File.separator;
-	
+
 	//TODO: Do we need use ConcurrentHashMap? REVIEWED BY JEREMY
 	private Map<String, WebClientUpdateMessage.Node> nodes = new HashMap<String, WebClientUpdateMessage.Node>();
-	
+
+	// Each of the following objects represent one hosted object. 
+	// Add a new object for each new hosted file.  
 	private static TrapHostable mainClientPage = new TrapHostable("text/html") {
 		@Override
 		public byte[] getBytes() {
 			String src = StringUtil.toUtfString(getResourceBytes("client.html"));
+			//The client.html file should have "warp.js" string in head.
+			//That string will be replaced by the Warp.js code
 			src = src.replace("warp.js", js);
 			return StringUtil.toUtfBytes(src);
 		}
@@ -39,7 +49,7 @@ public class WebClient {
 	private static TrapHostable displayGraphJs = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			
+
 			return getResourceBytes("js"+ _separator + "displayGraph.js");
 		}
 	};
@@ -62,15 +72,13 @@ public class WebClient {
 			return getResourceBytes("js" + _separator + "sigma.layout.forceAtlas2.min.js");
 		}
 	};
-	
+
 	/**
-	 * 
+	 * Reads the file from the folder and returns its bytes
 	 * @param resourceName path relative to resources folder like "js\abc.js"
 	 * @return byte[]
 	 */
-	
-	//TODO: Is this method going to be exposed? REVIEWED BY: JEREMY
-	public static byte[] getResourceBytes(String resourceName){
+	private static byte[] getResourceBytes(String resourceName){
 		InputStream is = WebClient.class.getClassLoader().getResourceAsStream(resourceName);
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		byte[] buf = new byte[4096];
@@ -84,30 +92,34 @@ public class WebClient {
 		return bos.toByteArray();
 	}
 
+	/**
+	 * Hosts the Resources (files) required for Web Client
+	 * @param domain
+	 * @throws WarpException
+	 * @throws IOException
+	 * @throws TrapException
+	 */
 	public void load(WarpDomain domain) throws WarpException, IOException, TrapException{
 		domain.getJSLibraryURI(true);
-		
 		js = domain.getEmbeddedJSWithAuthToken(true, true);
 		
-		//TODO: purpose of printing out the information? REVIEWED BY JEREMY
 		System.out.println(domain.addHostedObject(mainClientPage, "index.html"));
 		System.out.println(domain.addHostedObject(displayGraphJs, "js/displayGraph.js"));
 		System.out.println(domain.addHostedObject(sigmaJs, "js/sigma.min.js"));
 		System.out.println(domain.addHostedObject(sigmaJsonParserJs, "js/sigma.parsers.json.min.js"));
 		System.out.println(domain.addHostedObject(sigmaForceAtlas2Js, "js/sigma.layout.forceAtlas2.min.js"));
-	
 	}
 
 	public void addNode(WebClientUpdateMessage.Node newNode){
 		this.nodes.put(newNode.id, newNode);
 	}
-	
+
 	public void removeNode(WebClientUpdateMessage.Node node){
 		this.nodes.remove(node.id);
 	}
 	public List<WebClientUpdateMessage.Node> getNodes(){
 		return (List<Node>) this.nodes.values();
 	}
-	
-	
+
+
 }

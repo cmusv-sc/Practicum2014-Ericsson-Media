@@ -33,11 +33,13 @@ public class WebClientUpdateMessage extends MbMessage {
 		public String source;
 		public String target;
 		public String type;
-		public Edge(String id, String source, String target, String type){
+		public String tag;
+		public Edge(String id, String source, String target, String type, String tag){
 			this.id = id;
 			this.source = source;
 			this.target = target;
 			this.type = type;
+			this.tag = tag;
 		}
 	}
 	
