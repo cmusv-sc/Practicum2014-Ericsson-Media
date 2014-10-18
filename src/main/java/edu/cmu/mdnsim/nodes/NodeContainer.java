@@ -86,8 +86,8 @@ public class NodeContainer {
 		Constructor<?> constructor = objectiveNodeClass.getConstructor();
 		AbstractNode newNode = (AbstractNode)constructor.newInstance();
 		try {
-			newNode.config(req.getNcLabel());
-			newNode.connect();
+			newNode.config(msgBusClient, req.getNodeType(), req.getNcLabel());
+			newNode.register();
 		} catch (MessageBusException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

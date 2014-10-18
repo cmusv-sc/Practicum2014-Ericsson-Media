@@ -18,30 +18,21 @@ import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
-	/**
-	 * Uses the default MessageBusClientWarpImpl as the message bus implementation
-	 * @throws UnknownHostException
-	 * @throws MessageBusException
-	 */
-	public SourceNode() throws UnknownHostException, MessageBusException {
-		super(NodeType.SOURCE);
-	}
-	
-	public SourceNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
-		super(msgBusClientImplName, NodeType.SOURCE);
+	public SourceNode() throws UnknownHostException {
+		super();
 	}
 	
 	@Override
 	public void config() throws MessageBusException {
-		msgBusClient.config();
+//		msgBusClient.config();
 		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
 	}
 	
 	@Override
-	public void config(String nodeName) throws MessageBusException {
-		msgBusClient.config();
-		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
-		this.setNodeName(nodeName);
+	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
+		msgBusClient = msgBus;
+		nodeType = nType;
+		nodeName = nName;
 	}
 
 	

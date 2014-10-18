@@ -5,11 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
@@ -17,37 +13,27 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
 	
-	private HashMap<String, DatagramSocket> streamSocketMap;
-	
-	
-	public SinkNode() throws UnknownHostException, MessageBusException {
-		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl");
+	public SinkNode() throws UnknownHostException {
+		super();
 	}
-	
-	public SinkNode(String msgBusClientImplName) throws UnknownHostException, MessageBusException {
-		super(msgBusClientImplName, NodeType.SINK);
-		streamSocketMap = new HashMap<String, DatagramSocket>(); 
-	}
+	private HashMap<String, DatagramSocket> streamSocketMap;	
 	
 	@Override
 	public void config() throws MessageBusException {
-		msgBusClient.config();
-		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
-		
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");	
 	}
 	
 	@Override
-	public void config(String nodeName) throws MessageBusException {
-		msgBusClient.config();
-		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
-		this.setNodeName(nodeName);
+	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
+		msgBusClient = msgBus;
+		nodeType = nType;
+		nodeName = nName;
 	}
 
 	@Override
