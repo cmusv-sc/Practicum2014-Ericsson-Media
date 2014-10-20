@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
@@ -17,13 +18,13 @@ import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusServer;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.messagebus.message.RegisterNodeReply;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
@@ -47,34 +48,35 @@ public class Master {
      */
     MessageBusServer msgBusSvr;
     
+//    /**
+//	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
+//	 * MDNNode
+//	 */
+//	private ConcurrentHashMap<String, RegisterNodeRequest> _nodeTbl = 
+//			new ConcurrentHashMap<String, RegisterNodeRequest>();
+//	
+//	/**
+//	 * The labelTbl is the table that maps the label to the node name.
+//	 */
+//	private ConcurrentHashMap<String, RegisterNodeContainerRequest> _labelTbl = 
+//			new ConcurrentHashMap<String, RegisterNodeContainerRequest>();
+    
     /**
-	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
-	 * MDNNode
-	 */
-	private ConcurrentHashMap<String, RegisterNodeRequest> _nodeTbl = 
-			new ConcurrentHashMap<String, RegisterNodeRequest>();
+     * Contains a mapping of the node container label to the URI
+     */
+	private HashMap<String, String> nodeContainerTbl = 
+			new HashMap<String, String>();
 	
-	/**
-	 * The labelTbl is the table that maps the label to the node name.
-	 */
-	private ConcurrentHashMap<String, RegisterNodeContainerRequest> labelTbl = 
-			new ConcurrentHashMap<String, RegisterNodeContainerRequest>();
+	private HashMap<String, String> _nodeTbl = 
+			new HashMap<String, String>();
 	
 	/**
 	 * _webClientURI records the URI of the web client
 	 */
 	private String _webClientURI;
 	
-	/**
-	 * _svc is the instance of WarpService
-	 */
-//	
 	
-	/**
-	 * _namingService provides naming service
-	 */
-	private NamingService _namingService;
-	private HashMap<String, String> _startTimeMap;
+	private HashMap<String, HashMap<NodeType, HashSet<String>>> simulationNodesMap;
     
     public Master() throws MessageBusException {
     	msgBusSvr = instantiateMsgBusServer("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
@@ -166,28 +168,28 @@ public class Master {
     public void init() throws WarpException, IOException, TrapException, MessageBusException {
 
 		msgBusSvr.config();
-		
-		_namingService = new NamingService();
-		_startTimeMap = new HashMap<String, String>();
 
-		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
-		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
+		/* Used to keep track of the statistics for a stream */
+		simulationNodesMap = new HashMap<String, HashMap<NodeType, HashSet<String>>>();
+
+//		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
+//		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
 
 		/* Register a new node. This is called from a real Node */
 		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
 		
 		/* Register a new node. This is called from a Node Container */
-		msgBusSvr.addMethodListener("/node-containers", "PUT", this, "registerNodeContainer");
+		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
 		
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
 		msgBusSvr.addMethodListener("/validate_user_spec", "POST", this, "validateUserSpec");
 		
 		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
 		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
-//
-//		/* Add listener for web browser call (start simulation) */
-//		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
-//				"startSimulation");
+
+		/* Add listener for web browser call (start simulation) */
+		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
+				"startSimulation");
 //
 //		/* Source report listener */
 //		msgBusSvr.addMethodListener("/source_report", "POST", this,
@@ -207,16 +209,41 @@ public class Master {
      * @param message The incoming message for creation of node
      * @param req Associated node creation request object
      */
-    public void createNode(Message message, CreateNodeRequest req) {
+//    public void createNode(Message message, CreateNodeRequest req) {
+//    	//TODO: Handle scenario when there is no node container available for the given label
+//    	String ncURI = nodeContainerTbl.get(req.getNcLabel());
+//    	if (ClusterConfig.DEBUG) {
+//    		System.out.println("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
+//    		System.out.println("Class = " + req.getNodeClass());
+//    	}
+//    	
+//    	try {
+//    		msgBusSvr.send("/", ncURI + "/create_node", "PUT", req);
+//    	} catch (MessageBusException e) {
+//    		e.printStackTrace();
+//    	}
+//    	
+//    	if (ClusterConfig.DEBUG) {
+//    		System.out.println("[DEBUG]Master.createNode(): message sent");
+//    	}
+//    }
+    
+    /**
+     * Master sends node create requests to NodeContainer based on the user WorkSpecification
+     * @param req
+     */
+    public void createNodeOnNodeContainer(CreateNodeRequest req) {
     	//TODO: Handle scenario when there is no node container available for the given label
-    	String ncURI = labelTbl.get(req.getNcLabel()).getNcURI();
+    	String containerLabel = req.getNcLabel().split(":")[0];
+    	String ncURI = nodeContainerTbl.get(containerLabel);
+    	System.out.println("Sending node create request to node container URI "+ncURI);
     	if (ClusterConfig.DEBUG) {
     		System.out.println("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
     		System.out.println("Class = " + req.getNodeClass());
     	}
     	
     	try {
-    		msgBusSvr.send("/nodes", ncURI + "/nodes", "PUT", req);
+    		msgBusSvr.send("/", ncURI + "/create_node", "PUT", req);
     	} catch (MessageBusException e) {
     		e.printStackTrace();
     	}
@@ -235,32 +262,32 @@ public class Master {
 	 * request
 	 */    
 	public void registerNode(Message request, RegisterNodeRequest registMsg) {
-		String newNodeName = this._namingService.nameNode(registMsg.getType());
-		_nodeTbl.put(newNodeName, registMsg);
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + request.getFrom().toString());
-		}
 		
-		RegisterNodeReply reply = new RegisterNodeReply();
-		reply.setNodeName(newNodeName);
-		System.out.println("FROM:" + request.getFrom());
+		String newNodeName = registMsg.getNodeName();
+		_nodeTbl.put(newNodeName, registMsg.getURI());
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + registMsg.getURI());
+		}
 		try {
-			msgBusSvr.send("/nodes", request.getFrom().toString() + "/nodename", "POST", reply);
+			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
 		} catch (MessageBusException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 	
 	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
-		String newNodeName = this._namingService.nameNode(NodeType.NODE_CONTAINER);
-		req.setNodeName(newNodeName);
-		req.setNcURI(msg.getFrom().toString());	
-		//TODO: Do we really need to store request objects in Map? 
-		labelTbl.put(req.getLabel(), req);
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.registerNodeContainer(): Register new node container:" 
-					+ newNodeName + " from " + req.getNcURI());
+		if (nodeContainerTbl.containsKey(req.getLabel())) {
+			System.out.println("NodeContainer with label "+req.getLabel()+" already exists");
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): NodeContainer with label "
+						+ req.getLabel()+" already exists");
+			}
+		} else {
+			nodeContainerTbl.put(req.getLabel(), req.getNcURI());
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): Register new node container label:" 
+						+ req.getLabel() + " from " + req.getNcURI());
+			}
 		}
 	}
 
@@ -268,15 +295,17 @@ public class Master {
 	 * Method handler to handle validate user spec message.
 	 * Validates user spec and creates the graph
 	 * @param msg
-	 * @param ws
+	 * @param streamSpec
 	 */
-	public void validateUserSpec(Message mesg, StreamSpec ws) {
-		System.out.println("Stream Id is "+ws.StreamId);
-		System.out.println("DataSize is "+ws.DataSize);
-		System.out.println("ByteRate is "+ws.ByteRate);
-		
-		HashSet<String> nodeSet = new HashSet<String>();
+	public void validateUserSpec(Message mesg, WorkConfig wc) {
+
 		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
+		HashSet<String> nodeSet = new HashSet<String>();
+		HashSet<String> edgeSet = new HashSet<String>();
+		HashSet<String> srcSet = new HashSet<String>();
+		HashSet<String> sinkSet = new HashSet<String>();
+		HashMap<NodeType, HashSet<String>> nodesToInstantiate = new HashMap<NodeType, HashSet<String>>();
+
 		ArrayList<Node> nodeList = new ArrayList<WebClientUpdateMessage.Node>();
 		ArrayList<Edge> edgeList = new ArrayList<WebClientUpdateMessage.Edge>();
 		double x = 0.1;
@@ -285,57 +314,60 @@ public class Master {
 		String sinkRgb = "rgb(0,204,204)";
 		String srcMsg = "This is a Source Node";
 		String sinkMsg = "This is a Sink Node";
-		String edgeMsg = "This is Edge";
+		String simId = wc.getSimId();
 		int nodeSize = 6;
-		
-		for (HashMap<String, String> node : ws.Flow) {
-			x = Math.random();
-			y = Math.random();
-			String nType = node.get("NodeType");
-			String nId = node.get("NodeId");
-			String upstreamNode = node.get("UpstreamId");
-			String rgb = "";
-			String msg = "";
-			String edgeId = nId+"-"+upstreamNode;
-			String edgeType = "";
+				
+		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			System.out.println("Stream Id is "+streamSpec.StreamId);
+			System.out.println("DataSize is "+streamSpec.DataSize);
+			System.out.println("ByteRate is "+streamSpec.ByteRate);
+
+			for (HashMap<String, String> node : streamSpec.Flow) {
+				x = Math.random();
+				y = Math.random();
+				String nType = node.get("NodeType");
+				String nId = node.get("NodeId");
+				String upstreamNode = node.get("UpstreamId");
+				String rgb = "";
+				String msg = "";
+				String edgeId = nId+"-"+upstreamNode;
+				String edgeType = "";
+
+				if (!nodeSet.contains(nId)) {
+					/*
+					 * This node list is used to ensure that the node is added only once to the node list.
+					 * This situation can arise if a sink node is connected to two upstream sources at the 
+					 * same time
+					 */
+					if (nType.equals("SOURCE")) {
+						rgb = srcRgb;
+						msg = srcMsg;
+						srcSet.add(nId);
+					} else if (nType.equals("SINK")) {
+						rgb = sinkRgb;
+						msg = sinkMsg;
+						sinkSet.add(nId);
+					}
+					nodeList.add(webClientUpdateMessage.new Node(nId, nId, x, y, rgb, nodeSize,  msg));
+					nodeSet.add(nId);
+				}
+
+				if(!upstreamNode.equals("NULL") && !edgeSet.contains(edgeId)) {
+					edgeList.add(webClientUpdateMessage.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId));
+					edgeSet.add(edgeId);
+				}
+				System.out.println("**** Node in Flow ****");
+				System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
+			}
 			
-			if (nType.equals("SOURCE")) {
-				rgb = srcRgb;
-				msg = srcMsg;
-			} else if (nType.equals("SINK")) {
-				rgb = sinkRgb;
-				msg = sinkMsg;
-			}
-			if (!nodeSet.contains(nId)) {
-				/*
-				 * This node list is used to ensure that the node is added only once to the node list.
-				 * This situation can arise if a sink node is connected to two upstream sources at the 
-				 * same time
-				 */
-				nodeList.add(webClientUpdateMessage.new Node(nId, nId, x, y, rgb, nodeSize,  msg));
-				nodeSet.add(nId);
-			}
-			if(!upstreamNode.equals("NULL"))
-				edgeList.add(webClientUpdateMessage.new Edge(edgeId, upstreamNode, nId, edgeType,edgeMsg));
-			System.out.println("**** Node in Flow ****");
-			System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
 		}
+		
 		Node[] nodes = new Node[nodeList.size()];
 		Edge[] edges = new Edge[edgeList.size()];
 		nodeList.toArray(nodes);
 		edgeList.toArray(edges);
 		webClientUpdateMessage.setEdges(edges);
 		webClientUpdateMessage.setNodes(nodes);
-		
-//		Node[] nodes1 = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
-//		};
-//		Edge[] edges1 = {
-//				webClientUpdateMessage.new Edge("E1",nodes1[0].id, nodes1[1].id, "")
-//		};
-//		webClientUpdateMessage.setEdges(edges1);
-//		webClientUpdateMessage.setNodes(nodes1);
 
 		try {
 			Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
@@ -345,6 +377,12 @@ public class Master {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
+		nodesToInstantiate.put(NodeType.SINK, sinkSet);
+		simulationNodesMap.put(simId, nodesToInstantiate);
+		
+		instantiateNodes(simulationNodesMap.get(simId));
 	}
 	
 	/**
@@ -356,59 +394,35 @@ public class Master {
 		System.out.println("Web client URI is "+_webClientURI.toString());
 	}
 	
-	/* */
-//	public void startSimulation(Message msg, StartSimulationRequest request) throws WarpException {
-//		_webClientURI = msg.getFrom();
-//		
-//		if (ClusterConfig.DEBUG) {
-//			System.out.print("[DEBUG] Master.startSimulation: web client URI:");
-//			System.out.println(_webClientURI);
-//		}
-//		
-//		String sinkNodeName = request.getSinkNodeName();
-//		String sourceNodeName = request.getSourceNodeName();
-//		
-//		//TODO: Update WebClient with initial nodes and edges configuration as per input script
-//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-//		//Node[] nodes = (Node[]) Domain.getWebClient().getNodes().toArray();
-//		Node[] nodes = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
-//		};
-//		Edge[] edges = {
-//				webClientUpdateMessage.new Edge("E1",nodes[0].id, nodes[1].id, "")
-//		};		
-//		webClientUpdateMessage.setEdges(edges);
-//		webClientUpdateMessage.setNodes(nodes);
-//		Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
-//				JSON.toJSON(webClientUpdateMessage).getBytes() );
-//		
-//		NodeRegistrationRequest sinkNode = this._nodeTbl.get(sinkNodeName);
-//		NodeRegistrationRequest sourceNode = this._nodeTbl.get(sourceNodeName);
-//		
-//		String sinkResource = sinkNode.getWarpURI().toString() + "/sink/prep";		
-//		String sourceResource = sourceNode.getWarpURI().toString() + "/source/snd_data";
-//		
-//		if (ClusterConfig.DEBUG) {
-//			System.out.println("[DEBUG] Master.startSimulation(): sink node:" + sinkNodeName + "\tsink resource:" + sinkResource);
-//			System.out.println("[DEBUG] Master.startSimulation(): source node:" + sourceNodeName + "\tsource resource:" + sourceResource);
-//		}
-//		
-//		PrepRcvDataMessage prepRcvDataMsg = new PrepRcvDataMessage(sourceResource);
-//		prepRcvDataMsg.setDataSize(request.getDataSize());
-//		prepRcvDataMsg.setDataRate(request.getStreamRate());
-//		prepRcvDataMsg.setStreamID(request.getStreamID());
-//		
-//		if (ClusterConfig.DEBUG) {
-//			System.out.println("[DEBUG] MDNManager.startSimulation(): Receive the stimulus to start simulation.");
-//		}
-//		
-//		try {
-//			Warp.send("/", WarpURI.create(sinkResource), "POST", JSON.toJSON(prepRcvDataMsg).getBytes());
-//		} catch (WarpException e) {
-//			e.printStackTrace();
-//		}
-//	}
+	/**
+	 * Gets a list of sets representing the set of nodes to instantiate in the
+	 * deployed NodeContainers
+	 * @param nodesToInstantiate
+	 */
+	public void instantiateNodes(HashMap<NodeType, HashSet<String>> nodesToInstantiate) {
+		for (NodeType nodeType : nodesToInstantiate.keySet()) {
+			for (String node : nodesToInstantiate.get(nodeType)) {
+				System.out.println(node);
+				String nodeClass = "";
+				if (nodeType == NodeType.SOURCE)
+					nodeClass = "edu.cmu.mdnsim.nodes.SourceNode";
+				else if (nodeType == NodeType.SINK)
+					nodeClass = "edu.cmu.mdnsim.nodes.SinkNode";
+				CreateNodeRequest req = new CreateNodeRequest(nodeType, node, nodeClass);
+				createNodeOnNodeContainer(req);
+			}
+		}
+	}
+	
+	/**
+	 * Instantiates nodes if needed and triggers the simulation by sending the 
+	 * work specification to the sink
+	 * @param msg
+	 * @throws WarpException
+	 */
+	public void startSimulation(Message msg) throws WarpException {
+		
+	}
 
 
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
@@ -482,47 +496,4 @@ public class Master {
     	Master mdnDomain = new Master();
     	mdnDomain.init();
     }
-    
-
-    private class NamingService {
-		
-		/**
-		 * The counter to track accumulatively the total nodes registering on
-		 * the Master
-		 */
-    	private ConcurrentHashMap<NodeType, Integer> counter;
-		
-		
-		/**
-		 * The default constructor 
-		 */
-		public NamingService() {
-			counter = new ConcurrentHashMap<NodeType, Integer>();
-		}
-		
-		/**
-		 * This method provides the naming service. The node is named by its
-		 * NodeType.
-		 * 
-		 * @param type
-		 * @return
-		 */
-		public synchronized String nameNode(NodeType type) {
-			if (counter.containsKey(type)) {
-				int val;
-				//TODO: Do we need this synchronization? As we are already in synchronization block?
-				synchronized(counter) {
-					val = counter.get(type);
-					counter.put(type, val + 1);
-				}				
-				return String.format("%s-%03d", type, val);
-			} else {
-				synchronized(counter) {
-					counter.put(type,  1);
-				}
-				return String.format("%s-%03d", type, 1);
-			}
-			
-		}
-	}
 }
