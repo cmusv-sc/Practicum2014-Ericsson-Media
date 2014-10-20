@@ -7,6 +7,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import com.ericsson.research.warp.api.message.Message;
+
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
@@ -35,8 +37,14 @@ public abstract class AbstractNode {
 		laddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public abstract void config() throws MessageBusException;
-	public abstract void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException;
+	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
+		msgBusClient = msgBus;
+		nodeType = nType;
+		nodeName = nName;
+		
+		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
+		msgBusClient.addMethodListener("/confirm_node", "PUT", this, "setRegistered");
+	}
 	
 	public void register() {
 		RegisterNodeRequest req = new RegisterNodeRequest();
@@ -76,11 +84,12 @@ public abstract class AbstractNode {
 		return dateFormat.format(date);
 	}
 
-	private synchronized void setRegistered() {
+	public synchronized void setRegistered(Message msg) {
+		System.out.println(getNodeName()+ " successfully registered");
 		registered = true;
 	}
 	
-	private synchronized boolean isRegistered() {
+	public synchronized boolean isRegistered() {
 		return registered;
 	}
 

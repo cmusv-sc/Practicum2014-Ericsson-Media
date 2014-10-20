@@ -18,22 +18,15 @@ import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
+	private HashMap<String, DatagramSocket> streamSocketMap;	
 	
 	public SinkNode() throws UnknownHostException {
 		super();
 	}
-	private HashMap<String, DatagramSocket> streamSocketMap;	
-	
-	@Override
-	public void config() throws MessageBusException {
-		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");	
-	}
 	
 	@Override
 	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
-		msgBusClient = msgBus;
-		nodeType = nType;
-		nodeName = nName;
+		super.config(msgBus, nType, nName);
 	}
 
 	@Override
