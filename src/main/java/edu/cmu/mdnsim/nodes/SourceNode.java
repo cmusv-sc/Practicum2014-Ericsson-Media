@@ -150,7 +150,7 @@ public class SourceNode extends AbstractNode {
 					packet = new DatagramPacket(buf, buf.length, InetAddress.getByName(dstAddrStr), dstPort);
 					sourceSocket.send(packet);
 					packetsThisSec++;
-					if (packetsThisSec == packetPerSecond) {
+					if (packetsThisSec >= packetPerSecond) {
 						long end = System.currentTimeMillis();
 						long millisSpent = (end - begin);
 						if (millisSpent > 0) {
