@@ -109,7 +109,10 @@ public class SourceNode extends AbstractNode {
 		@Override
 		public void run() {
 			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
-			long millisecondPerPacket = (long)(1 / packetPerSecond) * 1000; 
+			long millisecondPerPacket = (long)(1 / packetPerSecond) * 1000;
+			int packetsThisSec = 0;
+			long begin = 0;
+			System.out.println("Packets per second is "+packetPerSecond);
 			
 			DatagramSocket sourceSocket = null;
 			try {
@@ -137,7 +140,8 @@ public class SourceNode extends AbstractNode {
 			
 			byte[] buf = null;
 			while (bytesToTransfer > 0) {
-				long begin = System.currentTimeMillis();
+				if (begin == 0 )
+					begin = System.currentTimeMillis();
 				
 				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? bytesToTransfer : STD_DATAGRAM_SIZE];
 				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);			
@@ -145,20 +149,35 @@ public class SourceNode extends AbstractNode {
 				try {
 					packet = new DatagramPacket(buf, buf.length, InetAddress.getByName(dstAddrStr), dstPort);
 					sourceSocket.send(packet);
+					packetsThisSec++;
+					if (packetsThisSec == packetPerSecond) {
+						long end = System.currentTimeMillis();
+						long millisSpent = (end - begin);
+						if (millisSpent > 0) {
+							try {
+								Thread.sleep(1000 - millisSpent);
+								System.out.println(packetPerSecond+ " packets sent. woke up after sleeping for "+millisSpent);
+							} catch (InterruptedException ie) {
+								ie.printStackTrace();
+							}
+						}
+						packetsThisSec = 0;
+						begin = 0;
+					}
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
 				
-				long end = System.currentTimeMillis();
-				long millisRemaining = millisecondPerPacket - (end - begin);
-				if (millisRemaining > 0) {
-					try {
-						Thread.sleep(millisRemaining);
-					} catch (InterruptedException ie) {
-						ie.printStackTrace();
-					}
-				}
+//				long end = System.currentTimeMillis();
+//				long millisRemaining = millisecondPerPacket - (end - begin);
+//				if (millisRemaining > 0) {
+//					try {
+//						Thread.sleep(millisRemaining);
+//					} catch (InterruptedException ie) {
+//						ie.printStackTrace();
+//					}
+//				}
 			} 
 			sourceSocket.close();
 		}
