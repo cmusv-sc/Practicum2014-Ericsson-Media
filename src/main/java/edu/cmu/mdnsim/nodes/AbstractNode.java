@@ -9,6 +9,7 @@ import java.util.Locale;
 
 import com.ericsson.research.warp.api.message.Message;
 
+import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
@@ -22,7 +23,7 @@ public abstract class AbstractNode {
 
 	protected NodeType nodeType;
 	
-	private InetAddress laddr;
+	private InetAddress hostAddr;
 	
 	private boolean registered = false;
 	
@@ -34,7 +35,7 @@ public abstract class AbstractNode {
 		 * Note: This may not be sufficient for proper DNS resolution
 		 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
 		 */
-		laddr = java.net.InetAddress.getLocalHost();
+		hostAddr = java.net.InetAddress.getLocalHost();
 	}
 	
 	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
@@ -42,8 +43,8 @@ public abstract class AbstractNode {
 		nodeType = nType;
 		nodeName = nName;
 		
-		msgBusClient.addMethodListener("/tasks", "PUT", this, "executeTask");
-		msgBusClient.addMethodListener("/confirm_node", "PUT", this, "setRegistered");
+		msgBusClient.addMethodListener("/"+getNodeName()+"/tasks", "PUT", this, "executeTask");
+		msgBusClient.addMethodListener("/"+getNodeName()+"/confirm_node", "PUT", this, "setRegistered");
 	}
 	
 	public void register() {
@@ -59,7 +60,7 @@ public abstract class AbstractNode {
 	}
 	
 	public InetAddress getHostAddr() {
-		return laddr;
+		return hostAddr;
 	}
 
 	public NodeType getNodeType() {
@@ -72,11 +73,7 @@ public abstract class AbstractNode {
 	
 	public void setNodeName(String name) {
 		this.nodeName = name;
-	}
-	
-	
-	public abstract void executeTask(WorkSpecification ws);
-	
+	}	
 
 	public String currentTime(){
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
@@ -92,5 +89,7 @@ public abstract class AbstractNode {
 	public synchronized boolean isRegistered() {
 		return registered;
 	}
+
+	public abstract void executeTask(WorkConfig wc);
 
 }

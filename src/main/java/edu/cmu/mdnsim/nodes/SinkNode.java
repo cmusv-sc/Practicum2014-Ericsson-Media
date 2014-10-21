@@ -8,8 +8,11 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
+import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -22,6 +25,7 @@ public class SinkNode extends AbstractNode {
 	
 	public SinkNode() throws UnknownHostException {
 		super();
+		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
 	@Override
@@ -30,22 +34,33 @@ public class SinkNode extends AbstractNode {
 	}
 
 	@Override
-	public void executeTask(WorkSpecification ws) {
-		
-		Map<String, Object> config = ws.getConfig();
-		int port = bindAvailablePortToStream((String)config.get("stream-id"));
-		WarpThreadPool.executeCached(new ReceiveDataThread((String)config.get("stream-id"), msgBusClient));
-		
-		ws.setReceiverIpAndPort(super.getHostAddr().getHostAddress(), port);
-		String fromPath = "/" + super.getNodeName() + "/prep";
-		
-		try {
-			// Increment the work specification index to next node
-			ws.incrementNodeIdx();
-			msgBusClient.send(fromPath, ws.getNextNodeURI(), "POST", ws);
-		} catch (MessageBusException e) {
-			//TODO: add exception handler
-			e.printStackTrace();
+	public void executeTask(WorkConfig wc) {
+		System.out.println("Sink received a work specification: "+JSON.toJSON(wc));
+		int flowIndex = -1;
+		for (StreamSpec s : wc.getStreamSpecList()) {
+			for (HashMap<String, String> currentFlow : s.Flow) {
+				flowIndex++;
+				if (!currentFlow.get("NodeId").equals(getNodeName())) {
+					continue;
+				}
+				else {
+					System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+					Integer port = bindAvailablePortToStream(s.StreamId);
+					WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
+					
+					if (flowIndex+1 < s.Flow.size()) {
+						HashMap<String, String> upstreamFlow = s.Flow.get(flowIndex+1);
+						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+						try {
+							msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", wc);
+						} catch (MessageBusException e) {
+							//TODO: add exception handler
+							e.printStackTrace();
+						}
+					}
+					break;
+				}
+			}
 		}
 	}
 	
@@ -147,7 +162,8 @@ public class SinkNode extends AbstractNode {
 						String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
 						
 						try {
-							msgBusClient.sendToMaster(fromPath, "reports", "POST", sinkReportMsg);
+							System.out.println("Sink finished receiving data...");
+							msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
 						} catch (MessageBusException e) {
 							//TODO: add exception handler
 							e.printStackTrace();

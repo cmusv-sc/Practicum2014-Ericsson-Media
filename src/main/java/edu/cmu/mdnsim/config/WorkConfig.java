@@ -3,7 +3,9 @@ package edu.cmu.mdnsim.config;
 import java.util.LinkedList;
 import java.util.List;
 
-public class WorkConfig {
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
+
+public class WorkConfig extends MbMessage{
 
 	private String simId;
 	private List<StreamSpec> streamSpecList = new LinkedList<StreamSpec>();

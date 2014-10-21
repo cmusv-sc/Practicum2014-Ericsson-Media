@@ -6,10 +6,16 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Map;
 
+import javax.net.ssl.HostnameVerifier;
+
+import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
+import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
@@ -29,14 +35,34 @@ public class SourceNode extends AbstractNode {
 
 	
 	@Override
-	public void executeTask(WorkSpecification ws) {
-		
-		Map<String, Object> dsConfig = ws.getDownstreamConfig();
-		
-		sendAndReport((String)dsConfig.get("stream-id"), 
-				(String)dsConfig.get("dst-ip"), (Integer)dsConfig.get("dst-port"),
-				(Integer)dsConfig.get("data-size"), (Integer)dsConfig.get("data-rate"), 
-				super.msgBusClient);
+	public void executeTask(WorkConfig wc) {
+		int flowIndex = -1;
+		System.out.println("Sink received a work specification: "+JSON.toJSON(wc));
+		for (StreamSpec s : wc.getStreamSpecList()) {
+			for (HashMap<String, String> currentFlow : s.Flow) {
+				flowIndex++;
+				if (!currentFlow.get("NodeId").equals(getNodeName()))
+					continue;
+				else {
+					System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+					String[] ipAndPort = currentFlow.get("ReceiverIpPort").split(":");
+					String destAddrStr = ipAndPort[0];
+					int destPort = Integer.parseInt(ipAndPort[1]);
+					int dataSize = Integer.parseInt(s.DataSize);
+					int rate = Integer.parseInt(s.ByteRate);
+					sendAndReport(s.StreamId, destAddrStr, destPort, 
+							dataSize, rate);
+					try {
+						if (currentFlow.get("UpstreamUri") != null)
+							msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", wc);
+					} catch (MessageBusException e) {
+						//TODO: add exception handler
+						e.printStackTrace();
+					}
+					break;
+				}
+			}
+		}				
 	}
 	
 	/**
@@ -48,15 +74,13 @@ public class SourceNode extends AbstractNode {
 	 * @param destPort The destination port
 	 * @param bytesToTransfer Total bytes to be sent
 	 * @param rate The rate to send data
-	 * @param msgBusClient The message bus client to send message
 	 * 
 	 */
 	private void sendAndReport(String streamId, String destAddrStr, 
-			int destPort, int bytesToTransfer, int rate, 
-			MessageBusClient msgBusClient) {
+			int destPort, int bytesToTransfer, int rate) {
 		
 		WarpThreadPool.executeCached(new SendDataThread(streamId, destAddrStr, 
-			destPort, bytesToTransfer, rate, msgBusClient));
+			destPort, bytesToTransfer, rate, super.msgBusClient));
 
 	}
 	
@@ -88,10 +112,9 @@ public class SourceNode extends AbstractNode {
 			long millisecondPerPacket = (long)(1 / packetPerSecond) * 1000; 
 			
 			DatagramSocket sourceSocket = null;
-			InetAddress laddr = null;
 			try {
-				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
-				sourceSocket = new DatagramSocket(0, laddr);
+				InetAddress hostAddr = java.net.InetAddress.getLocalHost();
+				sourceSocket = new DatagramSocket(0, hostAddr);
 			} catch (UnknownHostException uhe) {
 				uhe.printStackTrace();
 			} catch (SocketException se) {
@@ -107,7 +130,7 @@ public class SourceNode extends AbstractNode {
 			srcReportMsg.setStartTime(Utility.currentTime());	
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
-				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
+				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			};

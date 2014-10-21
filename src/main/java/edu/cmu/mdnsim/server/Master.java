@@ -3,10 +3,14 @@ package edu.cmu.mdnsim.server;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
@@ -25,6 +29,8 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
+import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
@@ -76,10 +82,13 @@ public class Master {
 	private String _webClientURI;
 	
 	
-	private HashMap<String, HashMap<NodeType, HashSet<String>>> simulationNodesMap;
+	private HashMap<String, WorkConfig> simulationMap;
+
+	private HashMap<String, String> _startTimeMap;
     
     public Master() throws MessageBusException {
     	msgBusSvr = instantiateMsgBusServer("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
+    	_startTimeMap = new HashMap<String, String>();
     }
     
     public Master(String msgBusSvrClassName) throws MessageBusException {
@@ -170,7 +179,7 @@ public class Master {
 		msgBusSvr.config();
 
 		/* Used to keep track of the statistics for a stream */
-		simulationNodesMap = new HashMap<String, HashMap<NodeType, HashSet<String>>>();
+		simulationMap = new HashMap<String, WorkConfig>();
 
 //		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
 //		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
@@ -190,16 +199,15 @@ public class Master {
 		/* Add listener for web browser call (start simulation) */
 		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
 				"startSimulation");
-//
-//		/* Source report listener */
-//		msgBusSvr.addMethodListener("/source_report", "POST", this,
-//				"sourceReport");
-//
-//		/* Sink report listener */
-//		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
+
+		/* Source report listener */
+		msgBusSvr.addMethodListener("/source_report", "POST", this,
+				"sourceReport");
+
+		/* Sink report listener */
+		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
 
-		// _svc.register();
 		msgBusSvr.register();
 
     }
@@ -263,10 +271,10 @@ public class Master {
 	 */    
 	public void registerNode(Message request, RegisterNodeRequest registMsg) {
 		
-		String newNodeName = registMsg.getNodeName();
-		_nodeTbl.put(newNodeName, registMsg.getURI());
+		String nodeName = registMsg.getNodeName();
+		_nodeTbl.put(nodeName, registMsg.getURI());
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + newNodeName + " from " + registMsg.getURI());
+			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + nodeName + " from " + registMsg.getURI());
 		}
 		try {
 			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
@@ -380,9 +388,9 @@ public class Master {
 
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
-		simulationNodesMap.put(simId, nodesToInstantiate);
+		simulationMap.put(simId, wc);
 		
-		instantiateNodes(simulationNodesMap.get(simId));
+		instantiateNodes(nodesToInstantiate);
 	}
 	
 	/**
@@ -415,13 +423,29 @@ public class Master {
 	}
 	
 	/**
-	 * Instantiates nodes if needed and triggers the simulation by sending the 
+	 * Triggers the simulation by sending the 
 	 * work specification to the sink
 	 * @param msg
 	 * @throws WarpException
 	 */
 	public void startSimulation(Message msg) throws WarpException {
-		
+		String sinkUri = "";
+		for (WorkConfig wc : simulationMap.values()) {
+			for (StreamSpec s : wc.getStreamSpecList()) {
+				for (HashMap<String, String> f : s.Flow) {
+					String upstream = f.get("UpstreamId");
+					if (sinkUri.equals(""))
+						sinkUri = _nodeTbl.get(f.get("NodeId"));
+					if (_nodeTbl.containsKey(upstream))
+						f.put("UpstreamUri", _nodeTbl.get(upstream));
+				}
+			}
+			try {
+				msgBusSvr.send("/", sinkUri+"/tasks", "PUT", wc);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 
@@ -430,14 +454,13 @@ public class Master {
 		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 	}
-//	
-//	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
-//		System.out.println("Source finished sending data. StreamId "+srcMsg.getStreamId()+
-//				" bytes transferred "+srcMsg.getTotalBytes_transferred());
-//		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
-//		String sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() + " . Transferred " + srcMsg.getTotalBytes_transferred() + " bytes." ;
-//		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
-//		
+	
+	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
+		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
+		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
+		String sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() + " . Transferred " + srcMsg.getTotalBytes_transferred() + " bytes." ;
+		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
+		
 //		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 //		Node[] nodes = {
 //				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,255,0)", 6,  sourceNodeMsg),
@@ -450,26 +473,24 @@ public class Master {
 //		webClientUpdateMessage.setEdges(edges);
 //		webClientUpdateMessage.setNodes(nodes);
 //		updateWebClient(webClientUpdateMessage);
-//	}
-//	
-//	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
-//		long totalTime = 0;
-//		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
-//		try {
-//			totalTime = df.parse(sinkMsg.getEndTime()).getTime() - 
-//					df.parse(getStartTimeForStream(sinkMsg.getStreamId())).getTime();
-//		} catch (ParseException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//			totalTime = -1;
-//		}
-//		
-//		System.out.println("Sink finished receiving data. StreamId "+sinkMsg.getStreamId()+
-//				" Total bytes "+sinkMsg.getTotalBytes()+ " End Time "+sinkMsg.getEndTime());
-//		
-//		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
-//				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-//		
+	}
+	
+	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
+		long totalTime = 0;
+		System.out.println("Sink finished receiving data: "+JSON.toJSON(sinkMsg));
+		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
+		try {
+			totalTime = df.parse(sinkMsg.getEndTime()).getTime() - 
+					df.parse(getStartTimeForStream(sinkMsg.getStreamId())).getTime();
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			totalTime = -1;
+		}
+				
+		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
+				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
+		
 //		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 //		Node[] nodes = {
 //				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
@@ -482,14 +503,14 @@ public class Master {
 //		webClientUpdateMessage.setEdges(edges);
 //		webClientUpdateMessage.setNodes(nodes);
 //		updateWebClient(webClientUpdateMessage);
-//	}
-//	
-//	public void putStartTime(String streamId, String startTime) {
-//		this._startTimeMap.put(streamId, startTime);
-//	}
-//	public String getStartTimeForStream(String streamId) {
-//		return this._startTimeMap.get(streamId);
-//	}
+	}
+	
+	public void putStartTime(String streamId, String startTime) {
+		this._startTimeMap.put(streamId, startTime);
+	}
+	public String getStartTimeForStream(String streamId) {
+		return this._startTimeMap.get(streamId);
+	}
 
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {

@@ -7,7 +7,7 @@ public class SinkReportMessage extends MbMessage {
 	String _endTime;
 
 	public SinkReportMessage() {
-		_streamId = "defaultStreamID";
+		_streamId = "";
 		_totalBytes = 0;
 	}
 	

@@ -8,7 +8,7 @@ public class SourceReportMessage extends MbMessage {
 
 	public SourceReportMessage() {
 		super();
-		_streamId = "defaultStreamId";
+		_streamId = "";
 		_totalBytes_transferred = 0;
 	}
 	
