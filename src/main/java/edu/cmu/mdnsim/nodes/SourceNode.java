@@ -44,7 +44,7 @@ public class SourceNode extends AbstractNode {
 				if (!currentFlow.get("NodeId").equals(getNodeName()))
 					continue;
 				else {
-					System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+					//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
 					String[] ipAndPort = currentFlow.get("ReceiverIpPort").split(":");
 					String destAddrStr = ipAndPort[0];
 					int destPort = Integer.parseInt(ipAndPort[1]);
