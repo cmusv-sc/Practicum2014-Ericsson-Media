@@ -106,18 +106,22 @@ public class SourceNode extends AbstractNode {
 			
 		}
 		
+		/**
+		 * The method will calculate the packet number expected to be sent based on the user specified sending rate.
+		 * Then it calculates the time expected to send a package in millisecond.
+		 * 
+		 * 
+		 */
 		@Override
 		public void run() {
 			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
-			long millisecondPerPacket = (long)(1 / packetPerSecond) * 1000;
-			int packetsThisSec = 0;
-			long begin = 0;
-			System.out.println("Packets per second is "+packetPerSecond);
+			long millisecondPerPacket = (long)(1 * 1000 / packetPerSecond); 
 			
 			DatagramSocket sourceSocket = null;
+			InetAddress laddr = null;
 			try {
-				InetAddress hostAddr = java.net.InetAddress.getLocalHost();
-				sourceSocket = new DatagramSocket(0, hostAddr);
+				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
+				sourceSocket = new DatagramSocket(0, laddr);
 			} catch (UnknownHostException uhe) {
 				uhe.printStackTrace();
 			} catch (SocketException se) {
@@ -133,55 +137,38 @@ public class SourceNode extends AbstractNode {
 			srcReportMsg.setStartTime(Utility.currentTime());	
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
-				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
+				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			};
 			
 			byte[] buf = null;
 			while (bytesToTransfer > 0) {
-				if (begin == 0 )
-					begin = System.currentTimeMillis();
+				long begin = System.currentTimeMillis();
 				
 				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? bytesToTransfer : STD_DATAGRAM_SIZE];
-				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);			
+				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);	
+	
 				DatagramPacket packet = null;
 				try {
 					packet = new DatagramPacket(buf, buf.length, InetAddress.getByName(dstAddrStr), dstPort);
 					sourceSocket.send(packet);
-					packetsThisSec++;
-					if (packetsThisSec >= packetPerSecond) {
-						long end = System.currentTimeMillis();
-						long millisSpent = (end - begin);
-						if (millisSpent > 0) {
-							try {
-								Thread.sleep(1000 - millisSpent);
-								System.out.println(packetPerSecond+ " packets sent. woke up after sleeping for "+millisSpent);
-							} catch (InterruptedException ie) {
-								ie.printStackTrace();
-							}
-						}
-						packetsThisSec = 0;
-						begin = 0;
-					}
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
 				
-//				long end = System.currentTimeMillis();
-//				long millisRemaining = millisecondPerPacket - (end - begin);
-//				if (millisRemaining > 0) {
-//					try {
-//						Thread.sleep(millisRemaining);
-//					} catch (InterruptedException ie) {
-//						ie.printStackTrace();
-//					}
-//				}
+				long end = System.currentTimeMillis();
+				long millisRemaining = millisecondPerPacket - (end - begin);
+				if (millisRemaining > 0) {
+					try {
+						Thread.sleep(millisRemaining);
+					} catch (InterruptedException ie) {
+						ie.printStackTrace();
+					}
+				}
 			} 
 			sourceSocket.close();
 		}
-	}
-
-	
+	}	
 }
