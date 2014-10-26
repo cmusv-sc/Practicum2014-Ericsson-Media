@@ -338,8 +338,9 @@ public class Master {
 			for (HashMap<String, String> node : streamSpec.Flow) {
 //				x = Math.random();
 //				y = Math.random();
-				x = (x + 0.6) - 1;
-				y = (x + 0.6) - 1;
+				//TODO: Come up with some better logic to assign positions to the nodes
+				x = (x + 0.6) > 1 ? (x + 0.6) - 1 : (x + 0.6);
+				y = (y + 0.6) > 1 ? (y + 0.6) - 1 : (y + 0.6);
 				String nType = node.get("NodeType");
 				String nId = node.get("NodeId");
 				String upstreamNode = node.get("UpstreamId");
@@ -467,23 +468,21 @@ public class Master {
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
-		String from = request.getFrom().toString();
-		from = from.substring(0,from.lastIndexOf('/'));
 		
-		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sourceNodeMsg;
+		String nodeId = getNodeId(request);
+		//TODO: Check if the following synchronization is enough. 
+		Node n = webClientUpdateMessage.getNode(nodeId);
+		synchronized(n){
+			n.tag = sourceNodeMsg;
+		}
 		updateWebClient(webClientUpdateMessage);
-//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-//		Node[] nodes = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,255,0)", 6,  sourceNodeMsg),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
-//		};
-//		Edge[] edges = {
-//				webClientUpdateMessage.new Edge("E1","N1", "N2", "")
-//		};
-//		
-//		webClientUpdateMessage.setEdges(edges);
-//		webClientUpdateMessage.setNodes(nodes);
-//		updateWebClient(webClientUpdateMessage);
+	}
+
+	private String getNodeId(Message request) {
+		String nodeId = request.getFrom().toString();
+		nodeId = nodeId.substring(0,nodeId.lastIndexOf('/'));
+		nodeId = nodeId.substring(nodeId.lastIndexOf('/')+1);
+		return nodeId;
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
@@ -502,22 +501,14 @@ public class Master {
 				
 		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
 				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-		String from = request.getFrom().toString();
-		from = from.substring(0,from.lastIndexOf('/'));
-		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sinkNodeMsg;
+		
+		String nodeId = getNodeId(request);
+		
+		Node n = webClientUpdateMessage.getNode(nodeId);
+		synchronized(n){
+			n.tag = sinkNodeMsg;
+		}
 		updateWebClient(webClientUpdateMessage);
-//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-//		Node[] nodes = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,255,255)", 6, sinkNodeMsg)
-//		};
-//		Edge[] edges = {
-//				webClientUpdateMessage.new Edge("E1","N1", "N2", "t")
-//		};
-//		
-//		webClientUpdateMessage.setEdges(edges);
-//		webClientUpdateMessage.setNodes(nodes);
-//		updateWebClient(webClientUpdateMessage);
 	}
 	
 	public void putStartTime(String streamId, String startTime) {
