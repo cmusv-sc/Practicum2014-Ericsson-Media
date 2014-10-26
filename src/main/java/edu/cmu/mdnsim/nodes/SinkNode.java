@@ -44,7 +44,7 @@ public class SinkNode extends AbstractNode {
 					continue;
 				}
 				else {
-					System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+					//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
 					Integer port = bindAvailablePortToStream(s.StreamId);
 					WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
 					

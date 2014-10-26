@@ -70,17 +70,21 @@ public class Master {
     /**
      * Contains a mapping of the node container label to the URI
      */
-	private HashMap<String, String> nodeContainerTbl = 
-			new HashMap<String, String>();
+	private HashMap<String, String> nodeContainerTbl = new HashMap<String, String>();
 	
-	private HashMap<String, String> _nodeTbl = 
-			new HashMap<String, String>();
+	private HashMap<String, String> _nodeTbl =  new HashMap<String, String>();
+	private HashMap<String, String> nodeURIToName =  new HashMap<String, String>();
 	
 	/**
 	 * _webClientURI records the URI of the web client
 	 */
 	private String _webClientURI;
-	
+	/**
+	 * Global object representing the nodes and edges as shown in WebClient. 
+	 * TODO: This will be initialized or re-initialized whenever users uploads a new simulation script.
+	 * And modified whenever any nodes report something.
+	 */
+	private WebClientUpdateMessage webClientUpdateMessage;
 	
 	private HashMap<String, WorkConfig> simulationMap;
 
@@ -273,6 +277,7 @@ public class Master {
 		
 		String nodeName = registMsg.getNodeName();
 		_nodeTbl.put(nodeName, registMsg.getURI());
+		this.nodeURIToName.put(registMsg.getURI(), nodeName);
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + nodeName + " from " + registMsg.getURI());
 		}
@@ -306,8 +311,8 @@ public class Master {
 	 * @param streamSpec
 	 */
 	public void validateUserSpec(Message mesg, WorkConfig wc) {
-
-		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
+		
+		webClientUpdateMessage = new WebClientUpdateMessage();
 		HashSet<String> nodeSet = new HashSet<String>();
 		HashSet<String> edgeSet = new HashSet<String>();
 		HashSet<String> srcSet = new HashSet<String>();
@@ -331,8 +336,10 @@ public class Master {
 			System.out.println("ByteRate is "+streamSpec.ByteRate);
 
 			for (HashMap<String, String> node : streamSpec.Flow) {
-				x = Math.random();
-				y = Math.random();
+//				x = Math.random();
+//				y = Math.random();
+				x = (x + 0.6) - 1;
+				y = (x + 0.6) - 1;
 				String nType = node.get("NodeType");
 				String nId = node.get("NodeId");
 				String upstreamNode = node.get("UpstreamId");
@@ -458,9 +465,13 @@ public class Master {
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
 		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
-		String sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() + " . Transferred " + srcMsg.getTotalBytes_transferred() + " bytes." ;
+		String sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
+		String from = request.getFrom().toString();
+		from = from.substring(0,from.lastIndexOf('/'));
 		
+		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sourceNodeMsg;
+		updateWebClient(webClientUpdateMessage);
 //		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 //		Node[] nodes = {
 //				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,255,0)", 6,  sourceNodeMsg),
@@ -476,6 +487,7 @@ public class Master {
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
+		
 		long totalTime = 0;
 		System.out.println("Sink finished receiving data: "+JSON.toJSON(sinkMsg));
 		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
@@ -490,7 +502,10 @@ public class Master {
 				
 		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
 				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-		
+		String from = request.getFrom().toString();
+		from = from.substring(0,from.lastIndexOf('/'));
+		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sinkNodeMsg;
+		updateWebClient(webClientUpdateMessage);
 //		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 //		Node[] nodes = {
 //				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),

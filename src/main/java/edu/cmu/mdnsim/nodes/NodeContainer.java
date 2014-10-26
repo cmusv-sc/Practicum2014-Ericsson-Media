@@ -61,7 +61,7 @@ public class NodeContainer {
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
 		
-		System.out.println("Create a NODE!!!!! class:" + req.getNodeClass());
+		//System.out.println("Create a NODE!!!!! class:" + req.getNodeClass());
 		
 		Class<?>[] scan = null;
 		try {
@@ -116,7 +116,7 @@ public class NodeContainer {
 		
 		Class<?> objectiveMsgBusClass = null;
 		for (Class<?> msgClass : scan) {
-			System.out.println(msgClass.getCanonicalName());
+			//System.out.println(msgClass.getCanonicalName());
 			if (msgClass.getName().equals(className)) {
 				objectiveMsgBusClass = msgClass;
 				break;

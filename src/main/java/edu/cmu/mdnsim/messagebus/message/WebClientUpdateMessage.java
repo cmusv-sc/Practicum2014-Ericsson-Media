@@ -61,4 +61,13 @@ public class WebClientUpdateMessage extends MbMessage {
 		this.edges = edges;
 	}
 	
+	public Node getNode(String nodeId){
+		for(int i=0; i<nodes.length; i++){
+			if(nodes[i].id.equals(nodeId))
+				return nodes[i];
+		}
+		return null;
+	}
+	
+	
 }
