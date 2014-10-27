@@ -4,23 +4,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.spi.TrapHostingTransport.TrapHostable;
-import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpDomain;
 import com.ericsson.research.warp.api.WarpException;
-import com.ericsson.research.warp.api.WarpInit.DomainInit;
-import com.ericsson.research.warp.api.WarpInit.DomainInit.BuiltinService;
-import com.ericsson.research.warp.spi.WarpInitImpl;
 import com.ericsson.research.warp.util.StringUtil;
 
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
-
+/**
+ * Used to host the different files (html,js) required by the WebClient 
+ * @author CMU-SV Ericsson Media Team
+ *
+ */
 public class WebClient {
 	/**
 	 * used to include Warp.js code in the html file.
@@ -30,9 +25,6 @@ public class WebClient {
 	 * Used to handle platform specific file separators
 	 */
 	private static String _separator = File.separator;
-
-	//TODO: Do we need use ConcurrentHashMap? REVIEWED BY JEREMY
-	private Map<String, WebClientUpdateMessage.Node> nodes = new HashMap<String, WebClientUpdateMessage.Node>();
 
 	// Each of the following objects represent one hosted object. 
 	// Add a new object for each new hosted file.  
@@ -109,17 +101,4 @@ public class WebClient {
 		System.out.println(domain.addHostedObject(sigmaJsonParserJs, "js/sigma.parsers.json.min.js"));
 		System.out.println(domain.addHostedObject(sigmaForceAtlas2Js, "js/sigma.layout.forceAtlas2.min.js"));
 	}
-
-	public void addNode(WebClientUpdateMessage.Node newNode){
-		this.nodes.put(newNode.id, newNode);
-	}
-
-	public void removeNode(WebClientUpdateMessage.Node node){
-		this.nodes.remove(node.id);
-	}
-	public List<WebClientUpdateMessage.Node> getNodes(){
-		return (List<Node>) this.nodes.values();
-	}
-
-
 }

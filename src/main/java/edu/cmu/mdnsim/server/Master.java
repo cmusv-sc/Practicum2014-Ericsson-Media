@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
@@ -32,10 +31,10 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
-import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.mdnsim.nodes.NodeType;
+import edu.cmu.mdnsim.server.WebClientGraph.Edge;
+import edu.cmu.mdnsim.server.WebClientGraph.Node;
+import edu.cmu.mdnsim.server.WebClientGraph.NodeLocation;
 /**
  * It represents the Master Node of the Simulator.
  * Some of the major responsibilities include: 
@@ -84,7 +83,7 @@ public class Master {
 	 * TODO: This will be initialized or re-initialized whenever users uploads a new simulation script.
 	 * And modified whenever any nodes report something.
 	 */
-	private WebClientUpdateMessage webClientUpdateMessage;
+	private WebClientGraph webClientGraph = WebClientGraph.INSTANCE;
 	
 	private HashMap<String, WorkConfig> simulationMap;
 
@@ -312,15 +311,10 @@ public class Master {
 	 */
 	public void validateUserSpec(Message mesg, WorkConfig wc) {
 		
-		webClientUpdateMessage = new WebClientUpdateMessage();
-		HashSet<String> nodeSet = new HashSet<String>();
-		HashSet<String> edgeSet = new HashSet<String>();
 		HashSet<String> srcSet = new HashSet<String>();
 		HashSet<String> sinkSet = new HashSet<String>();
 		HashMap<NodeType, HashSet<String>> nodesToInstantiate = new HashMap<NodeType, HashSet<String>>();
-
-		ArrayList<Node> nodeList = new ArrayList<WebClientUpdateMessage.Node>();
-		ArrayList<Edge> edgeList = new ArrayList<WebClientUpdateMessage.Edge>();
+		
 		double x = 0.1;
 		double y = 0.1;
 		String srcRgb = "rgb(0,204,0)";
@@ -336,11 +330,6 @@ public class Master {
 			System.out.println("ByteRate is "+streamSpec.ByteRate);
 
 			for (HashMap<String, String> node : streamSpec.Flow) {
-//				x = Math.random();
-//				y = Math.random();
-				//TODO: Come up with some better logic to assign positions to the nodes
-				x = (x + 0.6) > 1 ? (x + 0.6) - 1 : (x + 0.6);
-				y = (y + 0.6) > 1 ? (y + 0.6) - 1 : (y + 0.6);
 				String nType = node.get("NodeType");
 				String nId = node.get("NodeId");
 				String upstreamNode = node.get("UpstreamId");
@@ -348,13 +337,17 @@ public class Master {
 				String msg = "";
 				String edgeId = nId+"-"+upstreamNode;
 				String edgeType = "";
-
-				if (!nodeSet.contains(nId)) {
+				
+				if (webClientGraph.getNode(nId) == null) {
 					/*
-					 * This node list is used to ensure that the node is added only once to the node list.
+					 * The aboce check is used to ensure that the node is added only once to the node list.
 					 * This situation can arise if a sink node is connected to two upstream sources at the 
 					 * same time
 					 */
+					//TODO: Come up with some better logic to assign positions to the nodes
+					NodeLocation nl = webClientGraph.getNewNodeLocation();
+					x = nl.x;
+					y = nl.y;
 					if (nType.equals("SOURCE")) {
 						rgb = srcRgb;
 						msg = srcMsg;
@@ -364,31 +357,24 @@ public class Master {
 						msg = sinkMsg;
 						sinkSet.add(nId);
 					}
-					nodeList.add(webClientUpdateMessage.new Node(nId, nId, x, y, rgb, nodeSize,  msg));
-					nodeSet.add(nId);
+					Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
+					webClientGraph.addNode(n);
 				}
 
-				if(!upstreamNode.equals("NULL") && !edgeSet.contains(edgeId)) {
-					edgeList.add(webClientUpdateMessage.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId));
-					edgeSet.add(edgeId);
+				if(!upstreamNode.equals("NULL") && webClientGraph.getEdge(edgeId) == null) {
+					Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId);
+					webClientGraph.addEdge(e);
 				}
 				System.out.println("**** Node in Flow ****");
 				System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
 			}
-			
 		}
-		
-		Node[] nodes = new Node[nodeList.size()];
-		Edge[] edges = new Edge[edgeList.size()];
-		nodeList.toArray(nodes);
-		edgeList.toArray(edges);
-		webClientUpdateMessage.setEdges(edges);
-		webClientUpdateMessage.setNodes(nodes);
 
 		try {
+			//TODO: If the graph is already created send update message
 			Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
-					JSON.toJSON(webClientUpdateMessage).getBytes() );
-			System.out.println("Sent update: " + JSON.toJSON(webClientUpdateMessage));
+					JSON.toJSON(webClientGraph.getUpdateMessage()).getBytes());
+			System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 		} catch (WarpException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -456,13 +442,22 @@ public class Master {
 		}
 	}
 
-
+	/**
+	 * Sends Update message (updated graph) to the web client 
+	 * @param webClientUpdateMessage
+	 * @throws WarpException
+	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws WarpException {
 		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 	}
-	
+	/**
+	 * Reports sent by the Source Nodes
+	 * @param request
+	 * @param srcMsg
+	 * @throws WarpException
+	 */
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
 		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
@@ -470,21 +465,31 @@ public class Master {
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
 		
 		String nodeId = getNodeId(request);
-		//TODO: Check if the following synchronization is enough. 
-		Node n = webClientUpdateMessage.getNode(nodeId);
+		//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
+		Node n = webClientGraph.getNode(nodeId);
 		synchronized(n){
 			n.tag = sourceNodeMsg;
 		}
-		updateWebClient(webClientUpdateMessage);
+		updateWebClient(webClientGraph.getUpdateMessage());
 	}
-
+	/**
+	 * Extracts node id from messageRequest.from
+	 * It will throw runtime exceptions if message is not in proper format
+	 * @param request
+	 * @return NodeId
+	 */
 	private String getNodeId(Message request) {
 		String nodeId = request.getFrom().toString();
 		nodeId = nodeId.substring(0,nodeId.lastIndexOf('/'));
 		nodeId = nodeId.substring(nodeId.lastIndexOf('/')+1);
 		return nodeId;
 	}
-	
+	/**
+	 * The report sent by the sink nodes
+	 * @param request
+	 * @param sinkMsg
+	 * @throws WarpException
+	 */
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
 		
 		long totalTime = 0;
@@ -504,11 +509,12 @@ public class Master {
 		
 		String nodeId = getNodeId(request);
 		
-		Node n = webClientUpdateMessage.getNode(nodeId);
+		Node n = webClientGraph.getNode(nodeId);
+		//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
 		synchronized(n){
 			n.tag = sinkNodeMsg;
 		}
-		updateWebClient(webClientUpdateMessage);
+		updateWebClient(webClientGraph.getUpdateMessage());
 	}
 	
 	public void putStartTime(String streamId, String startTime) {
