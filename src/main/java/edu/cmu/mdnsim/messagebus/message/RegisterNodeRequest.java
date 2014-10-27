@@ -10,20 +10,17 @@ public class RegisterNodeRequest extends MbMessage {
 	private String _nodeIP;
 	private String _nodeName;
 	private int _port;
-	private NodeType _type;
 	
 	public RegisterNodeRequest() {
 		_URI = null;
 		_nodeIP = "";
 		_port = 1099;
-		_type = NodeType.UNDEF;
 	}
 	
 	public RegisterNodeRequest(String uri, String ip, int port, NodeType type) {
 		this._URI = uri;
 		this._nodeIP = ip;
 		this._port = port;
-		this._type = type;
 	}
 	
 	public String getURI() {
@@ -38,9 +35,6 @@ public class RegisterNodeRequest extends MbMessage {
 		return _port;
 	}
 	
-	public NodeType getType() {
-		return _type;
-	}
 	
 	public void setURI(String uri) {
 		_URI = uri;
@@ -54,9 +48,6 @@ public class RegisterNodeRequest extends MbMessage {
 		_port = port;
 	}
 	
-	public void setType(NodeType type) {
-		_type = type;
-	}
 	
 	public String getNodeName() {
 		return _nodeName;

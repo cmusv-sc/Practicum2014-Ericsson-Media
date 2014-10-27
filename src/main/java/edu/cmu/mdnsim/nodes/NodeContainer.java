@@ -157,14 +157,19 @@ public class NodeContainer {
 	}
 	
 	public static void main(String[] args) throws MessageBusException {
+		
 		NodeContainer nc = null;
+		
 		int beginIndex = 6; // the node label will start after the prefix "label:" i.e. the 7th char
-		if (args[0] != null && args[0].startsWith("label:")) {
+		
+		if (args != null && args.length > 0 && 
+				args[0] != null && args[0].startsWith("label:")) {
 			nc = new NodeContainer("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", 
 					args[0].substring(beginIndex));
 		}
-		else
+		else {
 			nc = new NodeContainer();
+		}
 		nc.config();
 		nc.connect();
 	}
