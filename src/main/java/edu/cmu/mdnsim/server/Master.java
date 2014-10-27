@@ -79,8 +79,8 @@ public class Master {
 	private Map<String, String> nodeNameToURITbl =  new ConcurrentHashMap<String, String>();
 	private Map<String, String> nodeURIToNameTbl =  new ConcurrentHashMap<String, String>();
 	
-	private Map<String, WorkConfig> simulationMap = new ConcurrentHashMap<String, WorkConfig>();
-
+	private Map<String, StreamSpec> streamMap = new ConcurrentHashMap<String, StreamSpec>();
+	private Map<String, StreamSpec> runningStreamMap = new ConcurrentHashMap<String, StreamSpec>();
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 	
 	/**
@@ -185,7 +185,8 @@ public class Master {
 		msgBusSvr.config();
 
 		/* Used to keep track of the statistics for a stream */
-		simulationMap = new HashMap<String, WorkConfig>();
+		streamMap = new HashMap<String, StreamSpec>();
+		runningStreamMap = new HashMap<String, StreamSpec>();
 
 		//TODO:Compare registerNode & createNode
 //		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
@@ -341,6 +342,7 @@ public class Master {
 		int nodeSize = 6;
 				
 		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			String streamId = streamSpec.StreamId;
 			System.out.println("Stream Id is "+streamSpec.StreamId);
 			System.out.println("DataSize is "+streamSpec.DataSize);
 			System.out.println("ByteRate is "+streamSpec.ByteRate);
@@ -384,6 +386,9 @@ public class Master {
 				System.out.println("**** Node in Flow ****");
 				System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
 			}
+			
+			if (!streamMap.containsKey(streamId))
+				streamMap.put(streamId, streamSpec);
 		}
 
 		try {
@@ -398,7 +403,6 @@ public class Master {
 
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
-		simulationMap.put(simId, wc);
 		
 		instantiateNodes(nodesToInstantiate);
 	}
@@ -435,29 +439,37 @@ public class Master {
 	}
 	
 	/**
-	 * Triggers the simulation by sending the work specification to the sink
+	 * Triggers the simulation by sending the StreamSpec to the sink
+	 * After a StreamSpec is sent to the sink, it is removed from the
+	 * "streamMap" hash map and put into the runningStreamMap.
+	 * This way, if the user wishes to add new streams to an already running
+	 * simulation, this method will send StreamSpec to sink of new streams
 	 * 
 	 * @param msg
 	 * @throws WarpException
 	 */
 	public void startSimulation(Message msg) throws WarpException {
 		String sinkUri = "";
-		for (WorkConfig wc : simulationMap.values()) {
-			for (StreamSpec s : wc.getStreamSpecList()) {
-				for (HashMap<String, String> f : s.Flow) {
-					String upstream = f.get("UpstreamId");
-					if (sinkUri.equals(""))
-						sinkUri = nodeNameToURITbl.get(f.get("NodeId"));
-					if (nodeNameToURITbl.containsKey(upstream))
-						f.put("UpstreamUri", nodeNameToURITbl.get(upstream));
-				}
+		
+		for (StreamSpec s : streamMap.values()) {
+			for (HashMap<String, String> f : s.Flow) {
+				String upstream = f.get("UpstreamId");
+				if (sinkUri.equals(""))
+					sinkUri = nodeNameToURITbl.get(f.get("NodeId"));
+				if (nodeNameToURITbl.containsKey(upstream))
+					f.put("UpstreamUri", nodeNameToURITbl.get(upstream));
 			}
 			try {
-				msgBusSvr.send("/", sinkUri+"/tasks", "PUT", wc);
+				msgBusSvr.send("/", sinkUri+"/tasks", "PUT", s);
+				sinkUri="";
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
+			
+			runningStreamMap.put(s.StreamId, s);
 		}
+		
+		streamMap.clear();
 	}
 
 	/**

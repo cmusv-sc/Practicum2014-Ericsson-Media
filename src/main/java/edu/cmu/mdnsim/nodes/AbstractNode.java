@@ -9,6 +9,7 @@ import java.util.Locale;
 
 import com.ericsson.research.warp.api.message.Message;
 
+import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -82,6 +83,6 @@ public abstract class AbstractNode {
 		return registered;
 	}
 
-	public abstract void executeTask(WorkConfig wc);
+	public abstract void executeTask(StreamSpec s);
 
 }
