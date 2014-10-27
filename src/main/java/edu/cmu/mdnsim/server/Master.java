@@ -6,11 +6,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
@@ -69,15 +70,24 @@ public class Master {
     /**
      * Contains a mapping of the node container label to the URI
      */
-	private HashMap<String, String> nodeContainerTbl = new HashMap<String, String>();
+	private Map<String, String> nodeContainerTbl = new ConcurrentHashMap<String, String>();
 	
-	private HashMap<String, String> _nodeTbl =  new HashMap<String, String>();
-	private HashMap<String, String> nodeURIToName =  new HashMap<String, String>();
+	/**
+	 * Maintains the double direction HashMap. So that the map relationship between
+	 * node name and URI can be easily got.
+	 */
+	private Map<String, String> nodeNameToURITbl =  new ConcurrentHashMap<String, String>();
+	private Map<String, String> nodeURIToNameTbl =  new ConcurrentHashMap<String, String>();
+	
+	private Map<String, WorkConfig> simulationMap = new ConcurrentHashMap<String, WorkConfig>();
+
+	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 	
 	/**
 	 * _webClientURI records the URI of the web client
 	 */
 	private String _webClientURI;
+	
 	/**
 	 * Global object representing the nodes and edges as shown in WebClient. 
 	 * TODO: This will be initialized or re-initialized whenever users uploads a new simulation script.
@@ -85,13 +95,9 @@ public class Master {
 	 */
 	private WebClientGraph webClientGraph = WebClientGraph.INSTANCE;
 	
-	private HashMap<String, WorkConfig> simulationMap;
-
-	private HashMap<String, String> _startTimeMap;
     
     public Master() throws MessageBusException {
-    	msgBusSvr = instantiateMsgBusServer("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
-    	_startTimeMap = new HashMap<String, String>();
+    	this("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
     }
     
     public Master(String msgBusSvrClassName) throws MessageBusException {
@@ -111,6 +117,7 @@ public class Master {
      * @throws MessageBusException
      */
     private MessageBusServer instantiateMsgBusServer(String className) throws MessageBusException {
+    	
     	MessageBusServer server = null;
     	
     	Class<?>[] scan;
@@ -122,21 +129,17 @@ public class Master {
 		
 		Class<?> objectiveMsgBusClass = null;
 		for (Class<?> msgClass : scan) {
-//			System.out.println(msgClass.getName() + " ?= " + className);
+
 			if (msgClass.getName().equals(className)) {
-				
 				objectiveMsgBusClass = msgClass;
 				break;
 			}
 		}
 
 		if (objectiveMsgBusClass == null) {
-			try {
-				throw new ClassNotFoundException("Message bus implementation " 
+			Exception e = new ClassNotFoundException("Message bus implementation " 
 						+ className + " cannot be found");
-			} catch (ClassNotFoundException e) {
-				throw new MessageBusException(e);
-			}
+			throw new MessageBusException(e);
 		}
 		
 		Constructor<?> defaultConstructor;
@@ -184,13 +187,14 @@ public class Master {
 		/* Used to keep track of the statistics for a stream */
 		simulationMap = new HashMap<String, WorkConfig>();
 
+		//TODO:Compare registerNode & createNode
 //		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
 //		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
 
 		/* Register a new node. This is called from a real Node */
 		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
 		
-		/* Register a new node. This is called from a Node Container */
+		/* Register a new node container. This is called from a node container */
 		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
 		
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
@@ -200,26 +204,25 @@ public class Master {
 		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
 
 		/* Add listener for web browser call (start simulation) */
-		msgBusSvr.addMethodListener("/start_simulation", "POST", this,
-				"startSimulation");
+		msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
 
 		/* Source report listener */
-		msgBusSvr.addMethodListener("/source_report", "POST", this,
-				"sourceReport");
+		msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
 
 		/* Sink report listener */
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 
-
 		msgBusSvr.register();
 
     }
-    /**
-     * Sends node creation message to appropriate node container. 
-     * Node container is identified by label in node creation request.
-     * @param message The incoming message for creation of node
-     * @param req Associated node creation request object
-     */
+    
+    
+//    /**
+//     * Sends node creation message to appropriate node container. 
+//     * Node container is identified by label in node creation request.
+//     * @param message The incoming message for creation of node
+//     * @param req Associated node creation request object
+//     */
 //    public void createNode(Message message, CreateNodeRequest req) {
 //    	//TODO: Handle scenario when there is no node container available for the given label
 //    	String ncURI = nodeContainerTbl.get(req.getNcLabel());
@@ -243,14 +246,17 @@ public class Master {
      * Master sends node create requests to NodeContainer based on the user WorkSpecification
      * @param req
      */
-    public void createNodeOnNodeContainer(CreateNodeRequest req) {
+    private void createNodeOnNodeContainer(CreateNodeRequest req) {
+    	
     	//TODO: Handle scenario when there is no node container available for the given label
+    	
+    	//TODO: Why do we use : to delimit NcLabel
+    	System.out.println("[DELETE] Master.createNodeOnNodeContainer(): NC label: " + req.getNcLabel());
     	String containerLabel = req.getNcLabel().split(":")[0];
     	String ncURI = nodeContainerTbl.get(containerLabel);
-    	System.out.println("Sending node create request to node container URI "+ncURI);
+
     	if (ClusterConfig.DEBUG) {
     		System.out.println("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
-    		System.out.println("Class = " + req.getNodeClass());
     	}
     	
     	try {
@@ -265,8 +271,9 @@ public class Master {
     }
 	
 	/**
-	 * The method listener for initialization of MDNNode. During the bootstrap 
-	 * of MDNNodes, they connect to MDNManager to register itself in the cluster
+	 * The method (listener) is for accepting registration of new real node. 
+	 * During the bootstrap of MDNNodes, they connect to Master to register 
+	 * itself in the cluster
 	 * 
 	 * @param request The request message received by message bus
 	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
@@ -275,10 +282,11 @@ public class Master {
 	public void registerNode(Message request, RegisterNodeRequest registMsg) {
 		
 		String nodeName = registMsg.getNodeName();
-		_nodeTbl.put(nodeName, registMsg.getURI());
-		this.nodeURIToName.put(registMsg.getURI(), nodeName);
+		nodeNameToURITbl.put(nodeName, registMsg.getURI());
+		nodeURIToNameTbl.put(registMsg.getURI(), nodeName);
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.registerNode(): Register new node:" + nodeName + " from " + registMsg.getURI());
+			System.out.println("[DEBUG] MDNManager.registerNode(): Register new "
+					+ "node:" + nodeName + " from " + registMsg.getURI());
 		}
 		try {
 			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
@@ -287,17 +295,24 @@ public class Master {
 		}
 	}
 	
+	/**
+	 * The method (listener) is for accepting registration of new node container.
+	 * 
+	 * @param msg
+	 * @param req
+	 */
 	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
 		if (nodeContainerTbl.containsKey(req.getLabel())) {
-			System.out.println("NodeContainer with label "+req.getLabel()+" already exists");
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): NodeContainer with label "
-						+ req.getLabel()+" already exists");
+				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): "
+						+ "NodeContainer with label " + req.getLabel() 
+						+ " already exists");
 			}
 		} else {
 			nodeContainerTbl.put(req.getLabel(), req.getNcURI());
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): Register new node container label:" 
+				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): "
+						+ "Register new node container label:" 
 						+ req.getLabel() + " from " + req.getNcURI());
 			}
 		}
@@ -306,6 +321,7 @@ public class Master {
 	/**
 	 * Method handler to handle validate user spec message.
 	 * Validates user spec and creates the graph
+	 * 
 	 * @param msg
 	 * @param streamSpec
 	 */
@@ -313,8 +329,8 @@ public class Master {
 		
 		HashSet<String> srcSet = new HashSet<String>();
 		HashSet<String> sinkSet = new HashSet<String>();
-		HashMap<NodeType, HashSet<String>> nodesToInstantiate = new HashMap<NodeType, HashSet<String>>();
-		
+		Map<NodeType, Set<String>> nodesToInstantiate = new HashMap<NodeType, Set<String>>();
+
 		double x = 0.1;
 		double y = 0.1;
 		String srcRgb = "rgb(0,204,0)";
@@ -388,7 +404,7 @@ public class Master {
 	}
 	
 	/**
-	 * Handler for the registration message from the web client
+	 * This method (listener) is for accepting registration from web client.
 	 * @param msg
 	 */
 	public void registerWebClient(Message request, String webClientUri) {
@@ -401,7 +417,8 @@ public class Master {
 	 * deployed NodeContainers
 	 * @param nodesToInstantiate
 	 */
-	public void instantiateNodes(HashMap<NodeType, HashSet<String>> nodesToInstantiate) {
+	private void instantiateNodes(Map<NodeType, Set<String>> nodesToInstantiate) {
+		
 		for (NodeType nodeType : nodesToInstantiate.keySet()) {
 			for (String node : nodesToInstantiate.get(nodeType)) {
 				System.out.println(node);
@@ -414,11 +431,12 @@ public class Master {
 				createNodeOnNodeContainer(req);
 			}
 		}
+		
 	}
 	
 	/**
-	 * Triggers the simulation by sending the 
-	 * work specification to the sink
+	 * Triggers the simulation by sending the work specification to the sink
+	 * 
 	 * @param msg
 	 * @throws WarpException
 	 */
@@ -429,9 +447,9 @@ public class Master {
 				for (HashMap<String, String> f : s.Flow) {
 					String upstream = f.get("UpstreamId");
 					if (sinkUri.equals(""))
-						sinkUri = _nodeTbl.get(f.get("NodeId"));
-					if (_nodeTbl.containsKey(upstream))
-						f.put("UpstreamUri", _nodeTbl.get(upstream));
+						sinkUri = nodeNameToURITbl.get(f.get("NodeId"));
+					if (nodeNameToURITbl.containsKey(upstream))
+						f.put("UpstreamUri", nodeNameToURITbl.get(upstream));
 				}
 			}
 			try {
@@ -518,12 +536,11 @@ public class Master {
 	}
 	
 	public void putStartTime(String streamId, String startTime) {
-		this._startTimeMap.put(streamId, startTime);
+		this.startTimeMap.put(streamId, startTime);
 	}
 	public String getStartTimeForStream(String streamId) {
-		return this._startTimeMap.get(streamId);
+		return this.startTimeMap.get(streamId);
 	}
-
     
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();

@@ -20,8 +20,6 @@ public abstract class AbstractNode {
 	protected MessageBusClient msgBusClient;
 	
 	protected String nodeName;
-
-	protected NodeType nodeType;
 	
 	private InetAddress hostAddr;
 	
@@ -40,16 +38,14 @@ public abstract class AbstractNode {
 	
 	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
 		msgBusClient = msgBus;
-		nodeType = nType;
 		nodeName = nName;
 		
-		msgBusClient.addMethodListener("/"+getNodeName()+"/tasks", "PUT", this, "executeTask");
-		msgBusClient.addMethodListener("/"+getNodeName()+"/confirm_node", "PUT", this, "setRegistered");
+		msgBusClient.addMethodListener("/" + getNodeName()+"/tasks", "PUT", this, "executeTask");
+		msgBusClient.addMethodListener("/" + getNodeName()+"/confirm_node", "PUT", this, "setRegistered");
 	}
 	
 	public void register() {
 		RegisterNodeRequest req = new RegisterNodeRequest();
-		req.setType(nodeType);
 		req.setNodeName(getNodeName());
 		req.setURI(msgBusClient.getURI()+"/"+getNodeName());
 		try {
@@ -61,10 +57,6 @@ public abstract class AbstractNode {
 	
 	public InetAddress getHostAddr() {
 		return hostAddr;
-	}
-
-	public NodeType getNodeType() {
-		return nodeType;
 	}
 	
 	public String getNodeName() {
