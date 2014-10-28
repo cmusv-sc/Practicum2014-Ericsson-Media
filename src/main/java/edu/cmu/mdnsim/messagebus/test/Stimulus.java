@@ -13,30 +13,46 @@ import edu.cmu.mdnsim.nodes.NodeType;
 
 
 
-
+/**
+ * Stimulus class simulates on behalf of web client. It directly talks to master
+ * node and simulates different kinds of simulation request. It is regarded as a
+ * proxy of web client.
+ * 
+ * @author JeremyFu
+ *
+ */
 public class Stimulus extends AbstractNode {
 	
+	/**
+	 * The list of test cases. Just add the test cases
+	 */
 	List<MessageBusTestCase> testCaseList = new LinkedList<MessageBusTestCase>();
+	
 	
 	public Stimulus() throws UnknownHostException, MessageBusException {
 		super();
 	}
 	
-	
-//	public void config() throws MessageBusException {
-//		msgBusClient.config();
-//	}
-	
+	/**
+	 * Add new test case to the list
+	 * 
+	 * @param testCase
+	 */
 	public void addTestCase(MessageBusTestCase testCase) {
 		testCaseList.add(testCase);
 	}
 	
+	/**
+	 * Run the test case on demand
+	 * @param index
+	 * @param message
+	 * @throws MessageBusException
+	 */
 	public void runTestCase(int index, String message) throws MessageBusException {
 		
 		testCaseList.get(index).execute();
 		System.out.println("[INFO]Stimulus.runTestCase(): " + message);
 	}
-	
 	
 	public static void main(String[] args) throws MessageBusException, InterruptedException, UnknownHostException {
 		
@@ -60,12 +76,15 @@ public class Stimulus extends AbstractNode {
 		
 	}
 
-
 	@Override
-	public void executeTask(WorkConfig ws) {
-		// TODO Auto-generated method stub
+	public void executeTask(WorkConfig wc) {
+		
+		/* This method is unnecessary for Stimulus as itself doesn't execute any
+		 * task 
+		 * */
 		
 	}
+
 	
 }
 
