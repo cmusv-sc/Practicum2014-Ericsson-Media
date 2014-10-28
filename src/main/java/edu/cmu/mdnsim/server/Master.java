@@ -33,6 +33,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
+import edu.cmu.mdnsim.messagebus.message.SuspendSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
@@ -55,19 +56,6 @@ public class Master {
      */
     MessageBusServer msgBusSvr;
     
-//    /**
-//	 * The _nodeTbl is a table that maps the name of MDNNode to WarpURI of 
-//	 * MDNNode
-//	 */
-//	private ConcurrentHashMap<String, RegisterNodeRequest> _nodeTbl = 
-//			new ConcurrentHashMap<String, RegisterNodeRequest>();
-//	
-//	/**
-//	 * The labelTbl is the table that maps the label to the node name.
-//	 */
-//	private ConcurrentHashMap<String, RegisterNodeContainerRequest> _labelTbl = 
-//			new ConcurrentHashMap<String, RegisterNodeContainerRequest>();
-    
     /**
      * Contains a mapping of the node container label to the URI
      */
@@ -87,7 +75,7 @@ public class Master {
 	/**
 	 * _webClientURI records the URI of the web client
 	 */
-	private String _webClientURI;
+	private String webClientURI;
 	
 	/**
 	 * Global object representing the nodes and edges as shown in WebClient. 
@@ -211,36 +199,13 @@ public class Master {
 
 		/* Sink report listener */
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
-
+		
+		/* Add listener for suspend a task */
+		msgBusSvr.addMethodListener("/simulations", "POST", this, "suspendTask");
+		
 		msgBusSvr.register();
 
     }
-    
-    
-//    /**
-//     * Sends node creation message to appropriate node container. 
-//     * Node container is identified by label in node creation request.
-//     * @param message The incoming message for creation of node
-//     * @param req Associated node creation request object
-//     */
-//    public void createNode(Message message, CreateNodeRequest req) {
-//    	//TODO: Handle scenario when there is no node container available for the given label
-//    	String ncURI = nodeContainerTbl.get(req.getNcLabel());
-//    	if (ClusterConfig.DEBUG) {
-//    		System.out.println("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
-//    		System.out.println("Class = " + req.getNodeClass());
-//    	}
-//    	
-//    	try {
-//    		msgBusSvr.send("/", ncURI + "/create_node", "PUT", req);
-//    	} catch (MessageBusException e) {
-//    		e.printStackTrace();
-//    	}
-//    	
-//    	if (ClusterConfig.DEBUG) {
-//    		System.out.println("[DEBUG]Master.createNode(): message sent");
-//    	}
-//    }
     
     /**
      * Master sends node create requests to NodeContainer based on the user WorkSpecification
@@ -251,8 +216,8 @@ public class Master {
     	//TODO: Handle scenario when there is no node container available for the given label
     	
     	//TODO: Why do we use : to delimit NcLabel
-    	System.out.println("[DELETE] Master.createNodeOnNodeContainer(): NC label: " + req.getNcLabel());
-    	String containerLabel = req.getNcLabel().split(":")[0];
+    	System.out.println("[DELETE] Master.createNodeOnNodeContainer(): Node Container label: " + req.getNcLabel());
+    	String containerLabel = req.getNcLabel();
     	String ncURI = nodeContainerTbl.get(containerLabel);
 
     	if (ClusterConfig.DEBUG) {
@@ -327,6 +292,10 @@ public class Master {
 	 */
 	public void validateUserSpec(Message mesg, WorkConfig wc) {
 		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("Master.validateUserSpec(): receive a WorkConfig");
+		}
+		
 		webClientUpdateMessage = new WebClientUpdateMessage();
 		HashSet<String> nodeSet = new HashSet<String>();
 		HashSet<String> edgeSet = new HashSet<String>();
@@ -344,7 +313,8 @@ public class Master {
 		String sinkMsg = "This is a Sink Node";
 		String simId = wc.getSimId();
 		int nodeSize = 6;
-				
+		
+		System.out.println("[DELETE]Master.validateUserSpec(): StreamSpec List size = " + wc.getStreamSpecList().size());
 		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
 			System.out.println("Stream Id is "+streamSpec.StreamId);
 			System.out.println("DataSize is "+streamSpec.DataSize);
@@ -399,19 +369,23 @@ public class Master {
 		webClientUpdateMessage.setEdges(edges);
 		webClientUpdateMessage.setNodes(nodes);
 
-		try {
-			Warp.send("/", WarpURI.create(_webClientURI.toString() + "/create"), "POST", 
-					JSON.toJSON(webClientUpdateMessage).getBytes() );
-			System.out.println("Sent update: " + JSON.toJSON(webClientUpdateMessage));
-		} catch (WarpException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if (webClientURI != null) {
+			try {
+				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientUpdateMessage);
+				System.out.println("Sent update: " + JSON.toJSON(webClientUpdateMessage));
+			} catch (MessageBusException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
 		simulationMap.put(simId, wc);
 		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("Master.validateUserSpec():  Start to instantiate nodes.");
+		}
 		instantiateNodes(nodesToInstantiate);
 	}
 	
@@ -420,8 +394,8 @@ public class Master {
 	 * @param msg
 	 */
 	public void registerWebClient(Message request, String webClientUri) {
-		_webClientURI = webClientUri;
-		System.out.println("Web client URI is "+_webClientURI.toString());
+		webClientURI = webClientUri;
+		System.out.println("Web client URI is "+webClientURI.toString());
 	}
 	
 	/**
@@ -432,10 +406,11 @@ public class Master {
 	private void instantiateNodes(Map<NodeType, Set<String>> nodesToInstantiate) {
 		
 		for (NodeType nodeType : nodesToInstantiate.keySet()) {
+			/* Iterate each nodeType */
 			for (String node : nodesToInstantiate.get(nodeType)) {
 				System.out.println(node);
 				String nodeClass = "";
-				if (nodeType == NodeType.SOURCE)
+				if (nodeType == NodeType.SOURCE) 
 					nodeClass = "edu.cmu.mdnsim.nodes.SourceNode";
 				else if (nodeType == NodeType.SINK)
 					nodeClass = "edu.cmu.mdnsim.nodes.SinkNode";
@@ -453,29 +428,41 @@ public class Master {
 	 * @throws WarpException
 	 */
 	public void startSimulation(Message msg) throws WarpException {
+		
 		String sinkUri = "";
 		for (WorkConfig wc : simulationMap.values()) {
 			for (StreamSpec s : wc.getStreamSpecList()) {
 				for (HashMap<String, String> f : s.Flow) {
 					String upstream = f.get("UpstreamId");
-					if (sinkUri.equals(""))
+					if (sinkUri.equals("")) {
+						System.out.println("[DELETE]master.startSimulation(): "
+								+ "assign uri to sinkUri = " + nodeNameToURITbl.get((f.get("NodeId"))));
 						sinkUri = nodeNameToURITbl.get(f.get("NodeId"));
-					if (nodeNameToURITbl.containsKey(upstream))
+					}
+					
+					/* Translate the upstream node name to its URI */
+					if (nodeNameToURITbl.containsKey(upstream)) {
 						f.put("UpstreamUri", nodeNameToURITbl.get(upstream));
+					}
 				}
 			}
 			try {
-				msgBusSvr.send("/", sinkUri+"/tasks", "PUT", wc);
+				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", wc);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
+		}
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
+					+ "has started");
 		}
 	}
 
 
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws WarpException {
-		Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", 
+		Warp.send("/", WarpURI.create(webClientURI.toString()+"/update"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 	}
 	
@@ -544,6 +531,25 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
+	public void suspendTask(String streamId) {
+		
+		String sourceURI = ""; //Find source URI
+		sourceURI += "/tasks";
+		SuspendSimulationRequest req = new SuspendSimulationRequest(streamId);
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.suspendTask(): Try to send suspend "
+					+ "simulation request at " + sourceURI + " for streamId = " +
+					streamId);
+		}
+//		try {
+//			msgBusSvr.send("/", sourceURI, "POST", req);
+//		} catch (MessageBusException e) {
+//			e.printStackTrace();
+//		}
+		
+	}
+	
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();
     	mdnDomain.init();
