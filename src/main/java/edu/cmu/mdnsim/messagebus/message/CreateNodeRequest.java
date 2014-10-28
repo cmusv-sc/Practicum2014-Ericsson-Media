@@ -6,7 +6,8 @@ public class CreateNodeRequest extends MbMessage {
 	
 	private NodeType nodeType;
 	private String nodeClass;
-	private String ncLabel; //Node Container label
+	private String nodeId; // node ID: tomato:sink1
+	private String ncLabel; // node container label: tomato
 	
 	public CreateNodeRequest() {
 		this(NodeType.UNDEF, "default", "");
@@ -17,9 +18,16 @@ public class CreateNodeRequest extends MbMessage {
 		nodeType = type;
 	}
 	
-	public CreateNodeRequest(NodeType type, String label, String nClass) {
+	/**
+	 * Constructor for CreateNodeRequest.
+	 * @param type
+	 * @param label The label of node container
+	 * @param nClass the node class name
+	 */
+	public CreateNodeRequest(NodeType type, String nodeId, String nClass) {
 		nodeType = type;
-		ncLabel = label;
+		this.nodeId = nodeId;
+		ncLabel = nodeId.split(":")[0];
 		nodeClass = nClass;
 	}
 	
@@ -29,6 +37,10 @@ public class CreateNodeRequest extends MbMessage {
 	
 	public String getNcLabel() {
 		return ncLabel;
+	}
+	
+	public String getNodeId() {
+		return nodeId;
 	}
 	
 	public String getNodeClass() {
@@ -45,6 +57,10 @@ public class CreateNodeRequest extends MbMessage {
 	
 	public void setNodeClass(String className) {
 		nodeClass = className;
+	}
+	
+	public void setNodeId(String nodeId) {
+		this.nodeId = nodeId;
 	}
 	
 }
