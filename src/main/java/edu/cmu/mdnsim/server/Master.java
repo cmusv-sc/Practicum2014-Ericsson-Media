@@ -7,9 +7,9 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +33,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.messagebus.message.SuspendSimulationRequest;
+import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
@@ -68,6 +68,9 @@ public class Master {
 	private Map<String, String> nodeNameToURITbl =  new ConcurrentHashMap<String, String>();
 	private Map<String, String> nodeURIToNameTbl =  new ConcurrentHashMap<String, String>();
 	
+	/**
+	 * Key: SimuID, Value: WorkConfig
+	 */
 	private Map<String, WorkConfig> simulationMap = new ConcurrentHashMap<String, WorkConfig>();
 
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
@@ -172,9 +175,6 @@ public class Master {
 
 		msgBusSvr.config();
 
-		/* Used to keep track of the statistics for a stream */
-		simulationMap = new HashMap<String, WorkConfig>();
-
 		//TODO:Compare registerNode & createNode
 //		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
 //		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
@@ -200,8 +200,8 @@ public class Master {
 		/* Sink report listener */
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 		
-		/* Add listener for suspend a task */
-		msgBusSvr.addMethodListener("/simulations", "POST", this, "suspendTask");
+		/* Add listener for suspend a simulation */
+		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 		
 		msgBusSvr.register();
 
@@ -427,30 +427,12 @@ public class Master {
 	 * @param msg
 	 * @throws WarpException
 	 */
-	public void startSimulation(Message msg) throws WarpException {
+	public void startSimulation(Message msg) throws MessageBusException {
 		
-		String sinkUri = "";
+		
 		for (WorkConfig wc : simulationMap.values()) {
-			for (StreamSpec s : wc.getStreamSpecList()) {
-				for (HashMap<String, String> f : s.Flow) {
-					String upstream = f.get("UpstreamId");
-					if (sinkUri.equals("")) {
-						System.out.println("[DELETE]master.startSimulation(): "
-								+ "assign uri to sinkUri = " + nodeNameToURITbl.get((f.get("NodeId"))));
-						sinkUri = nodeNameToURITbl.get(f.get("NodeId"));
-					}
-					
-					/* Translate the upstream node name to its URI */
-					if (nodeNameToURITbl.containsKey(upstream)) {
-						f.put("UpstreamUri", nodeNameToURITbl.get(upstream));
-					}
-				}
-			}
-			try {
-				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", wc);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			}
+			String sinkUri = updateWorkConfig(wc);
+			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", wc);
 		}
 		
 		if (ClusterConfig.DEBUG) {
@@ -458,8 +440,57 @@ public class Master {
 					+ "has started");
 		}
 	}
-
-
+	
+	/**
+	 * 
+	 * This method is a helper method that performs 2 functions:
+	 * [1] Maps the upstream id to its URI so the node along the chain can send
+	 * the data to the destination
+	 * [2] Automatically fills in the downstream id and downstream URI based on
+	 * the relationship specified by upstream.
+	 * 
+	 * @param wc WorkConfig waited to be updated
+	 * @return the URI of the sink node (starting point of the control message).
+	 */
+	private String updateWorkConfig(WorkConfig wc) {
+		
+		boolean TEST = false;
+		
+		String sinkUri = null;
+		String sinkNodeId = null;
+		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			String downStreamId = null;
+			for (int i = 0; i < streamSpec.Flow.size(); i++) {
+				
+				HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
+				if (i == 0) {
+					sinkNodeId = nodeMap.get("NodeId");
+					sinkUri = nodeNameToURITbl.get(nodeMap.get("NodeId"));
+				}
+				nodeMap.put("DownstreamId", downStreamId);
+				nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
+				downStreamId = nodeMap.get("NodeId");
+				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
+			}
+		}
+		
+		if (TEST) {
+			System.out.println("[TEST]Master.configWorkConfig(): Sink node id=" + sinkNodeId);
+			for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+				System.out.println("[TEST]Master.configWorkConfig():------------> new stream spec.");
+				for (Map<String, String> map : streamSpec.Flow) {
+					System.out.println("[TEST]Master.configWorkConfig(): nodeId:" 
+							+ map.get("NodeId") + " UpstreamId:" + map.get("UpstreamId") 
+							+ " DownstreamId:" + map.get("DownstreamId"));
+				}
+			}
+		}
+		
+		return sinkUri;
+		
+	}
+	
+	
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws WarpException {
 		Warp.send("/", WarpURI.create(webClientURI.toString()+"/update"), "POST", 
@@ -476,18 +507,6 @@ public class Master {
 		
 		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sourceNodeMsg;
 		updateWebClient(webClientUpdateMessage);
-//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-//		Node[] nodes = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,255,0)", 6,  sourceNodeMsg),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,204,204)", 6, "This is sink node")
-//		};
-//		Edge[] edges = {
-//				webClientUpdateMessage.new Edge("E1","N1", "N2", "")
-//		};
-//		
-//		webClientUpdateMessage.setEdges(edges);
-//		webClientUpdateMessage.setNodes(nodes);
-//		updateWebClient(webClientUpdateMessage);
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
@@ -531,24 +550,20 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
-	public void suspendTask(String streamId) {
-		
-		String sourceURI = ""; //Find source URI
-		sourceURI += "/tasks";
-		SuspendSimulationRequest req = new SuspendSimulationRequest(streamId);
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.suspendTask(): Try to send suspend "
-					+ "simulation request at " + sourceURI + " for streamId = " +
-					streamId);
-		}
-//		try {
-//			msgBusSvr.send("/", sourceURI, "POST", req);
-//		} catch (MessageBusException e) {
-//			e.printStackTrace();
+//	public void stopSimulation(StopSimulationRequest req) {
+//		
+//		if (ClusterConfig.DEBUG) {
+//			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
+//					+ "simulation request.");
 //		}
-		
-	}
+//		
+//		WorkConfig wc = simulationMap.get(req.getSimuID());
+//		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
+////		for (StreamSpec streamSpec : streamSpecList) {
+////			Map<String, String>streamSpec.Flow
+////		}
+//	
+//	}
 	
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();
