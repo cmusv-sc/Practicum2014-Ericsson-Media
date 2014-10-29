@@ -18,26 +18,27 @@ import edu.cmu.mdnsim.nodes.NodeType;
  * with label tomato, the other(source) in orange. This WorkConfig is with streamID
  * test-1. This test case simulates the simplest topology (source -> sink) in the simulator.
  * 
- * @author JeremyFu
+ * @author Jeremy Fu, Vinay Kumar Vavili, Jigar Patel, Hao Wang
  *
  */
 public class WorkConfigTestCase implements MessageBusTestCase {
 	
 	private MessageBusClient msgBusClient;
+	private String simuID;
 	
-	public WorkConfigTestCase(MessageBusClient client) {
+	public WorkConfigTestCase(MessageBusClient client, String simuID) {
 		msgBusClient = client;
+		this.simuID = simuID;
 	}
 	
 	@Override
 	public void execute() {
 		
 		WorkConfig wc = new WorkConfig();
-		String streamId = "test-1";
-		wc.setSimId(streamId);
+		wc.setSimId(simuID);
 		List<StreamSpec> streamSpecList = new ArrayList<StreamSpec>();
 		StreamSpec streamSpec = new StreamSpec();
-		streamSpec.StreamId = streamId;
+		streamSpec.StreamId = simuID;
 		streamSpec.ByteRate = "625000";
 		streamSpec.DataSize = "20000000";
 		ArrayList<HashMap<String, String>> flow = new ArrayList<HashMap<String, String>>();
@@ -58,7 +59,6 @@ public class WorkConfigTestCase implements MessageBusTestCase {
 		streamSpecList.add(streamSpec);
 		wc.setStreamSpecList(streamSpecList);
 
-		System.out.println("[DELET]WorkConfigTest.execute(): wc StreamSpec list size = " + wc.getStreamSpecList().size());
 		try {
 			msgBusClient.sendToMaster("/", "/validate_user_spec", "POST", wc);
 		} catch (MessageBusException e) {
