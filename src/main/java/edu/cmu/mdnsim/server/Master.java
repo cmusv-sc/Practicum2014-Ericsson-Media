@@ -454,8 +454,6 @@ public class Master {
 	 */
 	private String updateWorkConfig(WorkConfig wc) {
 		
-		boolean TEST = false;
-		
 		String sinkUri = null;
 		String sinkNodeId = null;
 		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
@@ -465,7 +463,7 @@ public class Master {
 				HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
 				if (i == 0) {
 					sinkNodeId = nodeMap.get("NodeId");
-					sinkUri = nodeNameToURITbl.get(nodeMap.get("NodeId"));
+					sinkUri = nodeNameToURITbl.get(sinkNodeId);
 				}
 				nodeMap.put("DownstreamId", downStreamId);
 				nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
@@ -474,16 +472,8 @@ public class Master {
 			}
 		}
 		
-		if (TEST) {
-			System.out.println("[TEST]Master.configWorkConfig(): Sink node id=" + sinkNodeId);
-			for (StreamSpec streamSpec : wc.getStreamSpecList()) {
-				System.out.println("[TEST]Master.configWorkConfig():------------> new stream spec.");
-				for (Map<String, String> map : streamSpec.Flow) {
-					System.out.println("[TEST]Master.configWorkConfig(): nodeId:" 
-							+ map.get("NodeId") + " UpstreamId:" + map.get("UpstreamId") 
-							+ " DownstreamId:" + map.get("DownstreamId"));
-				}
-			}
+		if (ClusterConfig.DEBUG) {
+			assert isValidWorkConfig(wc);
 		}
 		
 		return sinkUri;
@@ -550,23 +540,58 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
-//	public void stopSimulation(StopSimulationRequest req) {
-//		
-//		if (ClusterConfig.DEBUG) {
-//			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
-//					+ "simulation request.");
+	public void stopSimulation(StopSimulationRequest req) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
+					+ "simulation request.");
+		}
+		
+		WorkConfig wc = simulationMap.get(req.getSimuID());
+		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
+//		for (StreamSpec streamSpec : streamSpecList) {
+//			Map<String, String>streamSpec.Flow
 //		}
-//		
-//		WorkConfig wc = simulationMap.get(req.getSimuID());
-//		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
-////		for (StreamSpec streamSpec : streamSpecList) {
-////			Map<String, String>streamSpec.Flow
-////		}
-//	
-//	}
+	
+	}
 	
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();
     	mdnDomain.init();
     }
+    
+    public static boolean isValidWorkConfig(WorkConfig wc) {
+		
+		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			String downStreamNodeId = null;
+			String upStreamIdOfDownStreamNode = null;
+			for (int i = 0; i < streamSpec.Flow.size(); i++) {
+				Map<String, String> nodeMap = streamSpec.Flow.get(i);
+				if (i == 0) {
+					if (nodeMap.get("DownstreamId") != null) {
+						return false;
+					}
+					downStreamNodeId = nodeMap.get("NodeId");
+					upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
+				} else if (i == streamSpec.Flow.size() - 1){
+					if (nodeMap.get("UpstreamId") != null) {
+						return false;
+					}
+					if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
+						return false;
+					}
+				} else {
+					if (!nodeMap.get("NodeId").equals(upStreamIdOfDownStreamNode)) {
+						return false;
+					}
+					if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
+						return false;
+					}
+					upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
+					downStreamNodeId = nodeMap.get("NodeId");
+				}
+			}
+		}
+		return true;
+	}
 }
