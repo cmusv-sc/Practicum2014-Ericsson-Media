@@ -64,13 +64,20 @@ public class Stimulus extends AbstractNode {
 		stimulus.config(msgBusClient, NodeType.UNDEF, "STIMULUS");
 		stimulus.register();
 		Thread.sleep(1000 * 5);
-		MessageBusTestCase testCase = new WorkConfigTestCase(stimulus.msgBusClient);
+		String simuID = "test-1";
+		MessageBusTestCase testCase = new WorkConfigTestCase(stimulus.msgBusClient, simuID);
 		stimulus.addTestCase(testCase);
 		testCase = new StartSimulationTestCase(stimulus.msgBusClient);
 		stimulus.addTestCase(testCase);
+		testCase = new StopSimulationTestCase(stimulus.msgBusClient, simuID);
+		
+		
+		
 		stimulus.runTestCase(0, "Finish validate the WorkConfig");
 		Thread.sleep(1000 * 5);
 		stimulus.runTestCase(1, "Start the simulation");
+		Thread.sleep(1000 * 3);
+		
 		
 		
 		
