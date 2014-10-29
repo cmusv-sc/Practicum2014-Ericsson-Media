@@ -10,10 +10,10 @@ import java.util.Locale;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.config.WorkConfig;
+import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 
 public abstract class AbstractNode {
 	
@@ -36,12 +36,14 @@ public abstract class AbstractNode {
 		hostAddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
-		msgBusClient = msgBus;
+	public void config(MessageBusClient msgBusClient, NodeType nType, String nName) throws MessageBusException {
+		this.msgBusClient = msgBusClient;
 		nodeName = nName;
 		
-		msgBusClient.addMethodListener("/" + getNodeName()+"/tasks", "PUT", this, "executeTask");
-		msgBusClient.addMethodListener("/" + getNodeName()+"/confirm_node", "PUT", this, "setRegistered");
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", 
+				this, "executeTask");
+		msgBusClient.addMethodListener("/" + getNodeName() + "/confirm_node", 
+				"PUT", this, "setRegistered");
 	}
 	
 	public void register() {
@@ -68,14 +70,18 @@ public abstract class AbstractNode {
 	}	
 
 	public String currentTime(){
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", 
+				Locale.US);
 		Date date = new Date();
 		return dateFormat.format(date);
 	}
 
 	public synchronized void setRegistered(Message msg) {
-		System.out.println(getNodeName()+ " successfully registered");
 		registered = true;
+		if (ClusterConfig.DEBUG) {
+			System.out.println("AbstractNode.setRegistered(): " + getNodeName() 
+					+ " successfully registered");
+		}
 	}
 	
 	public synchronized boolean isRegistered() {
