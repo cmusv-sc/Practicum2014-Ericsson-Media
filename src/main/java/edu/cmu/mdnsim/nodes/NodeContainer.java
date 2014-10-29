@@ -51,8 +51,9 @@ public class NodeContainer {
 		
 		req.setLabel(label);
 		req.setNcURI(msgBusClient.getURI());
-
+		
 		msgBusClient.sendToMaster("/", "/node_containers", "PUT", req);
+	
 	}
 	
 	public void createNode(CreateNodeRequest req) 
@@ -60,8 +61,6 @@ public class NodeContainer {
 			IllegalArgumentException, InstantiationException, 
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
-		
-		//System.out.println("Create a NODE!!!!! class:" + req.getNodeClass());
 		
 		Class<?>[] scan = null;
 		try {
@@ -86,7 +85,7 @@ public class NodeContainer {
 		Constructor<?> constructor = objectiveNodeClass.getConstructor();
 		AbstractNode newNode = (AbstractNode)constructor.newInstance();
 		try {
-			newNode.config(msgBusClient, req.getNodeType(), req.getNcLabel());
+			newNode.config(msgBusClient, req.getNodeType(), req.getNodeId());
 			newNode.register();
 		} catch (MessageBusException e) {
 			// TODO Auto-generated catch block
@@ -116,7 +115,6 @@ public class NodeContainer {
 		
 		Class<?> objectiveMsgBusClass = null;
 		for (Class<?> msgClass : scan) {
-			//System.out.println(msgClass.getCanonicalName());
 			if (msgClass.getName().equals(className)) {
 				objectiveMsgBusClass = msgClass;
 				break;
@@ -160,7 +158,8 @@ public class NodeContainer {
 		
 		NodeContainer nc = null;
 		
-		int beginIndex = 6; // the node label will start after the prefix "label:" i.e. the 7th char
+		/* the node label will start after the prefix "label:" i.e. the 7th char */
+		int beginIndex = 6; 
 		
 		if (args != null && args.length > 0 && 
 				args[0] != null && args[0].startsWith("label:")) {
