@@ -464,11 +464,15 @@ public class Master {
 				if (i == 0) {
 					sinkNodeId = nodeMap.get("NodeId");
 					sinkUri = nodeNameToURITbl.get(sinkNodeId);
+					downStreamId = nodeMap.get("NodeId");
+					nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
+				} else {
+					nodeMap.put("DownstreamId", downStreamId);
+					nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
+					downStreamId = nodeMap.get("NodeId");
+					nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
 				}
-				nodeMap.put("DownstreamId", downStreamId);
-				nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
-				downStreamId = nodeMap.get("NodeId");
-				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
+				
 			}
 		}
 		
@@ -549,9 +553,6 @@ public class Master {
 		
 		WorkConfig wc = simulationMap.get(req.getSimuID());
 		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
-//		for (StreamSpec streamSpec : streamSpecList) {
-//			Map<String, String>streamSpec.Flow
-//		}
 	
 	}
 	
