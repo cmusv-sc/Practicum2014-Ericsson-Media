@@ -23,12 +23,9 @@ public class StartSimulationTestCase implements MessageBusTestCase{
 	
 	@Override
 	public void execute() throws MessageBusException {
-		
-		try {
-			msgBusClient.sendToMaster("/", "/start_simulation", "POST", new StartSimulationRequest());
-		} catch (MessageBusException e) {
-			e.printStackTrace();
-		}
+
+		msgBusClient.sendToMaster("/", "/start_simulation", 
+				"POST", new StartSimulationRequest());
 		
 	}
 
