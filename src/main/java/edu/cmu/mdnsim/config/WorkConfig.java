@@ -2,6 +2,7 @@ package edu.cmu.mdnsim.config;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
@@ -28,5 +29,21 @@ public class WorkConfig extends MbMessage{
 
 	public void setSimId(String simId) {
 		this.simId = simId;
+	}
+	
+	@Override
+	public String toString() {
+		
+		StringBuilder sb = new StringBuilder();
+		for (StreamSpec streamSpec : this.getStreamSpecList()) {
+			sb.append("StreamSpec:");
+			for (Map<String, String> map : streamSpec.Flow) {
+				sb.append("[nodeId" 
+						+ map.get("NodeId") + "]\t[UpstreamId" + map.get("UpstreamId") 
+						+ "]\t[DownstreamId" + map.get("DownstreamId") + "]");
+			}
+		}
+		return sb.toString();
+		
 	}
 }
