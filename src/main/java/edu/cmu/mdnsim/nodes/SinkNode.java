@@ -164,7 +164,7 @@ public class SinkNode extends AbstractNode {
 
 					if (packet.getData()[0] == 0) {
 						long endTime= System.currentTimeMillis();
-						//report(startTime, endTime, totalBytes);
+						report(startTime, endTime, totalBytes);
 						socket.close();
 						streamSocketMap.remove(streamId);		
 						break;

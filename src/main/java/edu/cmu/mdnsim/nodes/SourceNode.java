@@ -99,7 +99,7 @@ public class SourceNode extends AbstractNode {
 				socketException.printStackTrace();
 			}
 			
-			//report();
+			report();
 
 			
 			byte[] buf = null;
@@ -118,7 +118,7 @@ public class SourceNode extends AbstractNode {
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
-				System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
+//				System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
 				
 				long end = System.currentTimeMillis();
 				long millisRemaining = millisecondPerPacket - (end - begin);
@@ -151,7 +151,7 @@ public class SourceNode extends AbstractNode {
 			srcReportMsg.setStartTime(Utility.currentTime());	
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
-				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
+				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			};
