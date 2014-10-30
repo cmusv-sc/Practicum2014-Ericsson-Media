@@ -8,6 +8,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -15,9 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
-import com.ericsson.research.warp.api.Warp;
 import com.ericsson.research.warp.api.WarpException;
-import com.ericsson.research.warp.api.WarpURI;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
@@ -31,6 +30,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
+import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
@@ -203,7 +203,7 @@ public class Master {
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 		
 		/* Add listener for suspend a simulation */
-//		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
+		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 		
 		msgBusSvr.register();
 
@@ -564,17 +564,16 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
-//	public void stopSimulation(StopSimulationRequest req) {
-//		
-//		if (ClusterConfig.DEBUG) {
-//			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
-//					+ "simulation request.");
-//		}
-//		
-//		WorkConfig wc = simulationMap.get(req.getSimuID());
-//		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
-//	
-//	}
+	public void stopSimulation(StopSimulationRequest req) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
+					+ "simulation request.");
+		}
+		
+		
+	
+	}
 	
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();

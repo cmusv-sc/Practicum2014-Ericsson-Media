@@ -5,11 +5,15 @@ public class StopSimulationRequest extends MbMessage {
 	
 	private String simuID;
 	
+	public StopSimulationRequest() {
+		simuID = "default";
+	}
+	
 	public StopSimulationRequest(String simuID) {
 		this.simuID = simuID;
 	}
 	
-	public void setSimulationID(String simuID) {
+	public void setSimuID(String simuID) {
 		this.simuID = simuID;
 	}
 	
