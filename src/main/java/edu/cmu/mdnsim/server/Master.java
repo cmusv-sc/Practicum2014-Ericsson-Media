@@ -481,22 +481,21 @@ public class Master {
 	/**
 	 * Sends Update message (updated graph) to the web client 
 	 * @param webClientUpdateMessage
-	 * @throws WarpException
+	 * @throws MessageBusException 
 	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
-			throws WarpException {
-		Warp.send("/", WarpURI.create(webClientURI.toString()+"/update"), "POST", 
-				JSON.toJSON(webClientUpdateMessage).getBytes() );
+			throws MessageBusException {
+		msgBusSvr.send("/", webClientURI.toString()+  "/update", "POST", webClientUpdateMessage);
 	}
 	/**
 	 * Reports sent by the Source Nodes
 	 * @param request
 	 * @param srcMsg
+	 * @throws MessageBusException 
 	 * @throws WarpException
 	 */
-	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
+	public void sourceReport(Message request, SourceReportMessage srcMsg) throws MessageBusException {
 		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
-		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
 		
@@ -527,9 +526,9 @@ public class Master {
 	 * The report sent by the sink nodes
 	 * @param request
 	 * @param sinkMsg
-	 * @throws WarpException
+	 * @throws MessageBusException 
 	 */
-	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
+	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 		
 		long totalTime = 0;
 		System.out.println("Sink finished receiving data: "+JSON.toJSON(sinkMsg));
