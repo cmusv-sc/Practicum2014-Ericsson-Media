@@ -116,7 +116,7 @@ public class SourceNode extends AbstractNode {
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
-//				System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
+				System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
 				
 				long end = System.currentTimeMillis();
 				long millisRemaining = millisecondPerPacket - (end - begin);
