@@ -6,7 +6,6 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
-import java.util.Map;
 
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
@@ -17,10 +16,10 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
-import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
+	
 	private HashMap<String, DatagramSocket> streamSocketMap;	
 	
 	public SinkNode() throws UnknownHostException {
@@ -40,6 +39,7 @@ public class SinkNode extends AbstractNode {
 		for (StreamSpec s : wc.getStreamSpecList()) {
 			for (HashMap<String, String> currentFlow : s.Flow) {
 				flowIndex++;
+				//Wait for the flow for node itself, skip for unrelated
 				if (!currentFlow.get("NodeId").equals(getNodeName())) {
 					continue;
 				}
@@ -48,7 +48,7 @@ public class SinkNode extends AbstractNode {
 					Integer port = bindAvailablePortToStream(s.StreamId);
 					WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
 					
-					if (flowIndex+1 < s.Flow.size()) {
+					if (flowIndex + 1 < s.Flow.size()) {
 						HashMap<String, String> upstreamFlow = s.Flow.get(flowIndex+1);
 						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
 						try {
@@ -115,6 +115,12 @@ public class SinkNode extends AbstractNode {
 	private class ReceiveDataThread implements Runnable {
 		
 		private String streamId;
+		private int totalBytes = 0;
+		private long startTime = 0;
+		private long totalTime = 0;
+		private boolean suspended;
+		private boolean finished;
+		private boolean started;
 		
 		public ReceiveDataThread(String streamId, MessageBusClient msgBusClient) {
 			ReceiveDataThread.this.streamId = streamId;
@@ -123,10 +129,14 @@ public class SinkNode extends AbstractNode {
 		@Override
 		public void run() {
 			
-			boolean started = false;
-			long startTime = 0;
-			long totalTime = 0;
-			int totalBytes = 0;
+			if (isFinished()) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():"
+							+ "[WARN]The Runnable has been finished.");
+				}
+				return;
+			}
+			
 			
 			DatagramSocket socket = null;
 			if ((socket = streamSocketMap.get(streamId)) == null) {
@@ -141,16 +151,16 @@ public class SinkNode extends AbstractNode {
 			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
-			while (true) {
+			while (!isSuspended() && !isFinished()) {
 				try {
 					socket.receive(packet);
-					if(!started) {
+					if(!isStarted()) {
 						startTime = System.currentTimeMillis();
-						started = true;
+						start();
 					}
 					totalBytes += packet.getLength();
 					
-					if (packet.getData()[0] == 0) {
+					if (packet.getData()[0] == 0) { //Finish receiving data
 						totalTime = System.currentTimeMillis() - startTime;
 						//TODO report the time taken and total bytes received 
 						SinkReportMessage sinkReportMsg = new SinkReportMessage();
@@ -176,16 +186,44 @@ public class SinkNode extends AbstractNode {
 						// cleanup resources
 						socket.close();
 						streamSocketMap.remove(streamId);
-						
-						break;
+						finish();
 					}
 					
 				} catch (IOException ioe) {
-					// TODO Handle error condition
 					ioe.printStackTrace();
 				}
 			}
 			
 		}
+		
+		public synchronized void suspend() {
+			suspended = true;
+		}
+		
+		public synchronized void resume() {
+			suspended = false;
+		}
+		
+		private synchronized boolean isSuspended() {
+			return suspended;
+		}
+		
+		private synchronized void finish() {
+			finished = true;
+		}
+		
+		private synchronized boolean isFinished() {
+			return finished;
+		}
+		
+		private synchronized boolean isStarted() {
+			return started;
+		}
+		
+		private synchronized void start() {
+			started = true;
+		}
 	}
+	
+	
 }

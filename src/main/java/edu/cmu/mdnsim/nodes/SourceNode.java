@@ -6,23 +6,26 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
-import javax.net.ssl.HostnameVerifier;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.config.WorkConfig;
+import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
+	
+	Map<String, SendDataThread> runnableMap = new ConcurrentHashMap<String, SendDataThread>();
 	
 	public SourceNode() throws UnknownHostException {
 		super();
@@ -30,7 +33,16 @@ public class SourceNode extends AbstractNode {
 	
 	@Override
 	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
+		
 		super.config(msgBus, nType, nName);
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SourceNode.config(): Subclass config() "
+					+ "has been called.");
+		}
+		
+		msgBusClient.addMethodListener("/" + getNodeName() + "tasks", "POST", this, "suspendTask");
+		msgBusClient.addMethodListener("/" + getNodeName() + "tasks", "POST", this, "resumeTask");
+		
 	}
 
 	
@@ -65,6 +77,18 @@ public class SourceNode extends AbstractNode {
 		}				
 	}
 	
+	public void suspendTask(String streamId) {
+		SendDataThread objectiveRunnable = runnableMap.get(streamId);
+		objectiveRunnable.suspend();
+	}
+	
+	public void resumeTask(String streamId) {
+		SendDataThread sendDataRunnable = runnableMap.get(streamId);
+		sendDataRunnable.resume();
+		while (!sendDataRunnable.isStopped());
+		WarpThreadPool.executeCached(sendDataRunnable);
+	}
+	
 	/**
 	 * 
 	 * Starts to send data to specified destination.
@@ -79,8 +103,14 @@ public class SourceNode extends AbstractNode {
 	private void sendAndReport(String streamId, String destAddrStr, 
 			int destPort, int bytesToTransfer, int rate) {
 		
-		WarpThreadPool.executeCached(new SendDataThread(streamId, destAddrStr, 
-			destPort, bytesToTransfer, rate, super.msgBusClient));
+		SendDataThread newThread = new SendDataThread(streamId, destAddrStr, 
+				destPort, bytesToTransfer, rate, super.msgBusClient);
+		
+		synchronized(runnableMap) {
+			runnableMap.put(streamId, newThread);
+		}
+		
+		WarpThreadPool.executeCached(newThread);
 
 	}
 	
@@ -92,6 +122,11 @@ public class SourceNode extends AbstractNode {
 		private int bytesToTransfer;
 		private int rate;
 		private MessageBusClient msgBusClient;
+		
+		/* suspended variable is used to indicate whether outside sends a suspend cmd */
+		private boolean suspended;
+		/* stopped variable is used to indicate whether the runnable has stopped*/
+		private boolean stopped;
 		
 		public SendDataThread(String streamId, String dstAddrStr, 
 				int dstPort, int bytesToTransfer, int rate, 
@@ -114,16 +149,16 @@ public class SourceNode extends AbstractNode {
 		 */
 		@Override
 		public void run() {
+			
+			restart();
 			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
 			long millisecondPerPacket = (long)(1 * 1000 / packetPerSecond); 
 			
 			DatagramSocket sourceSocket = null;
 			InetAddress laddr = null;
 			try {
-				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
+//				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
 				sourceSocket = new DatagramSocket(0, laddr);
-			} catch (UnknownHostException uhe) {
-				uhe.printStackTrace();
 			} catch (SocketException se) {
 				se.printStackTrace();
 			}
@@ -137,13 +172,14 @@ public class SourceNode extends AbstractNode {
 			srcReportMsg.setStartTime(Utility.currentTime());	
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
-				msgBusClient.sendToMaster(fromPath, "reports", "POST", srcReportMsg);
+				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			};
 			
 			byte[] buf = null;
-			while (bytesToTransfer > 0) {
+			while (bytesToTransfer > 0 && !isSuspended()) {
+				
 				long begin = System.currentTimeMillis();
 				
 				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? bytesToTransfer : STD_DATAGRAM_SIZE];
@@ -169,6 +205,66 @@ public class SourceNode extends AbstractNode {
 				}
 			} 
 			sourceSocket.close();
+			stop();
+			if (ClusterConfig.DEBUG) {
+				if (bytesToTransfer <= 0) {
+					System.out.println("[DEBUG]SourceNode.SendDataThread.run():"
+							+ " This thread has been stopped(not finished yet).");
+				} else {
+					System.out.println("[DEBUG]SourceNode.SendDataThread.run():"
+							+ " This thread hass benn terminated(finished).");
+				}
+			} 
+		}
+		
+		/**
+		 * 
+		 * This method is used to send suspend signal to a thread.
+		 * 
+		 */
+		public synchronized void suspend() {
+			suspended = true;
+		}
+		
+		/**
+		 * This method is to mark the suspended variable in SendDataThread 
+		 * runnable as false to indicate that outside user allows it to resume
+		 * to execute.
+		 */
+		private synchronized void resume() {
+			suspended = false;
+		}
+		
+		private synchronized boolean isSuspended() {
+			return suspended;
+		}
+		
+		/**
+		 * This method is called in SendDataThread.run() to show that current
+		 * thread has been stopped as all context of the thread has been frozen,
+		 * and next thread can restart the current thread.
+		 * 
+		 */
+		private synchronized void stop() {
+			stopped = true;
+		}
+		
+		/**
+		 * This method is called in SendDataThread.run() to show that current
+		 * thread is running.
+		 */
+		private synchronized void restart() {
+			stopped = false;
+		}
+		
+		/**
+		 * This method is to test whether the SendDataThread has been stopped
+		 * which means all of the context has been protected.
+		 * 
+		 * @return 
+		 */
+		public synchronized boolean isStopped() {
+			return stopped;
 		}
 	}	
 }

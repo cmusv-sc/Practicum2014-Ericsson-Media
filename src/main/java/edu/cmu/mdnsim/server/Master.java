@@ -500,7 +500,9 @@ public class Master {
 		from = from.substring(0,from.lastIndexOf('/'));
 		
 		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sourceNodeMsg;
-		updateWebClient(webClientUpdateMessage);
+		if (webClientURI != null) {
+			updateWebClient(webClientUpdateMessage);
+		}
 	}
 	
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
@@ -522,7 +524,9 @@ public class Master {
 		String from = request.getFrom().toString();
 		from = from.substring(0,from.lastIndexOf('/'));
 		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sinkNodeMsg;
-		updateWebClient(webClientUpdateMessage);
+		if (webClientURI != null) { 
+			updateWebClient(webClientUpdateMessage);
+		}
 //		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
 //		Node[] nodes = {
 //				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),

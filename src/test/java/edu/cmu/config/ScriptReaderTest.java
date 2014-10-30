@@ -15,11 +15,7 @@ public class ScriptReaderTest {
 	public void testReadScript() {
 		ScriptReader scriptReader = new ScriptReader();
 		WorkConfig workConfig = scriptReader.getWorkConfigFromScript("script");
-		
-		//JSONDeserializer jsonDeserializer = new JSONDeserializer();
-		//StreamConfig stream2 = (StreamConfig) jsonDeserializer.deserialize(new InputStreamReader(inputStream), StreamConfig.class);
-		//System.out.println(JSON.toJSON(workConfig));
-		
+				
 		assertEquals(100, workConfig.getStreamSpecList().get(0).ByteRate);
 		assertEquals("us-west-3", workConfig.getStreamSpecList().get(1).Flow.get(0).get("upstreamId"));
 		
