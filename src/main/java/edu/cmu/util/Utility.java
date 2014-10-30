@@ -7,9 +7,16 @@ import java.util.Locale;
 
 public class Utility {
 
+	private static DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 	public static String currentTime(){
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		Date date = new Date();
 		return dateFormat.format(date);
 	}
+
+
+	public static String millisecondTimeToString(long endTime) {
+		Date date = new Date(endTime);
+		return dateFormat.format(date);
+	}
+	
 }

@@ -9,9 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
@@ -34,7 +32,6 @@ import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
-import edu.cmu.mdnsim.messagebus.test.WorkSpecification;
 import edu.cmu.mdnsim.nodes.NodeType;
 /**
  * It represents the Master Node of the Simulator.
