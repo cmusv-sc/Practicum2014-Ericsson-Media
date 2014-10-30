@@ -47,34 +47,32 @@ public class SourceNode extends AbstractNode {
 
 	
 	@Override
-	public void executeTask(WorkConfig wc) {
+	public void executeTask(StreamSpec s) {
 		int flowIndex = -1;
-		System.out.println("Sink received a work specification: "+JSON.toJSON(wc));
-		for (StreamSpec s : wc.getStreamSpecList()) {
-			for (HashMap<String, String> currentFlow : s.Flow) {
-				flowIndex++;
-				if (!currentFlow.get("NodeId").equals(getNodeName()))
-					continue;
-				else {
-					//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
-					String[] ipAndPort = currentFlow.get("ReceiverIpPort").split(":");
-					String destAddrStr = ipAndPort[0];
-					int destPort = Integer.parseInt(ipAndPort[1]);
-					int dataSize = Integer.parseInt(s.DataSize);
-					int rate = Integer.parseInt(s.ByteRate);
-					sendAndReport(s.StreamId, destAddrStr, destPort, 
-							dataSize, rate);
-					try {
-						if (currentFlow.get("UpstreamUri") != null)
-							msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", wc);
-					} catch (MessageBusException e) {
-						//TODO: add exception handler
-						e.printStackTrace();
-					}
-					break;
+		System.out.println("Source received a work specification: "+JSON.toJSON(s));
+		for (HashMap<String, String> currentFlow : s.Flow) {
+			flowIndex++;
+			if (!currentFlow.get("NodeId").equals(getNodeName()))
+				continue;
+			else {
+				//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+				String[] ipAndPort = currentFlow.get("ReceiverIpPort").split(":");
+				String destAddrStr = ipAndPort[0];
+				int destPort = Integer.parseInt(ipAndPort[1]);
+				int dataSize = Integer.parseInt(s.DataSize);
+				int rate = Integer.parseInt(s.ByteRate);
+				sendAndReport(s.StreamId, destAddrStr, destPort, 
+						dataSize, rate);
+				try {
+					if (currentFlow.get("UpstreamUri") != null)
+						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", s);
+				} catch (MessageBusException e) {
+					//TODO: add exception handler
+					e.printStackTrace();
 				}
+				break;
 			}
-		}				
+		}
 	}
 	
 	public void suspendTask(String streamId) {
@@ -155,10 +153,8 @@ public class SourceNode extends AbstractNode {
 			long millisecondPerPacket = (long)(1 * 1000 / packetPerSecond); 
 			
 			DatagramSocket sourceSocket = null;
-			InetAddress laddr = null;
 			try {
-//				laddr = InetAddress.getByName(SourceNode.this.getNodeName());
-				sourceSocket = new DatagramSocket(0, laddr);
+				sourceSocket = new DatagramSocket(0, getHostAddr());
 			} catch (SocketException se) {
 				se.printStackTrace();
 			}

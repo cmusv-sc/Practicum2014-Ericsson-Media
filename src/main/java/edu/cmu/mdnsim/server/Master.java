@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,9 +36,10 @@ import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Edge;
-import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage.Node;
 import edu.cmu.mdnsim.nodes.NodeType;
+import edu.cmu.mdnsim.server.WebClientGraph.Edge;
+import edu.cmu.mdnsim.server.WebClientGraph.Node;
+import edu.cmu.mdnsim.server.WebClientGraph.NodeLocation;
 /**
  * It represents the Master Node of the Simulator.
  * Some of the major responsibilities include: 
@@ -68,10 +70,12 @@ public class Master {
 	private Map<String, String> nodeNameToURITbl =  new ConcurrentHashMap<String, String>();
 	private Map<String, String> nodeURIToNameTbl =  new ConcurrentHashMap<String, String>();
 	
+	/* Used to keep track of the statistics for a stream */
 	/**
 	 * Key: SimuID, Value: WorkConfig
 	 */
-	private Map<String, WorkConfig> simulationMap = new ConcurrentHashMap<String, WorkConfig>();
+	private Map<String, StreamSpec> streamMap = new ConcurrentHashMap<String, StreamSpec>();
+	private Map<String, StreamSpec> runningStreamMap = new ConcurrentHashMap<String, StreamSpec>();
 
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 	
@@ -85,7 +89,8 @@ public class Master {
 	 * TODO: This will be initialized or re-initialized whenever users uploads a new simulation script.
 	 * And modified whenever any nodes report something.
 	 */
-	private WebClientUpdateMessage webClientUpdateMessage;
+	private WebClientGraph webClientGraph = WebClientGraph.INSTANCE;
+	
     
     public Master() throws MessageBusException {
     	this("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
@@ -176,6 +181,7 @@ public class Master {
 		msgBusSvr.config();
 
 		//TODO:Compare registerNode & createNode
+		
 //		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
 //		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
 
@@ -201,7 +207,7 @@ public class Master {
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 		
 		/* Add listener for suspend a simulation */
-		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
+//		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 		
 		msgBusSvr.register();
 
@@ -292,19 +298,10 @@ public class Master {
 	 */
 	public void validateUserSpec(Message mesg, WorkConfig wc) {
 		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("Master.validateUserSpec(): receive a WorkConfig");
-		}
-		
-		webClientUpdateMessage = new WebClientUpdateMessage();
-		HashSet<String> nodeSet = new HashSet<String>();
-		HashSet<String> edgeSet = new HashSet<String>();
 		HashSet<String> srcSet = new HashSet<String>();
 		HashSet<String> sinkSet = new HashSet<String>();
 		Map<NodeType, Set<String>> nodesToInstantiate = new HashMap<NodeType, Set<String>>();
 
-		ArrayList<Node> nodeList = new ArrayList<WebClientUpdateMessage.Node>();
-		ArrayList<Edge> edgeList = new ArrayList<WebClientUpdateMessage.Edge>();
 		double x = 0.1;
 		double y = 0.1;
 		String srcRgb = "rgb(0,204,0)";
@@ -316,15 +313,12 @@ public class Master {
 		
 		System.out.println("[DELETE]Master.validateUserSpec(): StreamSpec List size = " + wc.getStreamSpecList().size());
 		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			String streamId = streamSpec.StreamId;
 			System.out.println("Stream Id is "+streamSpec.StreamId);
 			System.out.println("DataSize is "+streamSpec.DataSize);
 			System.out.println("ByteRate is "+streamSpec.ByteRate);
 
 			for (HashMap<String, String> node : streamSpec.Flow) {
-//				x = Math.random();
-//				y = Math.random();
-				x = (x + 0.6) - 1;
-				y = (x + 0.6) - 1;
 				String nType = node.get("NodeType");
 				String nId = node.get("NodeId");
 				String upstreamNode = node.get("UpstreamId");
@@ -332,13 +326,17 @@ public class Master {
 				String msg = "";
 				String edgeId = nId+"-"+upstreamNode;
 				String edgeType = "";
-
-				if (!nodeSet.contains(nId)) {
+				
+				if (webClientGraph.getNode(nId) == null) {
 					/*
-					 * This node list is used to ensure that the node is added only once to the node list.
+					 * The aboce check is used to ensure that the node is added only once to the node list.
 					 * This situation can arise if a sink node is connected to two upstream sources at the 
 					 * same time
 					 */
+					//TODO: Come up with some better logic to assign positions to the nodes
+					NodeLocation nl = webClientGraph.getNewNodeLocation();
+					x = nl.x;
+					y = nl.y;
 					if (nType.equals("SOURCE")) {
 						rgb = srcRgb;
 						msg = srcMsg;
@@ -348,40 +346,33 @@ public class Master {
 						msg = sinkMsg;
 						sinkSet.add(nId);
 					}
-					nodeList.add(webClientUpdateMessage.new Node(nId, nId, x, y, rgb, nodeSize,  msg));
-					nodeSet.add(nId);
+					Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
+					webClientGraph.addNode(n);
 				}
 
-				if(!upstreamNode.equals("NULL") && !edgeSet.contains(edgeId)) {
-					edgeList.add(webClientUpdateMessage.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId));
-					edgeSet.add(edgeId);
+				if(!upstreamNode.equals("NULL") && webClientGraph.getEdge(edgeId) == null) {
+					Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId);
+					webClientGraph.addEdge(e);
 				}
 				System.out.println("**** Node in Flow ****");
 				System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
 			}
 			
+			if (!streamMap.containsKey(streamId))
+				streamMap.put(streamId, streamSpec);
 		}
-		
-		Node[] nodes = new Node[nodeList.size()];
-		Edge[] edges = new Edge[edgeList.size()];
-		nodeList.toArray(nodes);
-		edgeList.toArray(edges);
-		webClientUpdateMessage.setEdges(edges);
-		webClientUpdateMessage.setNodes(nodes);
 
 		if (webClientURI != null) {
 			try {
-				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientUpdateMessage);
-				System.out.println("Sent update: " + JSON.toJSON(webClientUpdateMessage));
+				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientGraph.getUpdateMessage());
+				System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 			} catch (MessageBusException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
-		simulationMap.put(simId, wc);
 		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("Master.validateUserSpec():  Start to instantiate nodes.");
@@ -422,22 +413,29 @@ public class Master {
 	}
 	
 	/**
-	 * Triggers the simulation by sending the work specification to the sink
+	 * Triggers the simulation by sending the StreamSpec to the sink
+	 * After a StreamSpec is sent to the sink, it is removed from the
+	 * "streamMap" hash map and put into the runningStreamMap.
+	 * This way, if the user wishes to add new streams to an already running
+	 * simulation, this method will send StreamSpec to sink of new streams
 	 * 
 	 * @param msg
 	 * @throws WarpException
 	 */
+
 	public void startSimulation(Message msg) throws MessageBusException {
 		
-		
-		for (WorkConfig wc : simulationMap.values()) {
-			String sinkUri = updateWorkConfig(wc);
-			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", wc);
+		for (StreamSpec streamSpec : streamMap.values()) {
+			String sinkUri = updateWorkConfig(streamSpec);
+			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", streamSpec);
+			runningStreamMap.put(streamSpec.StreamId, streamSpec);
 		}
 		
+		streamMap.clear();
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
 					+ "has started");
+
 		}
 	}
 	
@@ -452,59 +450,89 @@ public class Master {
 	 * @param wc WorkConfig waited to be updated
 	 * @return the URI of the sink node (starting point of the control message).
 	 */
-	private String updateWorkConfig(WorkConfig wc) {
+	private String updateWorkConfig(StreamSpec streamSpec) {
 		
 		String sinkUri = null;
 		String sinkNodeId = null;
-		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
-			String downStreamId = null;
-			for (int i = 0; i < streamSpec.Flow.size(); i++) {
-				
-				HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
-				if (i == 0) {
-					sinkNodeId = nodeMap.get("NodeId");
-					sinkUri = nodeNameToURITbl.get(sinkNodeId);
-					downStreamId = nodeMap.get("NodeId");
-					nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
-				} else {
-					nodeMap.put("DownstreamId", downStreamId);
-					nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
-					downStreamId = nodeMap.get("NodeId");
-					nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
-				}
-				
+		
+		String downStreamId = null;
+		for (int i = 0; i < streamSpec.Flow.size(); i++) {
+			
+			HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
+			if (i == 0) {
+				sinkNodeId = nodeMap.get("NodeId");
+				sinkUri = nodeNameToURITbl.get(sinkNodeId);
+				downStreamId = nodeMap.get("NodeId");
+				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
+			} else {
+				nodeMap.put("DownstreamId", downStreamId);
+				nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
+				downStreamId = nodeMap.get("NodeId");
+				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
 			}
+			
 		}
 		
 		if (ClusterConfig.DEBUG) {
-			assert isValidWorkConfig(wc);
+			assert isValidWorkConfig(streamSpec);
 		}
 		
 		return sinkUri;
 		
 	}
 	
-	
+
+	/**
+	 * Sends Update message (updated graph) to the web client 
+	 * @param webClientUpdateMessage
+	 * @throws WarpException
+	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws WarpException {
 		Warp.send("/", WarpURI.create(webClientURI.toString()+"/update"), "POST", 
 				JSON.toJSON(webClientUpdateMessage).getBytes() );
 	}
-	
+	/**
+	 * Reports sent by the Source Nodes
+	 * @param request
+	 * @param srcMsg
+	 * @throws WarpException
+	 */
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
 		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
-		String from = request.getFrom().toString();
-		from = from.substring(0,from.lastIndexOf('/'));
 		
-		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sourceNodeMsg;
-		if (webClientURI != null) {
-			updateWebClient(webClientUpdateMessage);
+		String nodeId = getNodeId(request);
+		//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
+		Node n = webClientGraph.getNode(nodeId);
+		synchronized(n){
+			n.tag = sourceNodeMsg;
 		}
+		if (webClientURI != null) {
+			updateWebClient(webClientGraph.getUpdateMessage());
+		}
+
 	}
-	
+	/**
+	 * Extracts node id from messageRequest.from
+	 * It will throw runtime exceptions if message is not in proper format
+	 * @param request
+	 * @return NodeId
+	 */
+	private String getNodeId(Message request) {
+		String nodeId = request.getFrom().toString();
+		nodeId = nodeId.substring(0,nodeId.lastIndexOf('/'));
+		nodeId = nodeId.substring(nodeId.lastIndexOf('/')+1);
+		return nodeId;
+	}
+	/**
+	 * The report sent by the sink nodes
+	 * @param request
+	 * @param sinkMsg
+	 * @throws WarpException
+	 */
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
 		
 		long totalTime = 0;
@@ -521,24 +549,17 @@ public class Master {
 				
 		String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
 				sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-		String from = request.getFrom().toString();
-		from = from.substring(0,from.lastIndexOf('/'));
-		webClientUpdateMessage.getNode(from.substring(from.lastIndexOf('/')+1)).tag = sinkNodeMsg;
-		if (webClientURI != null) { 
-			updateWebClient(webClientUpdateMessage);
+		
+		String nodeId = getNodeId(request);
+		
+		Node n = webClientGraph.getNode(nodeId);
+		//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
+		synchronized(n){
+			n.tag = sinkNodeMsg;
 		}
-//		WebClientUpdateMessage webClientUpdateMessage = new WebClientUpdateMessage();
-//		Node[] nodes = {
-//				webClientUpdateMessage.new Node("N1", "source-1", 0.1, 0.1, "rgb(0,204,0)", 6,  "This is source node"),
-//				webClientUpdateMessage.new Node("N2", "sink-1", 0.5, 0.5, "rgb(0,255,255)", 6, sinkNodeMsg)
-//		};
-//		Edge[] edges = {
-//				webClientUpdateMessage.new Edge("E1","N1", "N2", "t")
-//		};
-//		
-//		webClientUpdateMessage.setEdges(edges);
-//		webClientUpdateMessage.setNodes(nodes);
-//		updateWebClient(webClientUpdateMessage);
+		if (webClientURI != null) {
+			updateWebClient(webClientGraph.getUpdateMessage());
+		}
 	}
 	
 	public void putStartTime(String streamId, String startTime) {
@@ -548,55 +569,54 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
-	public void stopSimulation(StopSimulationRequest req) {
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
-					+ "simulation request.");
-		}
-		
-		WorkConfig wc = simulationMap.get(req.getSimuID());
-		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
-	
-	}
+//	public void stopSimulation(StopSimulationRequest req) {
+//		
+//		if (ClusterConfig.DEBUG) {
+//			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
+//					+ "simulation request.");
+//		}
+//		
+//		WorkConfig wc = simulationMap.get(req.getSimuID());
+//		List<StreamSpec> streamSpecList = wc.getStreamSpecList();
+//	
+//	}
 	
     public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
     	Master mdnDomain = new Master();
     	mdnDomain.init();
     }
     
-    public static boolean isValidWorkConfig(WorkConfig wc) {
+    public static boolean isValidWorkConfig(StreamSpec streamSpec) {
 		
-		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
-			String downStreamNodeId = null;
-			String upStreamIdOfDownStreamNode = null;
-			for (int i = 0; i < streamSpec.Flow.size(); i++) {
-				Map<String, String> nodeMap = streamSpec.Flow.get(i);
-				if (i == 0) {
-					if (nodeMap.get("DownstreamId") != null) {
-						return false;
-					}
-					downStreamNodeId = nodeMap.get("NodeId");
-					upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
-				} else if (i == streamSpec.Flow.size() - 1){
-					if (nodeMap.get("UpstreamId") != null) {
-						return false;
-					}
-					if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
-						return false;
-					}
-				} else {
-					if (!nodeMap.get("NodeId").equals(upStreamIdOfDownStreamNode)) {
-						return false;
-					}
-					if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
-						return false;
-					}
-					upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
-					downStreamNodeId = nodeMap.get("NodeId");
+		String downStreamNodeId = null;
+		String upStreamIdOfDownStreamNode = null;
+		for (int i = 0; i < streamSpec.Flow.size(); i++) {
+			Map<String, String> nodeMap = streamSpec.Flow.get(i);
+			if (i == 0) {
+				if (nodeMap.get("DownstreamId") != null) {
+					return false;
 				}
+				downStreamNodeId = nodeMap.get("NodeId");
+				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
+			} else if (i == streamSpec.Flow.size() - 1){
+				if (nodeMap.get("UpstreamId") != null) {
+					return false;
+				}
+				if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
+					return false;
+				}
+			} else {
+				if (!nodeMap.get("NodeId").equals(upStreamIdOfDownStreamNode)) {
+					return false;
+				}
+				if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
+					return false;
+				}
+				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
+				downStreamNodeId = nodeMap.get("NodeId");
 			}
 		}
+
 		return true;
 	}
 }

@@ -33,33 +33,28 @@ public class SinkNode extends AbstractNode {
 	}
 
 	@Override
-	public void executeTask(WorkConfig wc) {
-		System.out.println("Sink received a work specification: "+JSON.toJSON(wc));
+	public void executeTask(StreamSpec s) {
+		System.out.println("Sink received a stream specification: "+JSON.toJSON(s));
 		int flowIndex = -1;
-		for (StreamSpec s : wc.getStreamSpecList()) {
-			for (HashMap<String, String> currentFlow : s.Flow) {
-				flowIndex++;
-				//Wait for the flow for node itself, skip for unrelated
-				if (!currentFlow.get("NodeId").equals(getNodeName())) {
-					continue;
-				}
-				else {
-					//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
-					Integer port = bindAvailablePortToStream(s.StreamId);
-					WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
-					
-					if (flowIndex + 1 < s.Flow.size()) {
-						HashMap<String, String> upstreamFlow = s.Flow.get(flowIndex+1);
-						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
-						try {
-							msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", wc);
-						} catch (MessageBusException e) {
-							//TODO: add exception handler
-							e.printStackTrace();
-						}
+
+		for (HashMap<String, String> currentFlow : s.Flow) {
+			flowIndex++;
+			if (currentFlow.get("NodeId").equals(getNodeName())) {
+				//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
+				Integer port = bindAvailablePortToStream(s.StreamId);
+				WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
+
+				if (flowIndex+1 < s.Flow.size()) {
+					HashMap<String, String> upstreamFlow = s.Flow.get(flowIndex+1);
+					upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+					try {
+						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", s);
+					} catch (MessageBusException e) {
+						//TODO: add exception handler
+						e.printStackTrace();
 					}
-					break;
 				}
+				break;
 			}
 		}
 	}

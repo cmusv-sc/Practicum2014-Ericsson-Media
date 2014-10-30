@@ -47,8 +47,10 @@ public class WorkConfigTest {
 		streamSpec.Flow = flow;
 		streamSpecList.add(streamSpec);
 		wc.setStreamSpecList(streamSpecList);
-
-		assertTrue("Test valid WorkConfig", Master.isValidWorkConfig(wc));
+		
+		for (StreamSpec s : wc.getStreamSpecList()) {
+			assertTrue("Test valid WorkConfig", Master.isValidWorkConfig(s));
+		}
 		
 	}
 	

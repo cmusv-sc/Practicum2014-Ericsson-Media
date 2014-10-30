@@ -1,73 +1,36 @@
-/**
- * 
- */
 package edu.cmu.mdnsim.messagebus.message;
 
+import java.util.Collection;
+import edu.cmu.mdnsim.server.WebClientGraph.Edge;
+import edu.cmu.mdnsim.server.WebClientGraph.Node;
 /**
  * Represents sets of nodes and edges as required by the web client.
+ * This class is used only for creating JSON message as required by the WebClient Node
+ * @author CMU-SV Ericsson Media Team
  */
 public class WebClientUpdateMessage extends MbMessage {
 	
-	public class Node{
-		public String id;
-		public String label;
-		public double x;
-		public double y;
-		public String color;
-		public int size;
-		public String tag;
-		
-		public Node(String id, String label, double x, double y, String color, int size, String tag){
-			this.id = id;
-			this.label = label;
-			this.x = x;
-			this.y = y;
-			this.color = color;
-			this.size = size;
-			this.tag = tag;
-		}		
-	}
+	private Collection<Node> nodes;
+	private Collection<Edge> edges;
 	
-	public class Edge{
-		public String id;
-		public String source;
-		public String target;
-		public String type;
-		public String tag;
-		public Edge(String id, String source, String target, String type, String tag){
-			this.id = id;
-			this.source = source;
-			this.target = target;
-			this.type = type;
-			this.tag = tag;
-		}
-	}
-	
-	private Node[] nodes;
-	private Edge[] edges;
-	
-	public Node[] getNodes() {
+	public Collection<Node> getNodes() {
 		return nodes;
 	}
-	public Edge[] getEdges() {
-		return edges;
-	}
-	
-	public void setNodes(Node[] nodes) {
+	/**
+	 * it just points to the given input reference => does not do deep copy.
+	 * @param nodes
+	 */
+	public void setNodes(Collection<Node> nodes) {
 		this.nodes = nodes;
 	}
-	
-	public void setEdges(Edge[] edges) {
+	public Collection<Edge> getEdges() {
+		return edges;
+	}
+	/**
+	 * does not do a deep copy of input parameter
+	 * @param edges
+	 */
+	public void setEdges(Collection<Edge> edges) {
 		this.edges = edges;
 	}
-	
-	public Node getNode(String nodeId){
-		for(int i=0; i<nodes.length; i++){
-			if(nodes[i].id.equals(nodeId))
-				return nodes[i];
-		}
-		return null;
-	}
-	
-	
 }
