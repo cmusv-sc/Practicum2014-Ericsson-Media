@@ -35,10 +35,6 @@ public class SourceNode extends AbstractNode {
 			System.out.println("[DEBUG]SourceNode.config(): Subclass config() "
 					+ "has been called.");
 		}
-		
-		msgBusClient.addMethodListener("/" + getNodeName() + "tasks", "POST", this, "suspendTask");
-		msgBusClient.addMethodListener("/" + getNodeName() + "tasks", "POST", this, "resumeTask");
-		
 	}
 
 	
