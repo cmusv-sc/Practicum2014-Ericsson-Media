@@ -1,39 +1,35 @@
 <html>
 <head>
-	warp.js
-	<title>Hello</title>
-	<style>
-	#graph-container {
-		top: 0;
-		left: 0;
-		position: absolute;
-	}
-	.tooltip {
-		display: none;
-		position: absolute;
-		border: 1px solid #333;
-		background-color: #161616;
-		border-radius: 5px;
-		padding: 10px;
-		color: #fff;
-		max-width: 200px;
-	}
-	</style>
-	<script src="js/sigma.min.js"></script>
-	<script src="js/sigma.parsers.json.min.js"></script>
-	<script src="js/sigma.layout.forceAtlas2.min.js"></script>
-	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+warp.js
+<title>Hello</title>
+<style>
+.tooltip {
+	display: none;
+	position: absolute;
+	border: 1px solid #333;
+	background-color: #161616;
+	border-radius: 5px;
+	padding: 10px;
+	color: #fff;
+	max-width: 200px;
+}
+</style>
+<script src="js/sigma.min.js"></script>
+<script src="js/sigma.parsers.json.min.js"></script>
+<script type="text/javascript"
+	src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
 </head>
 <body>
 	<div>Media Delivery Network Simulator</div>
 	<div id="main">
-		<input id="btnStart" type="button" value="Start"/>
-		<div id="container">
-			<div id="graph-container"></div>
+		<div>
+			Work Specification File: <input type="file" id="wsinput"
+				name="wsfile" />
+		</div>
+		<input id="btnStart" type="button" value="Start" />
+		<div id="svg">
 		</div>
 	</div>
-
 	<script type="text/javascript" src="js/displayGraph.js"></script>
-	
 </body>
 </html>
