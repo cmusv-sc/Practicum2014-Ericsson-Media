@@ -1,4 +1,4 @@
-package edu.cmu.mdnsim.messagebus.test;
+package edu.cmu.mdnsim.integratedtest;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 

@@ -1,4 +1,4 @@
-package edu.cmu.mdnsim.messagebus.test;
+package edu.cmu.mdnsim.integratedtest;
 
 import java.util.ArrayList;
 import java.util.HashMap;
