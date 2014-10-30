@@ -15,28 +15,15 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.global.ClusterConfig;
-import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
+	
 	public SourceNode() throws UnknownHostException {
 		super();
-	}
-	
-	@Override
-	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
-		
-		super.config(msgBus, nType, nName);
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SourceNode.config(): Subclass config() "
-					+ "has been called.");
-		}
-	}
-
-	
-	
+	}	
 	
 	/**
 	 * 

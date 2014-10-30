@@ -28,10 +28,10 @@ public class SinkNode extends AbstractNode {
 		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
-	@Override
-	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
-		super.config(msgBus, nType, nName);
-	}
+//	@Override
+//	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
+//		super.config(msgBus, nType, nName);
+//	}
 
 	@Override
 	public void executeTask(StreamSpec streamSpec) {
@@ -161,11 +161,7 @@ public class SinkNode extends AbstractNode {
 					System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
 					
 
-					if (packet.getData()[0] == 0) {
-						long endTime= System.currentTimeMillis();
-						report(startTime, endTime, totalBytes);
-						socket.close();
-						streamSocketMap.remove(streamId);		
+					if (packet.getData()[0] == 0) {	
 						break;
 					}	
 
@@ -173,6 +169,12 @@ public class SinkNode extends AbstractNode {
 					ioe.printStackTrace();
 				}
 			}	
+			
+			
+			long endTime= System.currentTimeMillis();
+			report(startTime, endTime, totalBytes);
+			socket.close();
+			streamSocketMap.remove(streamId);	
 			System.out.println("[Sink] finish receiving" );
 		}
 		
