@@ -13,7 +13,6 @@ import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
-import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
