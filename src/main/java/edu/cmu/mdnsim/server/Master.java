@@ -6,7 +6,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -32,7 +31,6 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
@@ -497,9 +495,7 @@ public class Master {
 	 * @throws WarpException
 	 */
 	public void sourceReport(Message request, SourceReportMessage srcMsg) throws WarpException {
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.sourceReport(): Source started sending data: "+JSON.toJSON(srcMsg));
-		}
+		System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 		//Warp.send("/", WarpURI.create(_webClientURI.toString()+"/update"), "POST", "simulationStarted".getBytes(),"text/plain" );
 		String sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
 		putStartTime(srcMsg.getStreamId(), srcMsg.getStartTime());
@@ -536,9 +532,7 @@ public class Master {
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws WarpException {
 		
 		long totalTime = 0;
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]sinkReport(): Sink finished receiving data: "+JSON.toJSON(sinkMsg));
-		}
+		System.out.println("Sink finished receiving data: "+JSON.toJSON(sinkMsg));
 		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		try {
 			totalTime = df.parse(sinkMsg.getEndTime()).getTime() - 

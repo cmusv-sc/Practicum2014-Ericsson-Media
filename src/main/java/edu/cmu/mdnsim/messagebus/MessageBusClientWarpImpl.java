@@ -12,7 +12,6 @@ import com.ericsson.research.warp.api.client.Client;
 import com.ericsson.research.warp.api.client.Client.ConnectionPolicy;
 import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
 import com.ericsson.research.warp.api.logging.WarpLogger;
-import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
