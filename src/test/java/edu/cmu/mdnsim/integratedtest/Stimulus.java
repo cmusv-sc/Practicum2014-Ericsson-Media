@@ -66,18 +66,30 @@ public class Stimulus extends AbstractNode {
 		stimulus.register();
 		Thread.sleep(1000 * 5);
 		String simuID = "test-1";
+		
+		/* Add WorkConfig test case */
 		MessageBusTestCase testCase = new WorkConfigTestCase(stimulus.msgBusClient, simuID);
 		stimulus.addTestCase(testCase);
+		
+		/* Add start simulation test case */
 		testCase = new StartSimulationTestCase(stimulus.msgBusClient);
 		stimulus.addTestCase(testCase);
+		
+		/* Add stop simulation test case */
 		testCase = new StopSimulationTestCase(stimulus.msgBusClient, simuID);
+		stimulus.addTestCase(testCase);
 		
-		
-		
+		/* Create topology specified by WorkConfig */
 		stimulus.runTestCase(0, "Finish validate the WorkConfig");
-		Thread.sleep(1000 * 5);
+		Thread.sleep(1000 * 2);
+		
+		/* Start the simulation */
 		stimulus.runTestCase(1, "Start the simulation");
-		Thread.sleep(1000 * 3);
+		Thread.sleep(1000 * 2);
+		
+		/* Stop the simulation */
+		stimulus.runTestCase(2, "Stop the simulation");
+		
 		
 		
 		
