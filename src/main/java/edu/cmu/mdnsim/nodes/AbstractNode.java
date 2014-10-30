@@ -26,8 +26,10 @@ public abstract class AbstractNode {
 	
 	private boolean registered = false;
 	
-	/* 1 kb */
+	/* 1 kb per datagram */
 	public static final int STD_DATAGRAM_SIZE = 1000;
+	
+	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
 	public AbstractNode() throws UnknownHostException {
 		/* 

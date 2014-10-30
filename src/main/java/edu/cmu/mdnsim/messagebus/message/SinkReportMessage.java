@@ -2,34 +2,34 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class SinkReportMessage extends MbMessage {
 	
-	String _streamId;
-	int _totalBytes;
-	String _endTime;
+	String streamId;
+	int totalBytes;
+	String endTime;
 
 	public SinkReportMessage() {
-		_streamId = "";
-		_totalBytes = 0;
+		streamId = "";
+		totalBytes = 0;
 	}
 	
 	public String getStreamId() {
-		return _streamId;
+		return streamId;
 	}
-	public void setStreamId(String _streamId) {
-		this._streamId = _streamId;
+	public void setStreamId(String streamId) {
+		this.streamId = streamId;
 	}
 	
 	public int getTotalBytes() {
-		return _totalBytes;
+		return totalBytes;
 	}
-	public void setTotalBytes(int _totalBytes) {
-		this._totalBytes = _totalBytes;
+	public void setTotalBytes(int totalBytes) {
+		this.totalBytes = totalBytes;
 	}
 	
 	public String getEndTime() {
-		return _endTime;
+		return endTime;
 	}
-	public void setEndTime(String _endTime) {
-		this._endTime = _endTime;
+	public void setEndTime(String endTime) {
+		this.endTime = endTime;
 	}
 	
 }

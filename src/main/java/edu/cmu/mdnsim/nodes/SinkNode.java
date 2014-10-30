@@ -6,6 +6,8 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
@@ -33,30 +35,29 @@ public class SinkNode extends AbstractNode {
 	}
 
 	@Override
-	public void executeTask(StreamSpec s) {
-		System.out.println("Sink received a stream specification: "+JSON.toJSON(s));
+	public void executeTask(StreamSpec streamSpec) {
+		System.out.println("Sink received a work specification: "+JSON.toJSON(streamSpec));
 		int flowIndex = -1;
 
-		for (HashMap<String, String> currentFlow : s.Flow) {
+		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
 			flowIndex++;
 			if (currentFlow.get("NodeId").equals(getNodeName())) {
-				//System.out.println("FOUND ME!! "+currentFlow.get("NodeId"));
-				Integer port = bindAvailablePortToStream(s.StreamId);
-				WarpThreadPool.executeCached(new ReceiveDataThread(s.StreamId, msgBusClient));
-
-				if (flowIndex+1 < s.Flow.size()) {
-					HashMap<String, String> upstreamFlow = s.Flow.get(flowIndex+1);
+				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
+				receiveAndReport(streamSpec.StreamId);
+				
+				if (flowIndex+1 < streamSpec.Flow.size()) {
+					HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
 					upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
 					try {
-						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", s);
+						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
 					} catch (MessageBusException e) {
-						//TODO: add exception handler
 						e.printStackTrace();
 					}
 				}
-				break;
 			}
+			break;
 		}
+
 	}
 	
 	/**
@@ -71,30 +72,39 @@ public class SinkNode extends AbstractNode {
 	 */
 	
 	public int bindAvailablePortToStream(String streamId) {
-
-		DatagramSocket udpSocekt = null;
-		try {
-			udpSocekt = new DatagramSocket(0, super.getHostAddr());
-		} catch (SocketException e) {
-			//TODO: Handle the exception. We may consider throw this exception
-			e.printStackTrace();
-		}
-
-		
+	
 		if (streamSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():"
-						+ "[Exception]Attempt to add a socket mapping to existing stream!");
+				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
 			return streamSocketMap.get(streamId).getPort();
 		} else {
-			streamSocketMap.put(streamId, udpSocekt);
-			return udpSocekt.getLocalPort();
+			DatagramSocket udpSocket = null;
+			try {
+				udpSocket = new DatagramSocket(0, super.getHostAddr());
+			} catch (SocketException e) {
+				//TODO: Handle the exception. We may consider throw this exception
+				e.printStackTrace();
+			}
+			streamSocketMap.put(streamId, udpSocket);
+			return udpSocket.getLocalPort();
 		}
-		
 	}
 	
+	/**
+	 * Start to receive packets from a stream and report to the management layer
+	 * @param streamId
+	 * @param msgBusClient
+	 */
+	private void receiveAndReport(String streamId){
+		WarpThreadPool.executeCached(new ReceiveThread(streamId));
+	}
+	
+	public void receiveAndReportTest(String streamId){
+		ExecutorService executorService = Executors.newCachedThreadPool();
+		executorService.execute(new ReceiveThread(streamId));
+	}
 	
 	/**
 	 * 
@@ -107,7 +117,7 @@ public class SinkNode extends AbstractNode {
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveDataThread implements Runnable {
+	private class ReceiveThread implements Runnable {
 		
 		private String streamId;
 		private int totalBytes = 0;
@@ -117,28 +127,22 @@ public class SinkNode extends AbstractNode {
 		private boolean finished;
 		private boolean started;
 		
-		public ReceiveDataThread(String streamId, MessageBusClient msgBusClient) {
-			ReceiveDataThread.this.streamId = streamId;
+		public ReceiveThread(String streamId) {
+			this.streamId = streamId;
 		}
 		
 		@Override
-		public void run() {
-			
-			if (isFinished()) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():"
-							+ "[WARN]The Runnable has been finished.");
-				}
-				return;
-			}
-			
+
+		public void run() {				
+			boolean isStarted = false;
+			long startTime = 0;
+			int totalBytes = 0;
+
 			
 			DatagramSocket socket = null;
 			if ((socket = streamSocketMap.get(streamId)) == null) {
-				// TODO handle potential error condition
 				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():"
-							+ "[Exception]Attempt to receive data for non existent stream");
+					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
 				return;
 			}
@@ -146,79 +150,57 @@ public class SinkNode extends AbstractNode {
 			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
-			while (!isSuspended() && !isFinished()) {
-				try {
+
+			while (true) {
+				try {	
 					socket.receive(packet);
-					if(!isStarted()) {
+					if(!isStarted) {
 						startTime = System.currentTimeMillis();
-						start();
+						isStarted = true;
 					}
-					totalBytes += packet.getLength();
+					totalBytes += packet.getLength();	
+					System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
 					
-					if (packet.getData()[0] == 0) { //Finish receiving data
-						totalTime = System.currentTimeMillis() - startTime;
-						//TODO report the time taken and total bytes received 
-						SinkReportMessage sinkReportMsg = new SinkReportMessage();
-						sinkReportMsg.setStreamId(streamId);
-						sinkReportMsg.setTotalBytes(totalBytes);
-						sinkReportMsg.setEndTime(Utility.currentTime());
-						//sinkReportMsg.setTotalTime(totalTime);
-						
-						String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
-						
-						try {
-							System.out.println("Sink finished receiving data...");
-							msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
-						} catch (MessageBusException e) {
-							//TODO: add exception handler
-							e.printStackTrace();
-						}
-						
-						
-						System.out.println("[INFO] SinkNode.ReceiveDataThread.run(): "
-								+ "Sink finished receiving data at Stream-ID "+sinkReportMsg.getStreamId()+
-								" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+totalTime);
-						// cleanup resources
+
+					if (packet.getData()[0] == 0) {
+						long endTime= System.currentTimeMillis();
+						//report(startTime, endTime, totalBytes);
 						socket.close();
-						streamSocketMap.remove(streamId);
-						finish();
-					}
-					
+						streamSocketMap.remove(streamId);		
+						break;
+					}	
+
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
+			}	
+			System.out.println("[Sink] finish receiving" );
+		}
+		
+		private void report(long startTime, long endTime, int totalBytes){
+
+			SinkReportMessage sinkReportMsg = new SinkReportMessage();
+			sinkReportMsg.setStreamId(streamId);
+			sinkReportMsg.setTotalBytes(totalBytes);
+			sinkReportMsg.setEndTime(Utility.millisecondTimeToString(endTime));
+			
+			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
+			
+			try {
+				System.out.println("Sink finished receiving data...");
+				msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
+			} catch (MessageBusException e) {
+				//TODO: add exception handler
+				e.printStackTrace();
 			}
 			
-		}
-		
-		public synchronized void suspend() {
-			suspended = true;
-		}
-		
-		public synchronized void resume() {
-			suspended = false;
-		}
-		
-		private synchronized boolean isSuspended() {
-			return suspended;
-		}
-		
-		private synchronized void finish() {
-			finished = true;
-		}
-		
-		private synchronized boolean isFinished() {
-			return finished;
-		}
-		
-		private synchronized boolean isStarted() {
-			return started;
-		}
-		
-		private synchronized void start() {
-			started = true;
+			System.out.println("[INFO] SinkNode.ReceiveDataThread.run(): " + "Sink finished receiving data at Stream-ID "+sinkReportMsg.getStreamId()+
+					" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+ (endTime - startTime));
 		}
 	}
+
+	
+
 	
 	
 }

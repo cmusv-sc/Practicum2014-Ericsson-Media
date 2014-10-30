@@ -2,34 +2,34 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class SourceReportMessage extends MbMessage {
 
-	String _streamId;
-	int _totalBytes_transferred;
-	String _startTime;
+	String streamId;
+	int totalBytesTransferred;
+	String startTime;
 
 	public SourceReportMessage() {
 		super();
-		_streamId = "";
-		_totalBytes_transferred = 0;
+		streamId = "";
+		totalBytesTransferred = 0;
 	}
 	
 	public String getStreamId() {
-		return _streamId;
+		return streamId;
 	}
-	public void setStreamId(String _streamId) {
-		this._streamId = _streamId;
+	public void setStreamId(String streamId) {
+		this.streamId = streamId;
 	}
 	
-	public int getTotalBytes_transferred() {
-		return _totalBytes_transferred;
+	public int getTotalBytesTransferred() {
+		return totalBytesTransferred;
 	}
-	public void setTotalBytes_transferred(int _totalBytes_transferred) {
-		this._totalBytes_transferred = _totalBytes_transferred;
+	public void setTotalBytesTransferred(int totalBytesTransferred) {
+		this.totalBytesTransferred = totalBytesTransferred;
 	}
 	
 	public String getStartTime() {
-		return _startTime;
+		return startTime;
 	}
-	public void setStartTime(String _startTime) {
-		this._startTime = _startTime;
+	public void setStartTime(String startTime) {
+		this.startTime = startTime;
 	}
 }
