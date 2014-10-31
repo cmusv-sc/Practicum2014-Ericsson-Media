@@ -131,6 +131,45 @@ public class ProcessingNode extends AbstractNode{
 		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
+	@Override
+	public void terminateTask(StreamSpec streamSpec) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
+		}
+	
+		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
+		th.kill();
+		
+		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		
+		try {
+			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
+		} catch (MessageBusException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void releaseResource(StreamSpec streamSpec) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
+		}
+		
+		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
+		while (!th.isStopped());
+		th.clean();
+		
+		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		try {
+			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", streamSpec);
+		} catch (MessageBusException e) {
+			e.printStackTrace();
+		}
+		
+	}
+	
 	/**
 	 * 
 	 * Each stream is received in a separate WarpPoolThread.
@@ -150,6 +189,13 @@ public class ProcessingNode extends AbstractNode{
 		private long processingLoop;
 		private int processingMemory;
 		
+		private DatagramSocket receiveSocket = null;
+		private DatagramSocket sendSocket = null;
+		
+		
+		private boolean killed = false;
+		private boolean stopped = false;
+		
 		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
 			this.streamId = streamId;
@@ -162,15 +208,13 @@ public class ProcessingNode extends AbstractNode{
 		@Override
 		public void run() {
 
-			DatagramSocket receiveSocket = null;
 			if ((receiveSocket = streamSocketMap.get(streamId)) == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
 				return;
 			}
-
-			DatagramSocket sendSocket = null;
+			
 			try {
 				sendSocket = new DatagramSocket();
 			} catch (SocketException se) {
@@ -185,7 +229,9 @@ public class ProcessingNode extends AbstractNode{
 			long startTime = 0;
 			int totalBytes = 0;
 
-			while (true) {
+			boolean finished = false;
+			
+			while (!finished && !isKilled()) {
 				try {
 					receiveSocket.receive(packet);
 					if(!started) {
@@ -208,14 +254,7 @@ public class ProcessingNode extends AbstractNode{
 					}
 					
 					if (packet.getData()[0] == 0) {
-						long endTime = System.currentTimeMillis();
-						if (!UNIT_TEST) {
-							report(startTime, endTime, totalBytes);
-						}
-						streamSocketMap.remove(streamId);
-						receiveSocket.close();
-						sendSocket.close();						
-						break;
+						finished = true;
 					}
 
 				} catch (IOException ioe) {
@@ -223,10 +262,26 @@ public class ProcessingNode extends AbstractNode{
 				}
 			}	
 			
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread"
-						+ ".run(): Proc node finishes simulation.");
+			long endTime = System.currentTimeMillis();
+			
+			if (!UNIT_TEST) {
+				report(startTime, endTime, totalBytes);
 			}
+			
+			if (finished) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
+							+ "Processing node has finished simulation." );
+				}
+				clean();
+			} else if (isKilled()) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
+							+ "Processing node has been killed (not finished yet)." );
+				}
+			}
+			
+			stop();
 		}
 
 		private void process(byte[] data){
@@ -255,18 +310,32 @@ public class ProcessingNode extends AbstractNode{
 					+ " Total bytes " + totalBytes + 
 					" Total Time " + ((endTime - startTime) / 1000) + "(sec)");
 		}
-	}
-
-	@Override
-	public void terminateTask(StreamSpec streamSpec) {
-		// TODO Auto-generated method stub
 		
-	}
-
-	@Override
-	public void releaseResource(StreamSpec streamSpec) {
-		// TODO Auto-generated method stub
+		public synchronized void kill() {
+			killed = true;
+		}
 		
+		public synchronized boolean isKilled() {
+			return killed;
+		}
+		
+		public synchronized void stop() {
+			stopped = true;
+		}
+		
+		public synchronized boolean isStopped() {
+			return stopped;
+		}
+		
+		public void clean() {
+			if (!receiveSocket.isClosed()) {
+				receiveSocket.close();
+			}
+			if (!sendSocket.isClosed()) {
+				sendSocket.close();
+			}
+			streamSocketMap.remove(streamId);
+		}
 	}
 	
 	public void setUnitTest() {
