@@ -35,4 +35,18 @@ public class StreamSpec extends MbMessage {
 			return sinkNodeMap.get("NodeUri");
 		}
 	}
+	
+	/**
+	 * Find the node map according to the nodeId
+	 * @param nodeId
+	 * @return
+	 */
+	public Map<String, String> findNodeMap(String nodeId) {
+		for (Map<String, String> nodeMap : Flow) {
+			if (nodeMap.get("NodeId").equals(nodeId)) {
+				return nodeMap;
+			}
+		}
+		return null;
+	}
 }
