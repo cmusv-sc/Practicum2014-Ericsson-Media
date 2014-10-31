@@ -92,18 +92,14 @@ public class SourceNode extends AbstractNode {
 		sndThread.clean();
 		runningMap.remove(streamSpec.StreamId);
 		
-		for (int i = 0; i < streamSpec.Flow.size(); i++) {
-			Map<String, String> nodeMap = streamSpec.Flow.get(i);
-			if (nodeMap.get("NodeId").equals(getNodeName())) {
-				
-				try {
-					msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", streamSpec);
-				} catch (MessageBusException e) {
-					e.printStackTrace();
-				}
-				
-			}
+		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		
+		try {
+			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", streamSpec);
+		} catch (MessageBusException e) {
+			e.printStackTrace();
 		}
+
 		
 	}
 	

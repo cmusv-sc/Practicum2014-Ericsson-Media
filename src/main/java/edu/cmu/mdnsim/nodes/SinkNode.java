@@ -255,21 +255,15 @@ public class SinkNode extends AbstractNode {
 			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(streamSpec));
 		}
 		
-		for (int i = 0; i < streamSpec.Flow.size(); i++) {
-			
-			Map<String, String> nodeMap = streamSpec.Flow.get(i);
-			
-			ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
-			rcvThread.kill();
-			/* Find the Map for current node */
-			if (nodeMap.get("NodeId").equals(getNodeName())) {
-				try {
-					msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
-				} catch (MessageBusException e) {
-					e.printStackTrace();
-				}
-			}
-			
+		ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
+		rcvThread.kill();
+		
+		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		
+		try {
+			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
+		} catch (MessageBusException e) {
+			e.printStackTrace();
 		}
 		
 	}
