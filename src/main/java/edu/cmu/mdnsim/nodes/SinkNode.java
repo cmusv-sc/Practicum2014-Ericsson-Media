@@ -163,7 +163,9 @@ public class SinkNode extends AbstractNode {
 			while (!isKilled() && !finished) {
 				try {	
 					socket.receive(packet);
-					startTime = System.currentTimeMillis();
+					if (startTime == 0) {
+						startTime = System.currentTimeMillis();
+					}
 					totalBytes += packet.getLength();	
 					if (UNIT_TEST) {
 						System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
@@ -215,8 +217,12 @@ public class SinkNode extends AbstractNode {
 			}
 			
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " + "Sink finished receiving data at Stream-ID "+sinkReportMsg.getStreamId()+
-					" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+ (endTime - startTime));
+				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " 
+						+ "Sink finished receiving data at Stream-ID " 
+						+ sinkReportMsg.getStreamId()
+						+ " Total bytes " + sinkReportMsg.getTotalBytes() 
+						+ " Total Time:" + ((endTime - startTime) / 1000)
+						+ "(sec)");
 			}
 		}
 		
