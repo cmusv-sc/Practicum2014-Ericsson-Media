@@ -8,7 +8,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +25,7 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusServer;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
@@ -36,6 +36,7 @@ import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
 import edu.cmu.mdnsim.server.WebClientGraph.NodeLocation;
+import edu.cmu.util.Utility;
 /**
  * It represents the Master Node of the Simulator.
  * Some of the major responsibilities include: 
@@ -202,6 +203,9 @@ public class Master {
 		/* Sink report listener */
 		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
 		
+		/* Proc Node report listener */
+		msgBusSvr.addMethodListener("/processing_report", "POST", this, "procReport");
+		
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 		
@@ -216,9 +220,7 @@ public class Master {
     private void createNodeOnNodeContainer(CreateNodeRequest req) {
     	
     	//TODO: Handle scenario when there is no node container available for the given label
-    	
-    	//TODO: Why do we use : to delimit NcLabel
-    	System.out.println("[DELETE] Master.createNodeOnNodeContainer(): Node Container label: " + req.getNcLabel());
+
     	String containerLabel = req.getNcLabel();
     	String ncURI = nodeContainerTbl.get(containerLabel);
 
@@ -231,10 +233,7 @@ public class Master {
     	} catch (MessageBusException e) {
     		e.printStackTrace();
     	}
-    	
-    	if (ClusterConfig.DEBUG) {
-    		System.out.println("[DEBUG]Master.createNode(): message sent");
-    	}
+
     }
 	
 	/**
@@ -294,21 +293,25 @@ public class Master {
 	 */
 	public void validateUserSpec(Message mesg, WorkConfig wc) {
 		
-		HashSet<String> srcSet = new HashSet<String>();
-		HashSet<String> sinkSet = new HashSet<String>();
+		Set<String> srcSet = new HashSet<String>();
+		Set<String> sinkSet = new HashSet<String>();
+		Set<String> procSet = new HashSet<String>();
 		Map<NodeType, Set<String>> nodesToInstantiate = new HashMap<NodeType, Set<String>>();
 
 		double x = 0.1;
 		double y = 0.1;
+		
 		String srcRgb = "rgb(0,204,0)";
 		String sinkRgb = "rgb(0,204,204)";
+		String procRgb = "rgb(204,204,0";
+		
 		String srcMsg = "This is a Source Node";
 		String sinkMsg = "This is a Sink Node";
-		String simId = wc.getSimId();
+		String procMsg = "This is a Processing Node";
 		int nodeSize = 6;
 		
-		System.out.println("[DELETE]Master.validateUserSpec(): StreamSpec List size = " + wc.getStreamSpecList().size());
 		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
+			
 			String streamId = streamSpec.StreamId;
 			System.out.println("Stream Id is "+streamSpec.StreamId);
 			System.out.println("DataSize is "+streamSpec.DataSize);
@@ -341,6 +344,11 @@ public class Master {
 						rgb = sinkRgb;
 						msg = sinkMsg;
 						sinkSet.add(nId);
+					} else if (nType.equals("PROC")){
+						//TODO: add procRgb & procMsg;
+						rgb = procRgb;
+						msg = srcMsg;
+						procSet.add(nId);
 					}
 					Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
 					webClientGraph.addNode(n);
@@ -350,12 +358,14 @@ public class Master {
 					Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId);
 					webClientGraph.addEdge(e);
 				}
-				System.out.println("**** Node in Flow ****");
-				System.out.println("Recevied flow is "+nType +" "+ nId +" "+upstreamNode);
 			}
 			
-			if (!streamMap.containsKey(streamId))
+			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, streamSpec);
+			} else {
+				//TODO: change to checked exception
+				throw new RuntimeException("Duplicate stream ID");
+			}
 		}
 
 		if (webClientURI != null) {
@@ -369,11 +379,10 @@ public class Master {
 
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
+		nodesToInstantiate.put(NodeType.PROC, procSet);
 		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("Master.validateUserSpec():  Start to instantiate nodes.");
-		}
 		instantiateNodes(nodesToInstantiate);
+		
 	}
 	
 	/**
@@ -392,16 +401,23 @@ public class Master {
 	 */
 	private void instantiateNodes(Map<NodeType, Set<String>> nodesToInstantiate) {
 		
+		/* Iterate each nodeType */
 		for (NodeType nodeType : nodesToInstantiate.keySet()) {
-			/* Iterate each nodeType */
-			for (String node : nodesToInstantiate.get(nodeType)) {
-				System.out.println(node);
-				String nodeClass = "";
-				if (nodeType == NodeType.SOURCE) 
+			
+			/* Iterate each node in certain NodeType */
+			for (String nodeId : nodesToInstantiate.get(nodeType)) {
+				String nodeClass;
+				if (nodeType == NodeType.SOURCE) {
 					nodeClass = "edu.cmu.mdnsim.nodes.SourceNode";
-				else if (nodeType == NodeType.SINK)
+				} else if (nodeType == NodeType.SINK) {
 					nodeClass = "edu.cmu.mdnsim.nodes.SinkNode";
-				CreateNodeRequest req = new CreateNodeRequest(nodeType, node, nodeClass);
+				} else if (nodeType == NodeType.PROC) {
+					nodeClass = "edu.cmu.mdnsim.nodes.ProcessingNode";
+				} else {
+					//TOOD: throw an exception
+					nodeClass = "UNDIFINED";
+				}
+				CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
 				createNodeOnNodeContainer(req);
 			}
 		}
@@ -523,6 +539,7 @@ public class Master {
 		nodeId = nodeId.substring(nodeId.lastIndexOf('/')+1);
 		return nodeId;
 	}
+	
 	/**
 	 * The report sent by the sink nodes
 	 * @param request
@@ -532,13 +549,13 @@ public class Master {
 	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 		
 		long totalTime = 0;
-		System.out.println("Sink finished receiving data: "+JSON.toJSON(sinkMsg));
-		DateFormat df = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.sinkReport(): Sink finished receiving data.\n" + JSON.toJSON(sinkMsg));
+		}
 		try {
-			totalTime = df.parse(sinkMsg.getEndTime()).getTime() - 
-					df.parse(getStartTimeForStream(sinkMsg.getStreamId())).getTime();
+			totalTime = Utility.StringToMillisecondTime(sinkMsg.getEndTime()) 
+					- Utility.StringToMillisecondTime(this.getStartTimeForStream(sinkMsg.getStreamId()));
 		} catch (ParseException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			totalTime = -1;
 		}
@@ -556,6 +573,14 @@ public class Master {
 		if (webClientURI != null) {
 			updateWebClient(webClientGraph.getUpdateMessage());
 		}
+	}
+	
+	public void procReport(ProcReportMessage procReport) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]Master.procReport(): Processing node finishes simulation.");
+		}
+		
 	}
 	
 	public void putStartTime(String streamId, String startTime) {
