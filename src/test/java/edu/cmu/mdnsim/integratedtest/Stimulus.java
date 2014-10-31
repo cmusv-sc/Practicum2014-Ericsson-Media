@@ -109,6 +109,28 @@ public class Stimulus extends AbstractNode {
 		
 	}
 
+	@Override
+	public void terminateTask(StreamSpec streamSpec) {
+
+		/* 
+		 * This method is unnecessary for Stimulus as itself doesn't execute any
+		 * task 
+		 *
+		 */
+		
+	}
+
+	@Override
+	public void releaseResource(StreamSpec streamSpec) {
+		
+		/* 
+		 * This method is unnecessary for Stimulus as itself doesn't execute any
+		 * task 
+		 *
+		 */
+		
+	}
+
 	
 }
 
