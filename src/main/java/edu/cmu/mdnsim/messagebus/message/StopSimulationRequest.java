@@ -3,22 +3,22 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class StopSimulationRequest extends MbMessage {
 	
-	private String simuID;
+	private String streamID;
 	
 	public StopSimulationRequest() {
-		simuID = "default";
+		streamID = "default";
 	}
 	
-	public StopSimulationRequest(String simuID) {
-		this.simuID = simuID;
+	public StopSimulationRequest(String streamID) {
+		this.streamID = streamID;
 	}
 	
-	public void setSimuID(String simuID) {
-		this.simuID = simuID;
+	public void setStreamID(String streamID) {
+		this.streamID = streamID;
 	}
 	
-	public String getSimuID() {
-		return simuID;
+	public String getStreamID() {
+		return streamID;
 	}
 	
 }
