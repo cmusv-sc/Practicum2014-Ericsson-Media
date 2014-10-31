@@ -12,6 +12,6 @@ public class ClusterConfig {
 	 * The DEBUG constant decides the logger information level.
 	 */
 	public static boolean DEBUG = true; 
-	
+
 	
 }
