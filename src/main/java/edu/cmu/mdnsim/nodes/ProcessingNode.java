@@ -26,7 +26,7 @@ public class ProcessingNode extends AbstractNode{
 	private HashMap<String, DatagramSocket> streamSocketMap;
 	private long processingLoop;
 	private int spaceConsumption;
-	
+
 	public ProcessingNode(long processingLoop, int spaceConsumption) throws UnknownHostException {
 		super();
 		this.processingLoop = processingLoop;
@@ -34,39 +34,6 @@ public class ProcessingNode extends AbstractNode{
 		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 
-	public void executeTask(WorkConfig workConfig) {
-		System.out.println("Processing node received a work specification: "+JSON.toJSON(workConfig));
-		int flowIndex = -1;
-		for (StreamSpec streamSepc : workConfig.getStreamSpecList()) {
-			for (HashMap<String, String> currentFlow : streamSepc.Flow) {
-				flowIndex++;
-				if (currentFlow.get("NodeId").equals(getNodeName())) {
-					Integer port = bindAvailablePortToStream(streamSepc.StreamId);
-					String addressAndPort = streamSepc.Flow.get(flowIndex).get("ReceiverIpPort");
-					InetAddress targetAddress = null;
-					try {
-						targetAddress = InetAddress.getByName(addressAndPort.split(":")[0]);
-					} catch (UnknownHostException e1) {
-						e1.printStackTrace();
-					}
-					int targetPort = Integer.valueOf(addressAndPort.split(":")[1]);
-					receiveProcessAndSend(streamSepc.StreamId, targetAddress, targetPort);
-					
-					if (flowIndex+1 < streamSepc.Flow.size()) {
-						HashMap<String, String> upstreamFlow = streamSepc.Flow.get(flowIndex+1);
-						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
-						try {
-							msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", workConfig);
-						} catch (MessageBusException e) {
-							e.printStackTrace();
-						}
-					}
-					break;
-				}
-			}
-		}
-	}
-	
 	/**
 	 * Creates a DatagramSocket and binds it to any available port
 	 * The streamId and the DatagramSocket are added to a 
@@ -77,9 +44,9 @@ public class ProcessingNode extends AbstractNode{
 	 * -1 if DatagramSocket creation failed
 	 * 0 if DatagramSocket is created but is not bound to any port
 	 */
-	
+
 	public int bindAvailablePortToStream(String streamId) {
-	
+
 		if (streamSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
@@ -98,7 +65,7 @@ public class ProcessingNode extends AbstractNode{
 			return udpSocekt.getLocalPort();
 		}
 	}
-	
+
 	/**
 	 * Start to receive packets from a stream and report to the management layer
 	 * @param streamId
@@ -107,7 +74,7 @@ public class ProcessingNode extends AbstractNode{
 	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort){
 		WarpThreadPool.executeCached(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort));
 	}
-	
+
 	/**
 	 * For Unit Test
 	 */
@@ -115,7 +82,7 @@ public class ProcessingNode extends AbstractNode{
 		ExecutorService executorService = Executors.newCachedThreadPool();
 		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort));
 	}
-	
+
 	/**
 	 * 
 	 * Each stream is received in a separate WarpPoolThread.
@@ -128,21 +95,21 @@ public class ProcessingNode extends AbstractNode{
 	 * 
 	 */
 	private class ReceiveProcessAndSendThread implements Runnable {
-		
+
 		private String streamId;
 		private InetAddress dstAddress;
 		private int dstPort;
-		
+
 		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort) {
-	
+
 			this.streamId = streamId;
 			this.dstAddress = destAddress;
 			this.dstPort = dstPort;
 		}
-		
+
 		@Override
 		public void run() {
-			
+
 			DatagramSocket receiveSocket = null;
 			if ((receiveSocket = streamSocketMap.get(streamId)) == null) {
 				if (ClusterConfig.DEBUG) {
@@ -150,7 +117,7 @@ public class ProcessingNode extends AbstractNode{
 				}
 				return;
 			}
-			
+
 			DatagramSocket sendSocket = null;
 			InetAddress laddr = null;
 			try {
@@ -162,15 +129,15 @@ public class ProcessingNode extends AbstractNode{
 			} catch (SocketException se) {
 				se.printStackTrace();
 			}
-			
-			
+
+
 			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
-			
+
 			boolean started = false;
 			long startTime = 0;
 			int totalBytes = 0;
-			
+
 			while (true) {
 				try {
 					receiveSocket.receive(packet);
@@ -180,14 +147,14 @@ public class ProcessingNode extends AbstractNode{
 					}
 					byte[] data = packet.getData();
 					totalBytes += packet.getLength();
-					
+
 					process(data);
-					
+
 					packet.setData(data);
 					packet.setAddress(dstAddress);
 					packet.setPort(dstPort);					
 					sendSocket.send(packet);
-					
+
 					System.out.println("[Processing] totalBytes processed " + totalBytes + " " + currentTime());
 					if (packet.getData()[0] == 0) {
 						long endTime = System.currentTimeMillis();
@@ -197,14 +164,14 @@ public class ProcessingNode extends AbstractNode{
 						sendSocket.close();						
 						break;
 					}
-					
+
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
 			}		
 			System.out.println("[Processing] finish receiving, processing and sending");
 		}
-		
+
 		private void process(byte[] data){
 			byte[] array = new byte[spaceConsumption];
 			double value = 0;
@@ -212,29 +179,50 @@ public class ProcessingNode extends AbstractNode{
 				value+=Math.random();
 			}
 		}
-		
+
 		private void report(long startTime, long endTime, int totalBytes){
 
 			MbMessage message = new MbMessage();
 			message.setStreamId(streamId);
 			message.setTotalBytes(totalBytes);
 			message.setEndTime(Utility.millisecondTimeToString(endTime));
-			
+
 			String fromPath = ProcessingNode.super.getNodeName() + "/finish-rcv";
 			try {
 				msgBusClient.sendToMaster(fromPath, "/processing_report", "POST", message);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
-			
+
 			System.out.println("[INFO] Processing Node finished at Stream-ID " + streamId + " Total bytes "+totalBytes+ " Total Time " + (endTime - startTime));
 		}
 	}
 
 	@Override
-	public void executeTask(StreamSpec s) {
-		// TODO Auto-generated method stub
-		
+	public void executeTask(StreamSpec streamSpec) {
+		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
+			if (currentFlow.get("NodeId").equals(getNodeName())) {
+				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
+				String[] addressAndPort = currentFlow.get("ReceiverIpPort").split(":");
+				InetAddress targetAddress = null;
+				try {
+					targetAddress = InetAddress.getByName(addressAndPort[0]);
+					int targetPort = Integer.valueOf(addressAndPort[1]);
+					//TODO: Read Processing Node related parameters from user input
+					receiveProcessAndSend(streamSpec.StreamId, targetAddress, targetPort);
+				} catch (UnknownHostException e1) {
+					e1.printStackTrace();
+				}
+				if (currentFlow.get("UpstreamUri") != null){
+					try {
+						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
+					} catch (MessageBusException e) {
+						e.printStackTrace();
+					}
+				}
+				break;
+			}
+		}	
 	}
 
 	@Override
@@ -248,4 +236,5 @@ public class ProcessingNode extends AbstractNode{
 		// TODO Auto-generated method stub
 		
 	}	
+
 }
