@@ -235,5 +235,17 @@ public class ProcessingNode extends AbstractNode{
 	public void executeTask(StreamSpec s) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	@Override
+	public void terminateTask(StreamSpec streamSpec) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void releaseResource(StreamSpec streamSpec) {
+		// TODO Auto-generated method stub
+		
 	}	
 }
