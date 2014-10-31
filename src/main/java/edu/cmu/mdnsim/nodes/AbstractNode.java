@@ -14,6 +14,7 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 
 public abstract class AbstractNode {
 	
@@ -44,8 +45,16 @@ public abstract class AbstractNode {
 		
 		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", 
 				this, "executeTask");
+		
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "POST", 
+				this, "terminateTask");
+		
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "DELETE",
+				this, "releaseResource");
+		
 		msgBusClient.addMethodListener("/" + getNodeName() + "/confirm_node", 
 				"PUT", this, "setRegistered");
+		
 	}
 	
 	public void register() {
@@ -90,6 +99,34 @@ public abstract class AbstractNode {
 		return registered;
 	}
 
+	/**
+	 * 
+	 * This methods is to start a stream.
+	 * It is supposed to receive/send data and also inform its upstream to 
+	 * start appropriate behaviors.
+	 * 
+	 * @param s
+	 */
 	public abstract void executeTask(StreamSpec s);
+	
+	/**
+	 * 
+	 * This method is to stop sending/receiving data at functional node.
+	 * It is supposed send a message to inform its upstream to stop
+	 * sending data as well.
+	 * 
+	 * @param streamSpec
+	 */
+	public abstract void terminateTask(StreamSpec streamSpec);
+	
+	/**
+	 * 
+	 * This method is to clean up all resources related to this stream, such 
+	 * as Datagram socket. It is supposed to send a message to inform its 
+	 * downstream to clean up resources as well.
+	 * 
+	 * @param streamSpec
+	 */
+	public abstract void releaseResource(StreamSpec streamSpec);
 
 }
