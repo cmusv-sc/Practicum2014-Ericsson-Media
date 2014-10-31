@@ -50,8 +50,8 @@ public class ProcessingNode extends AbstractNode{
 				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
 				
 				/* Get processing parameters */
-				long processingLoop = Long.valueOf(nodeMap.get("processingLoop"));
-				int processingMemory = Integer.valueOf(nodeMap.get("processingMemory"));
+				long processingLoop = Long.valueOf(nodeMap.get("ProcessingLoop"));
+				int processingMemory = Integer.valueOf(nodeMap.get("ProcessingMemory"));
 				
 				/* Get the IP:port */
 				String[] addressAndPort = nodeMap.get("ReceiverIpPort").split(":");
