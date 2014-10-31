@@ -422,7 +422,7 @@ public class Master {
 	public void startSimulation(Message msg) throws MessageBusException {
 		
 		for (StreamSpec streamSpec : streamMap.values()) {
-			String sinkUri = updateWorkConfig(streamSpec);
+			String sinkUri = updateStreamSpec(streamSpec);
 			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", streamSpec);
 			runningStreamMap.put(streamSpec.StreamId, streamSpec);
 		}
@@ -446,7 +446,7 @@ public class Master {
 	 * @param wc WorkConfig waited to be updated
 	 * @return the URI of the sink node (starting point of the control message).
 	 */
-	private String updateWorkConfig(StreamSpec streamSpec) {
+	private String updateStreamSpec(StreamSpec streamSpec) {
 		
 		String sinkUri = null;
 		String sinkNodeId = null;
@@ -455,6 +455,7 @@ public class Master {
 		for (int i = 0; i < streamSpec.Flow.size(); i++) {
 			
 			HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
+			nodeMap.put("NodeUri", nodeNameToURITbl.get(nodeMap.get("NodeId")));
 			if (i == 0) {
 				sinkNodeId = nodeMap.get("NodeId");
 				sinkUri = nodeNameToURITbl.get(sinkNodeId);
@@ -564,12 +565,16 @@ public class Master {
 		return this.startTimeMap.get(streamId);
 	}
     
-	public void stopSimulation(StopSimulationRequest req) {
+	public void stopSimulation(StopSimulationRequest req) throws MessageBusException {
 		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");
 		}
+		
+		StreamSpec streamSpec = runningStreamMap.get(req.getStreamID());
+		
+		msgBusSvr.send("/", streamSpec.findSinkNodeURI() + "/tasks", "POST", streamSpec);
 		
 		
 	
