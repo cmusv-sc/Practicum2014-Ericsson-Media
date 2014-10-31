@@ -46,8 +46,16 @@ public class WorkConfigTestCase implements MessageBusTestCase {
 		HashMap<String, String> sinkInfo = new HashMap<String, String>();
 		sinkInfo.put("NodeType","SINK");
 		sinkInfo.put("NodeId", "tomato:sink1");
-		sinkInfo.put("UpstreamId", "orange:source1");
+		sinkInfo.put("UpstreamId", "orange:proc1");
 		flow.add(sinkInfo);
+		
+		HashMap<String, String> procInfo = new HashMap<String, String>();
+		procInfo.put("NodeType", "PROC");
+		procInfo.put("NodeId", "orange:proc1");
+		procInfo.put("UpstreamId", "orange:source1");
+		procInfo.put("ProcessingLoop", "3000");
+		procInfo.put("ProcessingMemory", "1000");
+		flow.add(procInfo);
 		
 		HashMap<String, String> sourceInfo = new HashMap<String, String>();
 		sourceInfo.put("NodeType", "SOURCE");
