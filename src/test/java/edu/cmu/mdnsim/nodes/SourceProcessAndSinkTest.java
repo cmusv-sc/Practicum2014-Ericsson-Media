@@ -14,7 +14,7 @@ public class SourceProcessAndSinkTest {
 		int processingSpaceInByte = 1000;
 		try {
 			sourceNode = new SourceNode();
-			processingNode = new ProcessingNode(processingLoop, processingSpaceInByte);
+			processingNode = new ProcessingNode();
 			sinkNode = new SinkNode();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -30,7 +30,7 @@ public class SourceProcessAndSinkTest {
 		int rate = 1000;
 	
 		sinkNode.receiveAndReportTest(streamId);
-		processingNode.receiveProcessAndSendTest(streamId, sinkAddress, sinkPort);
+		processingNode.receiveProcessAndSendTest(streamId, sinkAddress, sinkPort,processingLoop, processingSpaceInByte);
 		sourceNode.sendAndReportTest(streamId, processingAddress, processingPort, packageSize, rate);	
 	}
 }

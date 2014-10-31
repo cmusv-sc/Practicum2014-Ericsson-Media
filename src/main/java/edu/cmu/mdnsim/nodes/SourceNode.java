@@ -151,6 +151,7 @@ public class SourceNode extends AbstractNode {
 				socketException.printStackTrace();
 			}
 			
+			
 			report();
 			
 			byte[] buf = null;

@@ -1,0 +1,31 @@
+{
+"SimId":"sim1",
+"StreamSpecList":
+  [
+	{
+	  "StreamId":"stream1234",
+	  "DataSize":"20000000",
+	  "ByteRate":"625000",
+	  "Flow":
+	  [
+		{
+		  "NodeType":"SINK",
+		  "NodeId":"tomato:sink1",
+		  "UpstreamId":"tomato:processing1"
+		},
+		{
+		  "NodeType":"PROCESSING",
+		  "NodeId":"tomato:processing1",
+		  "UpstreamId":"orange:source1",
+		  "ProcessingLoop":"10000",
+		  "ProcessingMemory":"1000"
+		},
+		{
+		  "NodeType":"SOURCE",
+		  "NodeId":"orange:source1",
+		  "UpstreamId":"NULL"
+		}
+	  ]
+	}
+  ]
+}

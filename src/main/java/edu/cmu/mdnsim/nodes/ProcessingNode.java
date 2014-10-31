@@ -24,16 +24,45 @@ import edu.cmu.util.Utility;
 public class ProcessingNode extends AbstractNode{
 
 	private HashMap<String, DatagramSocket> streamSocketMap;
-	private long processingLoop;
-	private int spaceConsumption;
 
-	public ProcessingNode(long processingLoop, int spaceConsumption) throws UnknownHostException {
+	public ProcessingNode() throws UnknownHostException {
 		super();
-		this.processingLoop = processingLoop;
-		this.spaceConsumption = spaceConsumption;
 		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 
+	
+	@Override
+	public void executeTask(StreamSpec streamSpec) {
+		int flowIndex = -1;
+		for (HashMap<String, String> currentNode : streamSpec.Flow) {
+			flowIndex++;
+			if (currentNode.get("NodeId").equals(getNodeName())) {
+				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
+				long processingLoop = Long.valueOf(currentNode.get("processingLoop"));
+				int processingMemory = Integer.valueOf(currentNode.get("processingMemory"));
+				String[] addressAndPort = currentNode.get("ReceiverIpPort").split(":");
+				InetAddress targetAddress = null;
+				try {
+					targetAddress = InetAddress.getByName(addressAndPort[0]);
+					int targetPort = Integer.valueOf(addressAndPort[1]);
+					receiveProcessAndSend(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+				} catch (UnknownHostException e1) {
+					e1.printStackTrace();
+				}
+				if (currentNode.get("UpstreamUri") != null){
+					try {
+						HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
+						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+						msgBusClient.send("/tasks", currentNode.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
+					} catch (MessageBusException e) {
+						e.printStackTrace();
+					}
+				}
+				break;
+			}
+		}	
+	}
+	
 	/**
 	 * Creates a DatagramSocket and binds it to any available port
 	 * The streamId and the DatagramSocket are added to a 
@@ -58,7 +87,6 @@ public class ProcessingNode extends AbstractNode{
 			try {
 				udpSocekt = new DatagramSocket(0, super.getHostAddr());
 			} catch (SocketException e) {
-				//TODO: Handle the exception. We may consider throw this exception
 				e.printStackTrace();
 			}
 			streamSocketMap.put(streamId, udpSocekt);
@@ -71,16 +99,16 @@ public class ProcessingNode extends AbstractNode{
 	 * @param streamId
 	 * @param msgBusClient
 	 */
-	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort){
-		WarpThreadPool.executeCached(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort));
+	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
+		WarpThreadPool.executeCached(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
 	/**
 	 * For Unit Test
 	 */
-	public void receiveProcessAndSendTest(String streamId, InetAddress destAddress, int dstPort){
+	public void receiveProcessAndSendTest(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort));
+		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
 	/**
@@ -99,12 +127,16 @@ public class ProcessingNode extends AbstractNode{
 		private String streamId;
 		private InetAddress dstAddress;
 		private int dstPort;
-
-		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort) {
+		private long processingLoop;
+		private int processingMemory;
+		
+		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
 			this.streamId = streamId;
 			this.dstAddress = destAddress;
 			this.dstPort = dstPort;
+			this.processingLoop = processingLoop;
+			this.processingMemory = processingMemory;
 		}
 
 		@Override
@@ -173,7 +205,7 @@ public class ProcessingNode extends AbstractNode{
 		}
 
 		private void process(byte[] data){
-			byte[] array = new byte[spaceConsumption];
+			byte[] array = new byte[processingMemory];
 			double value = 0;
 			for ( int i = 0; i< processingLoop; i++) {
 				value+=Math.random();
@@ -196,33 +228,6 @@ public class ProcessingNode extends AbstractNode{
 
 			System.out.println("[INFO] Processing Node finished at Stream-ID " + streamId + " Total bytes "+totalBytes+ " Total Time " + (endTime - startTime));
 		}
-	}
-
-	@Override
-	public void executeTask(StreamSpec streamSpec) {
-		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
-			if (currentFlow.get("NodeId").equals(getNodeName())) {
-				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
-				String[] addressAndPort = currentFlow.get("ReceiverIpPort").split(":");
-				InetAddress targetAddress = null;
-				try {
-					targetAddress = InetAddress.getByName(addressAndPort[0]);
-					int targetPort = Integer.valueOf(addressAndPort[1]);
-					//TODO: Read Processing Node related parameters from user input
-					receiveProcessAndSend(streamSpec.StreamId, targetAddress, targetPort);
-				} catch (UnknownHostException e1) {
-					e1.printStackTrace();
-				}
-				if (currentFlow.get("UpstreamUri") != null){
-					try {
-						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
-					} catch (MessageBusException e) {
-						e.printStackTrace();
-					}
-				}
-				break;
-			}
-		}	
 	}
 
 	@Override
