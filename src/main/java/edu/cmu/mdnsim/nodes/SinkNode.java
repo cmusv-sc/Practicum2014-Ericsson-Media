@@ -6,6 +6,8 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,47 +16,61 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.global.ClusterConfig;
-import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
 	
-	private HashMap<String, DatagramSocket> streamSocketMap;	
+	/**
+	 * This instance variable is used to control whether print out info which 
+	 * is used in Hao's unit test.
+	 */
+	private boolean UNIT_TEST = false;
+	
+	/* Key: stream ID; Value: DatagramSocket */
+	private HashMap<String, DatagramSocket> streamSocketMap;
+	
+	
+	/* Key: stream ID; Value: ReceiveThread */
+	private Map<String, ReceiveThread> runningThreadMap;
 	
 	public SinkNode() throws UnknownHostException {
 		super();
 		streamSocketMap = new HashMap<String, DatagramSocket>();
+		runningThreadMap = new ConcurrentHashMap<String, ReceiveThread>();
 	}
 	
-//	@Override
-//	public void config(MessageBusClient msgBus, NodeType nType, String nName) throws MessageBusException {
-//		super.config(msgBus, nType, nName);
-//	}
 
 	@Override
 	public void executeTask(StreamSpec streamSpec) {
-		System.out.println("Sink received a work specification: "+JSON.toJSON(streamSpec));
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SinkNode.executeTask(): Sink received a StreamSpec.");
+		}
+		
 		int flowIndex = -1;
 
 		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
 			flowIndex++;
 			if (currentFlow.get("NodeId").equals(getNodeName())) {
 				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
-				receiveAndReport(streamSpec.StreamId);
+				ReceiveThread rcvThread = new ReceiveThread(streamSpec.StreamId);
+				runningThreadMap.put(streamSpec.StreamId, rcvThread);
+				WarpThreadPool.executeCached(rcvThread);
 				
 				if (flowIndex+1 < streamSpec.Flow.size()) {
 					HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
 					upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
 					try {
-						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
+						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri") + "/tasks", "PUT", streamSpec);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					}
 				}
+				break;
 			}
-			break;
+			
 		}
 
 	}
@@ -91,14 +107,6 @@ public class SinkNode extends AbstractNode {
 		}
 	}
 	
-	/**
-	 * Start to receive packets from a stream and report to the management layer
-	 * @param streamId
-	 * @param msgBusClient
-	 */
-	private void receiveAndReport(String streamId){
-		WarpThreadPool.executeCached(new ReceiveThread(streamId));
-	}
 	
 	public void receiveAndReportTest(String streamId){
 		ExecutorService executorService = Executors.newCachedThreadPool();
@@ -122,9 +130,10 @@ public class SinkNode extends AbstractNode {
 		private int totalBytes = 0;
 		private long startTime = 0;
 		private long totalTime = 0;
-		private boolean suspended;
-		private boolean finished;
-		private boolean started;
+		private DatagramSocket socket = null;
+
+		private boolean killed = false;
+		private boolean stopped = false;
 		
 		public ReceiveThread(String streamId) {
 			this.streamId = streamId;
@@ -133,13 +142,13 @@ public class SinkNode extends AbstractNode {
 		@Override
 
 		public void run() {				
-			boolean isStarted = false;
+
 			long startTime = 0;
 			int totalBytes = 0;
 
 			
-			DatagramSocket socket = null;
-			if ((socket = streamSocketMap.get(streamId)) == null) {
+			socket = streamSocketMap.get(streamId);
+			if (socket == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
@@ -149,33 +158,40 @@ public class SinkNode extends AbstractNode {
 			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
-
-			while (true) {
+			boolean finished = false;
+			
+			while (!isKilled() && !finished) {
 				try {	
 					socket.receive(packet);
-					if(!isStarted) {
-						startTime = System.currentTimeMillis();
-						isStarted = true;
-					}
+					startTime = System.currentTimeMillis();
 					totalBytes += packet.getLength();	
-					System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
+					if (UNIT_TEST) {
+						System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
+					}
 					
-
-					if (packet.getData()[0] == 0) {	
-						break;
-					}	
+					finished = (packet.getData()[0] == 0);
 
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
 				}
 			}	
 			
-			
 			long endTime= System.currentTimeMillis();
+			
+			stop();
+			
+			if (ClusterConfig.DEBUG) {
+				if (finished) {
+					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
+				} else if (killed) {
+					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Killed.");
+				} else {
+					System.err.println("[DEBUG]SinkNode.ReceiveThread.run(): Unexpected.");
+				}
+			}
+			
 			report(startTime, endTime, totalBytes);
-			socket.close();
-			streamSocketMap.remove(streamId);	
-			System.out.println("[Sink] finish receiving" );
+				
 		}
 		
 		private void report(long startTime, long endTime, int totalBytes){
@@ -187,19 +203,87 @@ public class SinkNode extends AbstractNode {
 			
 			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
 			
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG]SinkNode.ReceiveThread.report(): Sink sends report to master.");
+			}
+			
 			try {
-				System.out.println("Sink finished receiving data...");
 				msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
 			} catch (MessageBusException e) {
 				//TODO: add exception handler
 				e.printStackTrace();
 			}
 			
-			System.out.println("[INFO] SinkNode.ReceiveDataThread.run(): " + "Sink finished receiving data at Stream-ID "+sinkReportMsg.getStreamId()+
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " + "Sink finished receiving data at Stream-ID "+sinkReportMsg.getStreamId()+
 					" Total bytes "+sinkReportMsg.getTotalBytes()+ " Total Time "+ (endTime - startTime));
+			}
+		}
+		
+		private synchronized void kill() {
+			killed = true;
+		}
+		
+		private synchronized boolean isKilled() {
+			return killed;
+		}
+		
+		private synchronized void stop() {
+			stopped = true;
+		}
+		
+		private synchronized boolean isStopped() {
+			return stopped;
+		}
+		
+		private void clean() {
+			socket.close();
+			streamSocketMap.remove(streamId);
 		}
 	}
 
+	@Override
+	public void terminateTask(StreamSpec streamSpec) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(streamSpec));
+		}
+		
+		for (int i = 0; i < streamSpec.Flow.size(); i++) {
+			
+			Map<String, String> nodeMap = streamSpec.Flow.get(i);
+			
+			ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
+			rcvThread.kill();
+			/* Find the Map for current node */
+			if (nodeMap.get("NodeId").equals(getNodeName())) {
+				try {
+					msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
+				} catch (MessageBusException e) {
+					e.printStackTrace();
+				}
+			}
+			
+		}
+		
+	}
+
+	public void setUnitTest(boolean unitTest) {
+		this.UNIT_TEST = unitTest;
+	}
+
+
+	@Override
+	public void releaseResource(StreamSpec streamSpec) {
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
+		}
+		
+		ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
+		while (!rcvThread.isStopped());
+		rcvThread.clean();
+		runningThreadMap.remove(streamSpec.StreamId);
+	}
 	
 
 	
