@@ -3,12 +3,9 @@ package edu.cmu.mdnsim.server;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.text.DateFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -553,8 +550,8 @@ public class Master {
 			System.out.println("[DEBUG]Master.sinkReport(): Sink finished receiving data.\n" + JSON.toJSON(sinkMsg));
 		}
 		try {
-			totalTime = Utility.StringToMillisecondTime(sinkMsg.getEndTime()) 
-					- Utility.StringToMillisecondTime(this.getStartTimeForStream(sinkMsg.getStreamId()));
+			totalTime = Utility.stringToMillisecondTime(sinkMsg.getEndTime()) 
+					- Utility.stringToMillisecondTime(this.getStartTimeForStream(sinkMsg.getStreamId()));
 		} catch (ParseException e) {
 			e.printStackTrace();
 			totalTime = -1;
