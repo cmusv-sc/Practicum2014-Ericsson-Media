@@ -62,7 +62,9 @@ public class ProcessingNode extends AbstractNode{
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					receiveProcessAndSend(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+					runningMap.put(streamSpec.StreamId, thread);
+					WarpThreadPool.executeCached(thread);
 				} catch (UnknownHostException e1) {
 					e1.printStackTrace();
 				}
@@ -79,20 +81,6 @@ public class ProcessingNode extends AbstractNode{
 				break;
 			}
 		}	
-	}
-
-	
-	/**
-	 * Start to receive packets from a stream and report to the management layer
-	 * @param streamId
-	 * @param msgBusClient
-	 */
-	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
-
-		ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory);
-		runningMap.put(streamId, thread);
-		WarpThreadPool.executeCached(thread);
-
 	}
 
 	/**
@@ -196,13 +184,13 @@ public class ProcessingNode extends AbstractNode{
 				se.printStackTrace();
 			}
 
-			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
+			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
 			boolean receiveStarted = false;
 			boolean sendStarted = false;
 			long startTime = 0;
-			int totalBytes = 0;
+			int totalBytesTransported = 0;
 
 			boolean finished = false;
 			try{
@@ -222,15 +210,13 @@ public class ProcessingNode extends AbstractNode{
 					}
 					
 					byte[] rawData = packet.getData();
-					NodePacket nodePacket = new NodePacket(rawData);
-					totalBytes += nodePacket.size();
+					NodePacket nodePacket = new NodePacket(rawData);					
+					totalBytesTransported += nodePacket.size();
 					byte[] data = nodePacket.getData();
 					process(data);
 					nodePacket.setData(data);
-					packet.setData(nodePacket.serialize());
 					
-					
-					
+					packet.setData(nodePacket.serialize());	
 					packet.setAddress(dstAddress);
 					packet.setPort(dstPort);					
 					try {
@@ -238,6 +224,7 @@ public class ProcessingNode extends AbstractNode{
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
+					
 					//Report to Master that SEND has Started
 					if(!sendStarted){
 						sendStarted = true;
@@ -246,7 +233,7 @@ public class ProcessingNode extends AbstractNode{
 						}
 					}
 					if (unitTest) {
-						System.out.println("[Processing] totalBytes processed " + totalBytes + " " + currentTime());
+						System.out.println("[Processing]" + totalBytesTransported + " " + currentTime());
 					}
 	
 					if(nodePacket.isLast()){
@@ -254,10 +241,9 @@ public class ProcessingNode extends AbstractNode{
 					}
 				}	
 			} catch(Exception e){
+				e.printStackTrace();
 			} finally{
-				this.receiveSocket.close();
-				this.sendSocket.close();
-				streamSocketMap.remove(streamId);
+				clean();
 			}
 
 			long endTime = System.currentTimeMillis();

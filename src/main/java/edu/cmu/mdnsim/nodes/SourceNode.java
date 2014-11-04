@@ -109,7 +109,8 @@ public class SourceNode extends AbstractNode {
 	private class SendRunnable implements Runnable {
 		
 		private String streamId;
-		private DatagramSocket sourceSocket = null;
+		
+		private DatagramSocket sendSocket = null;
 		private InetAddress dstAddrStr;
 		private int dstPort;
 		private int bytesToTransfer;
@@ -137,11 +138,11 @@ public class SourceNode extends AbstractNode {
 		 */
 		@Override
 		public void run() {
-			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
+			double packetPerSecond = rate / NodePacket.PACKET_MAX_LENGTH;
 			long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
 			boolean finished = false;
 			try {
-				sourceSocket = new DatagramSocket();
+				sendSocket = new DatagramSocket();
 			} catch (SocketException socketException) {
 				socketException.printStackTrace();
 			}
@@ -151,41 +152,47 @@ public class SourceNode extends AbstractNode {
 			}
 			
 			byte[] buf = null;
-			
+			int totalBytesTransported = 0;
 			int packetId = 0;
-			while (!finished && !isKilled()) {
-				
-				long begin = System.currentTimeMillis();
-				
-				NodePacket nodePacket = bytesToTransfer <= STD_DATAGRAM_SIZE ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
-				buf = nodePacket.serialize();	
-	
-				DatagramPacket packet = null;
-				try {
-					packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
-					sourceSocket.send(packet);
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-				}
-				bytesToTransfer -= packet.getLength();
-				if (unitTest) {
-					System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
-				}
-				
-				long end = System.currentTimeMillis();
-				
-				finished = (bytesToTransfer <= 0);
-				
-				long millisRemaining = millisecondPerPacket - (end - begin);
-				
-				if (millisRemaining > 0) {
+			try{
+				while (!finished && !isKilled()) {
+					
+					long begin = System.currentTimeMillis();
+					
+					NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+					buf = nodePacket.serialize();	
+		
+					DatagramPacket packet = null;
 					try {
-						Thread.sleep(millisRemaining);
-					} catch (InterruptedException ie) {
-						ie.printStackTrace();
+						packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
+						sendSocket.send(packet);
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
 					}
+					bytesToTransfer -= packet.getLength();
+					totalBytesTransported += packet.getLength();
+					if (unitTest) {
+						System.out.println("[Source] " + totalBytesTransported + " " + currentTime());
+					}
+					
+					long end = System.currentTimeMillis();
+					
+					finished = (bytesToTransfer <= 0);
+					
+					long millisRemaining = millisecondPerPacket - (end - begin);
+					
+					if (millisRemaining > 0) {
+						try {
+							Thread.sleep(millisRemaining);
+						} catch (InterruptedException ie) {
+							ie.printStackTrace();
+						}
+					}
+					packetId++;
 				}
-				packetId++;
+			} catch(Exception e){
+			} finally{
+				clean();
 			}
 			
 			if(!unitTest){
@@ -208,7 +215,8 @@ public class SourceNode extends AbstractNode {
 		 * Clean up all resources for this thread.
 		 */
 		public void clean() {
-			sourceSocket.close();
+			sendSocket.close();
+			runningMap.remove(streamId);
 		}
 		
 		private void report(EventType eventType){

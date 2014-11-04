@@ -140,7 +140,7 @@ public class SinkNode extends AbstractNode {
 		public void run() {				
 
 			long startTime = 0;
-			int totalBytes = 0;
+			int totalBytesTransported = 0;
 
 			
 			socket = streamSocketMap.get(streamId);
@@ -151,29 +151,34 @@ public class SinkNode extends AbstractNode {
 				return;
 			}
 			
-			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
+			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
 			boolean finished = false;
 			
-			while (!isKilled() && !finished) {
-				try {	
-					socket.receive(packet);
-					NodePacket nodePacket = new NodePacket(packet.getData());
-					if (startTime == 0) {
-						startTime = System.currentTimeMillis();
+			try{
+				while (!isKilled() && !finished) {
+					try {	
+						socket.receive(packet);
+						NodePacket nodePacket = new NodePacket(packet.getData());
+						if (startTime == 0) {
+							startTime = System.currentTimeMillis();
+						}
+						totalBytesTransported += packet.getLength();	
+						if (unitTest) {
+							System.out.println("[Sink] " + totalBytesTransported + " " + currentTime());		
+						}
+						
+						finished = nodePacket.isLast();
+	
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
 					}
-					totalBytes += packet.getLength();	
-					if (unitTest) {
-						System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
-					}
-					
-					finished = nodePacket.isLast();
-
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-				}
-			}	
+				}	
+			} catch(Exception e){
+			} finally{
+				clean();
+			}
 			
 			long endTime= System.currentTimeMillis();
 			
@@ -190,7 +195,7 @@ public class SinkNode extends AbstractNode {
 			}
 			
 			if(!unitTest){
-				report(startTime, endTime, totalBytes);
+				report(startTime, endTime, totalBytesTransported);
 			}
 				
 		}

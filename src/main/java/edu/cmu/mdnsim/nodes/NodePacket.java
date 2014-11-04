@@ -1,6 +1,10 @@
 package edu.cmu.mdnsim.nodes;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+
+import edu.cmu.mdnsim.exception.DataAndLengthDoNotMatchException;
+import edu.cmu.mdnsim.exception.TotalLengthShorterThanHeaderException;
 
 /**
  *
@@ -25,13 +29,17 @@ public class NodePacket {
 	private int dataLength;
 	private byte[] data;
 	
-	private static final int HEADER_LENGTH = 4 * 3;
-	private static final int PACKET_MAX_LENGTH = 1000;
+	public static final int HEADER_LENGTH = 4 * 3;
+	public static final int PACKET_MAX_LENGTH = 1000;
 	
-	public NodePacket(int flag, int packetId, int dataLength){
+	public NodePacket(int flag, int packetId, int totalLength){
+
 		this.flag = flag;
 		this.packetId = packetId;
-		dataLength = Math.min(dataLength, PACKET_MAX_LENGTH - HEADER_LENGTH);
+		int dataLength = 0;
+		if(totalLength > HEADER_LENGTH){
+			dataLength = Math.min(totalLength - HEADER_LENGTH, PACKET_MAX_LENGTH - HEADER_LENGTH);
+		}
 		this.dataLength = dataLength;
 		data = new byte[dataLength];
 	}
@@ -56,7 +64,7 @@ public class NodePacket {
 	 * @return serialized byte array of the Message
 	 */
 	public byte[] serialize(){
-		ByteBuffer byteBuffer = ByteBuffer.allocate(PACKET_MAX_LENGTH);
+		ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_LENGTH + dataLength);
 		byteBuffer.putInt(flag);
 		byteBuffer.putInt(packetId);
 		byteBuffer.putInt(dataLength);
@@ -68,24 +76,18 @@ public class NodePacket {
 	/**
 	 * Deserialize raw data to fill out Message object fields
 	 * @param rawData
-	 * @return length of the payload data
-	 *  	   -1, if the input raw data is not valid
+	 * @return length of the total length
 	 */
 	public int deserialize(byte[] rawData){
 		if(rawData.length < HEADER_LENGTH){
-			return -1;
+			throw new TotalLengthShorterThanHeaderException();
 		}
 		ByteBuffer byteBuffer = ByteBuffer.wrap(rawData, 0, HEADER_LENGTH);
 		flag = byteBuffer.getInt();
 		packetId = byteBuffer.getInt();
 		dataLength = byteBuffer.getInt();
-		
-		if(dataLength != rawData.length - HEADER_LENGTH){
-			return -1;
-		}
-		data = new byte[dataLength];
-		System.arraycopy(rawData, HEADER_LENGTH, data, 0, dataLength);
-		return rawData.length;
+		data = Arrays.copyOfRange(rawData, HEADER_LENGTH, HEADER_LENGTH + dataLength);
+		return HEADER_LENGTH + dataLength;
 	}
 	
 	public boolean isLast(){
@@ -110,13 +112,6 @@ public class NodePacket {
 
 	public int getDataLength() {
 		return dataLength;
-	}
-
-	public void setDataLength(int dataLength) {
-		if(dataLength >= 0){
-			this.dataLength = dataLength;
-			this.data = new byte[this.dataLength];
-		}
 	}
 	
 	public byte[] getData() {

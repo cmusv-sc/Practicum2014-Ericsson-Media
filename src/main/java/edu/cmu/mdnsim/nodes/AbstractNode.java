@@ -37,9 +37,6 @@ public abstract class AbstractNode {
 	/* Key: stream ID; Value: DatagramSocket */
 	protected HashMap<String, DatagramSocket> streamSocketMap;
 	
-	/* 1 kb per datagram */
-	public static final int STD_DATAGRAM_SIZE = 1000;
-	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
