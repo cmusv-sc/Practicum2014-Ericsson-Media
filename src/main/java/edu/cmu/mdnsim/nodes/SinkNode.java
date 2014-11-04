@@ -15,6 +15,7 @@ import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -23,17 +24,13 @@ import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
 	
-	/* Key: stream ID; Value: DatagramSocket */
-	private HashMap<String, DatagramSocket> streamSocketMap;
-	
-	
 	/* Key: stream ID; Value: ReceiveThread */
-	private Map<String, ReceiveThread> runningThreadMap;
+	private Map<String, ReceiveRunnable> runningThreadMap;
 	
 	public SinkNode() throws UnknownHostException {
 		super();
 		streamSocketMap = new HashMap<String, DatagramSocket>();
-		runningThreadMap = new ConcurrentHashMap<String, ReceiveThread>();
+		runningThreadMap = new ConcurrentHashMap<String, ReceiveRunnable>();
 	}
 	
 
@@ -50,7 +47,7 @@ public class SinkNode extends AbstractNode {
 			flowIndex++;
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
-				ReceiveThread rcvThread = new ReceiveThread(streamSpec.StreamId);
+				ReceiveRunnable rcvThread = new ReceiveRunnable(streamSpec.StreamId);
 				runningThreadMap.put(streamSpec.StreamId, rcvThread);
 				//Get up stream and down stream node ids
 				//As of now Sink Node does not have downstream id
@@ -75,42 +72,10 @@ public class SinkNode extends AbstractNode {
 
 	}
 	
-	/**
-	 * Creates a DatagramSocket and binds it to any available port
-	 * The streamId and the DatagramSocket are added to a 
-	 * HashMap<streamId, DatagramSocket> in the MdnSinkNode object
-	 * 
-	 * @param streamId
-	 * @return port number to which the DatagramSocket is bound to
-	 * -1 if DatagramSocket creation failed
-	 * 0 if DatagramSocket is created but is not bound to any port
-	 */
-	
-	public int bindAvailablePortToStream(String streamId) {
-	
-		if (streamSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamSocketMap.get(streamId).getPort();
-		} else {
-			DatagramSocket udpSocket = null;
-			try {
-				udpSocket = new DatagramSocket(0, super.getHostAddr());
-			} catch (SocketException e) {
-				//TODO: Handle the exception. We may consider throw this exception
-				e.printStackTrace();
-			}
-			streamSocketMap.put(streamId, udpSocket);
-			return udpSocket.getLocalPort();
-		}
-	}
-	
 	
 	public void receiveAndReportTest(String streamId){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveThread(streamId));
+		executorService.execute(new ReceiveRunnable(streamId));
 	}
 	
 	/**
@@ -124,7 +89,7 @@ public class SinkNode extends AbstractNode {
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveThread implements Runnable {
+	private class ReceiveRunnable implements Runnable {
 		
 		private String streamId;
 		private DatagramSocket socket = null;
@@ -132,7 +97,7 @@ public class SinkNode extends AbstractNode {
 		private boolean killed = false;
 		private boolean stopped = false;
 		
-		public ReceiveThread(String streamId) {
+		public ReceiveRunnable(String streamId) {
 			this.streamId = streamId;
 		}
 		
@@ -256,8 +221,11 @@ public class SinkNode extends AbstractNode {
 			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(streamSpec));
 		}
 		
-		ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
-		rcvThread.kill();
+		ReceiveRunnable thread = runningThreadMap.get(streamSpec.StreamId);
+		if(thread == null){
+			throw new TerminateTaskBeforeExecutingException();
+		}
+		thread.kill();
 		
 		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
 		
@@ -276,7 +244,7 @@ public class SinkNode extends AbstractNode {
 			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
 		}
 		
-		ReceiveThread rcvThread = runningThreadMap.get(streamSpec.StreamId);
+		ReceiveRunnable rcvThread = runningThreadMap.get(streamSpec.StreamId);
 		while (!rcvThread.isStopped());
 		rcvThread.clean();
 		runningThreadMap.remove(streamSpec.StreamId);

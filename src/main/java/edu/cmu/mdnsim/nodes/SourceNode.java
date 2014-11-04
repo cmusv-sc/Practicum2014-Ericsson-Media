@@ -15,6 +15,7 @@ import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -23,7 +24,7 @@ import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
-	private Map<String, SendThread> runningMap = new HashMap<String, SendThread>();
+	private Map<String, SendRunnable> runningMap = new HashMap<String, SendRunnable>();
 	
 	public SourceNode() throws UnknownHostException {
 		super();
@@ -32,7 +33,7 @@ public class SourceNode extends AbstractNode {
 	
 	public void sendAndReportTest(String streamId, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new SendThread(streamId, destAddrStr, destPort, bytesToTransfer, rate));
+		executorService.execute(new SendRunnable(streamId, destAddrStr, destPort, bytesToTransfer, rate));
 	}
 	
 	@Override
@@ -55,7 +56,7 @@ public class SourceNode extends AbstractNode {
 				downStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("DownstreamId"));
 				
 				try {
-					SendThread sndThread = new SendThread(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
+					SendRunnable sndThread = new SendRunnable(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
 					runningMap.put(streamSpec.StreamId, sndThread);
 					WarpThreadPool.executeCached(sndThread);
 				} catch (UnknownHostException e) {
@@ -73,8 +74,11 @@ public class SourceNode extends AbstractNode {
 			System.out.println("[DEBUG]SourceNode.terminateTask(): Source received terminate task.\n" + JSON.toJSON(streamSpec));
 		}
 		
-		SendThread sndThread = runningMap.get(streamSpec.StreamId);
-		sndThread.kill();
+		SendRunnable thread = runningMap.get(streamSpec.StreamId);
+		if(thread == null){
+			throw new TerminateTaskBeforeExecutingException();
+		}
+		thread.kill();
 		
 		releaseResource(streamSpec);
 	}
@@ -82,7 +86,7 @@ public class SourceNode extends AbstractNode {
 	@Override
 	public void releaseResource(StreamSpec streamSpec) {
 		
-		SendThread sndThread = runningMap.get(streamSpec.StreamId);
+		SendRunnable sndThread = runningMap.get(streamSpec.StreamId);
 		while (!sndThread.isStopped());
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.releaseResource(): Source starts to clean-up resource.");
@@ -102,25 +106,25 @@ public class SourceNode extends AbstractNode {
 		
 	}
 
-	private class SendThread implements Runnable {
+	private class SendRunnable implements Runnable {
 		
 		private String streamId;
+		private DatagramSocket sourceSocket = null;
 		private InetAddress dstAddrStr;
 		private int dstPort;
 		private int bytesToTransfer;
 		private int rate;
-		private DatagramSocket sourceSocket = null;
-		
+				
 		private boolean killed = false;
 		private boolean stopped = false;
 		
-		public SendThread(String streamId, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
+		public SendRunnable(String streamId, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
 			
-			SendThread.this.streamId = streamId;
-			SendThread.this.dstAddrStr = dstAddrStr;
-			SendThread.this.dstPort = dstPort;
-			SendThread.this.bytesToTransfer = bytesToTransfer;
-			SendThread.this.rate = rate;	
+			this.streamId = streamId;
+			this.dstAddrStr = dstAddrStr;
+			this.dstPort = dstPort;
+			this.bytesToTransfer = bytesToTransfer;
+			this.rate = rate;	
 		}
 		
 		/**

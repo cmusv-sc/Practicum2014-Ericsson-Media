@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -22,10 +23,7 @@ import edu.cmu.util.Utility;
 
 public class ProcessingNode extends AbstractNode{
 
-	private HashMap<String, DatagramSocket> streamSocketMap;
-
-	private Map<String, ReceiveProcessAndSendThread> runningMap = 
-			new HashMap<String, ReceiveProcessAndSendThread>();
+	private Map<String, ReceiveProcessAndSendRunnable> runningMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
 
 	public ProcessingNode() throws UnknownHostException {
 		super();
@@ -45,7 +43,10 @@ public class ProcessingNode extends AbstractNode{
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 
 				/* Open a socket for receiving data from upstream node */
-				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
+				int port = bindAvailablePortToStream(streamSpec.StreamId);
+				if(port == 0){
+					//TODO, report to the management layer, we failed to bind a port to a socket
+				}
 
 				/* Get processing parameters */
 				long processingLoop = Long.valueOf(nodePropertiesMap.get("ProcessingLoop"));
@@ -70,7 +71,7 @@ public class ProcessingNode extends AbstractNode{
 				if (nodePropertiesMap.get("UpstreamUri") != null){
 					try {
 						HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
-						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port);
 						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
@@ -81,37 +82,7 @@ public class ProcessingNode extends AbstractNode{
 		}	
 	}
 
-	/**
-	 * Creates a DatagramSocket and binds it to any available port
-	 * The streamId and the DatagramSocket are added to a 
-	 * HashMap<streamId, DatagramSocket> in the MdnSinkNode object
-	 * 
-	 * @param streamId
-	 * @return port number to which the DatagramSocket is bound to
-	 * -1 if DatagramSocket creation failed
-	 * 0 if DatagramSocket is created but is not bound to any port
-	 */
-
-	public int bindAvailablePortToStream(String streamId) {
-
-		if (streamSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamSocketMap.get(streamId).getPort();
-		} else {
-			DatagramSocket udpSocekt = null;
-			try {
-				udpSocekt = new DatagramSocket(0, super.getHostAddr());
-			} catch (SocketException e) {
-				e.printStackTrace();
-			}
-			streamSocketMap.put(streamId, udpSocekt);
-			return udpSocekt.getLocalPort();
-		}
-	}
-
+	
 	/**
 	 * Start to receive packets from a stream and report to the management layer
 	 * @param streamId
@@ -119,7 +90,7 @@ public class ProcessingNode extends AbstractNode{
 	 */
 	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 
-		ReceiveProcessAndSendThread th = new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory);
+		ReceiveProcessAndSendRunnable th = new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory);
 		runningMap.put(streamId, th);
 		WarpThreadPool.executeCached(th);
 
@@ -130,7 +101,7 @@ public class ProcessingNode extends AbstractNode{
 	 */
 	public void receiveProcessAndSendTest(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory));
+		executorService.execute(new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
 	@Override
@@ -140,8 +111,11 @@ public class ProcessingNode extends AbstractNode{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
 		}
 
-		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
-		th.kill();
+		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		if(thread == null){
+			throw new TerminateTaskBeforeExecutingException();
+		}
+		thread.kill();
 
 		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
 
@@ -159,9 +133,9 @@ public class ProcessingNode extends AbstractNode{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
-		while (!th.isStopped());
-		th.clean();
+		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		while (!thread.isStopped());
+		thread.clean();
 
 		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
 		try {
@@ -183,7 +157,7 @@ public class ProcessingNode extends AbstractNode{
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveProcessAndSendThread implements Runnable {
+	private class ReceiveProcessAndSendRunnable implements Runnable {
 
 		private String streamId;
 		private InetAddress dstAddress;
@@ -198,7 +172,7 @@ public class ProcessingNode extends AbstractNode{
 		private boolean killed = false;
 		private boolean stopped = false;
 
-		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
+		public ReceiveProcessAndSendRunnable(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
 			this.streamId = streamId;
 			this.dstAddress = destAddress;

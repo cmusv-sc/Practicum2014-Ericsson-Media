@@ -1,6 +1,8 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -32,10 +34,15 @@ public abstract class AbstractNode {
 	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
 	protected boolean unitTest = false;
 	
+	/* Key: stream ID; Value: DatagramSocket */
+	protected HashMap<String, DatagramSocket> streamSocketMap;
+	
 	/* 1 kb per datagram */
 	public static final int STD_DATAGRAM_SIZE = 1000;
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
+	
+	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
 	
 	/**
 	 * Used for reporting purposes. 
@@ -54,6 +61,8 @@ public abstract class AbstractNode {
 		 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
 		 */
 		hostAddr = java.net.InetAddress.getLocalHost();
+		
+		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
 	public void config(MessageBusClient msgBusClient, NodeType nType, String nName) throws MessageBusException {
@@ -149,5 +158,49 @@ public abstract class AbstractNode {
 	 * @param streamSpec
 	 */
 	public abstract void releaseResource(StreamSpec streamSpec);
+	
+	/**
+	 * Creates a DatagramSocket and binds it to any available port
+	 * The streamId and the DatagramSocket are added to a 
+	 * HashMap<streamId, DatagramSocket> in the MdnSinkNode object
+	 * 
+	 * @param streamId
+	 * @return port number to which the DatagramSocket is bound to
+	 * -1 if DatagramSocket creation failed
+	 * 0 if DatagramSocket is created but is not bound to any port
+	 */
+
+	public int bindAvailablePortToStream(String streamId) {
+
+		if (streamSocketMap.containsKey(streamId)) {
+			// TODO handle potential error condition. We may consider throw this exception
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
+			}
+			return streamSocketMap.get(streamId).getPort();
+		} else {
+			
+			DatagramSocket udpSocket = null;
+			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
+				try {
+					udpSocket = new DatagramSocket(0, getHostAddr());
+				} catch (SocketException e) {
+					if (ClusterConfig.DEBUG) {
+						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
+					}
+					e.printStackTrace();
+					continue;
+				}
+				break;
+			}
+			
+			if(udpSocket == null){
+				return -1;
+			}
+			
+			streamSocketMap.put(streamId, udpSocket);
+			return udpSocket.getLocalPort();
+		}
+	}
 
 }
