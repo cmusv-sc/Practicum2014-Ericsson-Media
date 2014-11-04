@@ -29,6 +29,10 @@ public class SourceProcessAndSinkTest {
 		int packageSize = 3000;
 		int rate = 1000;
 	
+		sinkNode.setUnitTest(true);
+		processingNode.setUnitTest(true);
+		sourceNode.setUnitTest(true);
+
 		sinkNode.receiveAndReportTest(streamId);
 		processingNode.receiveProcessAndSendTest(streamId, sinkAddress, sinkPort,processingLoop, processingSpaceInByte);
 		sourceNode.sendAndReportTest(streamId, processingAddress, processingPort, packageSize, rate);	

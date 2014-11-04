@@ -23,13 +23,6 @@ import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
-	/**
-	 * This instance variable is used to control whether print out info which 
-	 * is used in Hao's unit test.
-	 */
-	private boolean UNIT_TEST = false;
-	
-	
 	private Map<String, SendThread> runningMap = new HashMap<String, SendThread>();
 	
 	public SourceNode() throws UnknownHostException {
@@ -108,7 +101,7 @@ public class SourceNode extends AbstractNode {
 
 		
 	}
-	
+
 	private class SendThread implements Runnable {
 		
 		private String streamId;
@@ -149,7 +142,9 @@ public class SourceNode extends AbstractNode {
 				socketException.printStackTrace();
 			}
 			
-			report(EventType.SEND_START);
+			if(!unitTest){
+				report(EventType.SEND_START);
+			}
 			
 			byte[] buf = null;
 			
@@ -168,7 +163,7 @@ public class SourceNode extends AbstractNode {
 					ioe.printStackTrace();
 				}
 				bytesToTransfer -= packet.getLength();
-				if (UNIT_TEST) {
+				if (unitTest) {
 					System.out.println("[Source] " + bytesToTransfer + " " + currentTime());
 				}
 				
@@ -187,7 +182,9 @@ public class SourceNode extends AbstractNode {
 				}
 			}
 			
-			report(EventType.SEND_END);
+			if(!unitTest){
+				report(EventType.SEND_END);
+			}
 			
 			if (ClusterConfig.DEBUG) {
 				if (finished) {

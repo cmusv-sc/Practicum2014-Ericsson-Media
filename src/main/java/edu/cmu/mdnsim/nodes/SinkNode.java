@@ -23,12 +23,6 @@ import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode {
 	
-	/**
-	 * This instance variable is used to control whether print out info which 
-	 * is used in Hao's unit test.
-	 */
-	private boolean UNIT_TEST = false;
-	
 	/* Key: stream ID; Value: DatagramSocket */
 	private HashMap<String, DatagramSocket> streamSocketMap;
 	
@@ -170,7 +164,7 @@ public class SinkNode extends AbstractNode {
 						startTime = System.currentTimeMillis();
 					}
 					totalBytes += packet.getLength();	
-					if (UNIT_TEST) {
+					if (unitTest) {
 						System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
 					}
 					
@@ -194,8 +188,10 @@ public class SinkNode extends AbstractNode {
 					System.err.println("[DEBUG]SinkNode.ReceiveThread.run(): Unexpected.");
 				}
 			}
-			//Report when done receiving data for this stream
-			report(startTime, endTime, totalBytes);
+			
+			if(!unitTest){
+				report(startTime, endTime, totalBytes);
+			}
 				
 		}
 		
@@ -271,10 +267,6 @@ public class SinkNode extends AbstractNode {
 			e.printStackTrace();
 		}
 		
-	}
-
-	public void setUnitTest(boolean unitTest) {
-		this.UNIT_TEST = unitTest;
 	}
 
 

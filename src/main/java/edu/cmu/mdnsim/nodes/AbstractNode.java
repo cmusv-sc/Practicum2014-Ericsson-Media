@@ -28,6 +28,10 @@ public abstract class AbstractNode {
 	
 	private boolean registered = false;
 	
+	
+	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
+	protected boolean unitTest = false;
+	
 	/* 1 kb per datagram */
 	public static final int STD_DATAGRAM_SIZE = 1000;
 	
@@ -110,6 +114,10 @@ public abstract class AbstractNode {
 	
 	public synchronized boolean isRegistered() {
 		return registered;
+	}
+	
+	public void setUnitTest(boolean unitTest){
+		this.unitTest = unitTest;
 	}
 
 	/**

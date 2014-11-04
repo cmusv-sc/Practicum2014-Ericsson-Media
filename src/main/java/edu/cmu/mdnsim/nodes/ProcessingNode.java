@@ -24,8 +24,6 @@ public class ProcessingNode extends AbstractNode{
 
 	private HashMap<String, DatagramSocket> streamSocketMap;
 
-	private boolean UNIT_TEST = false;
-
 	private Map<String, ReceiveProcessAndSendThread> runningMap = 
 			new HashMap<String, ReceiveProcessAndSendThread>();
 
@@ -243,7 +241,9 @@ public class ProcessingNode extends AbstractNode{
 						startTime = System.currentTimeMillis();
 						receiveStarted = true;
 						//Report to Master that RECEIVE has Started
-						report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+						if(!unitTest){
+							report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+						}
 					}
 					byte[] data = packet.getData();
 					totalBytes += packet.getLength();
@@ -257,10 +257,11 @@ public class ProcessingNode extends AbstractNode{
 					//Report to Master that SEND has Started
 					if(!sendStarted){
 						sendStarted = true;
-						report(System.currentTimeMillis(),downStreamNodes.get(streamId),
-								EventType.SEND_START);
+						if(!unitTest){
+							report(System.currentTimeMillis(),downStreamNodes.get(streamId), EventType.SEND_START);
+						}
 					}
-					if (UNIT_TEST) {
+					if (unitTest) {
 						System.out.println("[Processing] totalBytes processed " + totalBytes + " " + currentTime());
 					}
 
@@ -275,7 +276,7 @@ public class ProcessingNode extends AbstractNode{
 
 			long endTime = System.currentTimeMillis();
 
-			if (!UNIT_TEST) {
+			if (!unitTest) {
 				//TODO: How to figure out that RECEIVE has ended?
 				//Report to Master that SEND has Ended
 				report(endTime, downStreamNodes.get(streamId), EventType.SEND_END);
@@ -351,9 +352,4 @@ public class ProcessingNode extends AbstractNode{
 			streamSocketMap.remove(streamId);
 		}
 	}
-
-	public void setUnitTest() {
-		UNIT_TEST = true;
-	}
-
 }
