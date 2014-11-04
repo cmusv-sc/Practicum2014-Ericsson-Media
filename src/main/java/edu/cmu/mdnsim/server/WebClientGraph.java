@@ -81,12 +81,22 @@ public class WebClientGraph {
 		 * Used to display tooltip when mouse hovered over the edge. Can have html tags.
 		 */
 		public String tag;
-		public Edge(String id, String source, String target, String type, String tag){
+		/**
+		 * Indicates the stream status
+		 */
+		public String color;
+		/**
+		 * size of edge in numbers (it is relative size)
+		 */
+		public int size;
+		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;
 			this.source = source;
 			this.target = target;
 			this.type = type;
 			this.tag = tag;
+			this.color = edgeColor;
+			this.size = size;
 		}
 	}
 	
@@ -188,7 +198,7 @@ public class WebClientGraph {
 	public NodeLocation getNewNodeLocation(){
 		NodeLocation nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));		
 		while(this.nodeLocations.contains(nl)){
-			nl = new NodeLocation(Math.random(),Math.random());
+			nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));
 		}
 		this.nodeLocations.add(nl);
 		return nl;

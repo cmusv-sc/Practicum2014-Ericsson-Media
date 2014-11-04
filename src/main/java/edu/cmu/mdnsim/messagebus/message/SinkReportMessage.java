@@ -4,7 +4,22 @@ public class SinkReportMessage extends MbMessage {
 	
 	String streamId;
 	int totalBytes;
-	String endTime;
+	String endTime; // Indicates time (start or end) of any type of operation
+	/**
+	 * Indicates time when the event occurred.
+	 * If event is start sending/receiving then it indicates start time.
+	 * If event is done sending/receiving then it indicates end time. 
+	 */
+	String time; 
+	/**
+	 * Indicate what event occurred which triggered sending of report message
+	 */
+	private EventType eventType;
+	/**
+	 * It can be either node which is sending data to this node 
+	 * or node which is receiving data from this node
+	 */
+	private String destinationNodeId;
 
 	public SinkReportMessage() {
 		streamId = "";
@@ -25,11 +40,27 @@ public class SinkReportMessage extends MbMessage {
 		this.totalBytes = totalBytes;
 	}
 	
-	public String getEndTime() {
-		return endTime;
+	public String getTime() {
+		return time;
 	}
-	public void setEndTime(String endTime) {
-		this.endTime = endTime;
+	public void setTime(String time) {
+		this.time = time;
+	}
+
+	public EventType getEventType() {
+		return eventType;
+	}
+
+	public void setEventType(EventType eventType) {
+		this.eventType = eventType;
+	}
+
+	public String getDestinationNodeId() {
+		return destinationNodeId;
+	}
+
+	public void setDestinationNodeId(String destinationNodeId) {
+		this.destinationNodeId = destinationNodeId;
 	}
 	
 }

@@ -17,6 +17,7 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.util.Utility;
 
@@ -51,19 +52,24 @@ public class SinkNode extends AbstractNode {
 		
 		int flowIndex = -1;
 
-		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
+		for (HashMap<String, String> nodePropertiesMap : streamSpec.Flow) {
 			flowIndex++;
-			if (currentFlow.get("NodeId").equals(getNodeName())) {
+			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
 				ReceiveThread rcvThread = new ReceiveThread(streamSpec.StreamId);
 				runningThreadMap.put(streamSpec.StreamId, rcvThread);
+				//Get up stream and down stream node ids
+				//As of now Sink Node does not have downstream id
+				upStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("UpstreamId"));
+				//downStreamNodes.put(streamSpec.StreamId, nodeProperties.get("DownstreamId"));
+				
 				WarpThreadPool.executeCached(rcvThread);
 				
 				if (flowIndex+1 < streamSpec.Flow.size()) {
 					HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
 					upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
 					try {
-						msgBusClient.send("/tasks", currentFlow.get("UpstreamUri") + "/tasks", "PUT", streamSpec);
+						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri") + "/tasks", "PUT", streamSpec);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					}
@@ -127,9 +133,6 @@ public class SinkNode extends AbstractNode {
 	private class ReceiveThread implements Runnable {
 		
 		private String streamId;
-		private int totalBytes = 0;
-		private long startTime = 0;
-		private long totalTime = 0;
 		private DatagramSocket socket = null;
 
 		private boolean killed = false;
@@ -191,7 +194,7 @@ public class SinkNode extends AbstractNode {
 					System.err.println("[DEBUG]SinkNode.ReceiveThread.run(): Unexpected.");
 				}
 			}
-			
+			//Report when done receiving data for this stream
 			report(startTime, endTime, totalBytes);
 				
 		}
@@ -201,7 +204,9 @@ public class SinkNode extends AbstractNode {
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
 			sinkReportMsg.setStreamId(streamId);
 			sinkReportMsg.setTotalBytes(totalBytes);
-			sinkReportMsg.setEndTime(Utility.millisecondTimeToString(endTime));
+			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
+			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(streamId));
+			sinkReportMsg.setEventType(EventType.RECEIVE_END);
 			
 			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
 			

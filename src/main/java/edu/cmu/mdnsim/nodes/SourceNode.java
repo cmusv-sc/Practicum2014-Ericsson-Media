@@ -17,6 +17,7 @@ import com.ericsson.research.warp.util.WarpThreadPool;
 import edu.cmu.mdnsim.config.StreamSpec;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.util.Utility;
 
@@ -47,14 +48,19 @@ public class SourceNode extends AbstractNode {
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.executeTask(): Source received a work specification.");
 		}
-		for (HashMap<String, String> currentFlow : streamSpec.Flow) {
+		for (HashMap<String, String> nodePropertiesMap : streamSpec.Flow) {
 
-			if (currentFlow.get("NodeId").equals(getNodeName())) {
-				String[] ipAndPort = currentFlow.get("ReceiverIpPort").split(":");
+			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
+				String[] ipAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
 				String destAddrStr = ipAndPort[0];
 				int destPort = Integer.parseInt(ipAndPort[1]);
 				int dataSize = Integer.parseInt(streamSpec.DataSize);
 				int rate = Integer.parseInt(streamSpec.ByteRate);
+				//Get up stream and down stream node ids
+				//As of now Source Node does not have upstream id
+				//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
+				downStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("DownstreamId"));
+				
 				try {
 					SendThread sndThread = new SendThread(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
 					runningMap.put(streamSpec.StreamId, sndThread);
@@ -134,21 +140,16 @@ public class SourceNode extends AbstractNode {
 		 */
 		@Override
 		public void run() {
-
 			double packetPerSecond = rate / STD_DATAGRAM_SIZE;
 			long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
-			
 			boolean finished = false;
-			
-			
 			try {
 				sourceSocket = new DatagramSocket();
 			} catch (SocketException socketException) {
 				socketException.printStackTrace();
 			}
 			
-			
-			report();
+			report(EventType.SEND_START);
 			
 			byte[] buf = null;
 			
@@ -184,10 +185,9 @@ public class SourceNode extends AbstractNode {
 						ie.printStackTrace();
 					}
 				}
-				
 			}
-
 			
+			report(EventType.SEND_END);
 			
 			if (ClusterConfig.DEBUG) {
 				if (finished) {
@@ -198,9 +198,7 @@ public class SourceNode extends AbstractNode {
 							+ " This thread has been killed(not finished yet).");
 				}
 			}
-			
 			stop();
-			
 		}
 		
 		/**
@@ -210,7 +208,7 @@ public class SourceNode extends AbstractNode {
 			sourceSocket.close();
 		}
 		
-		private void report(){
+		private void report(EventType eventType){
 			
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SourceNode.SendDataThread.run(): " + "Source will start sending data. " + "Record satrt time and report to master");
@@ -218,7 +216,10 @@ public class SourceNode extends AbstractNode {
 			SourceReportMessage srcReportMsg = new SourceReportMessage();
 			srcReportMsg.setStreamId(streamId);
 			srcReportMsg.setTotalBytesTransferred(bytesToTransfer);
-			srcReportMsg.setStartTime(Utility.currentTime());	
+			srcReportMsg.setTime(Utility.currentTime());	
+			srcReportMsg.setDestinationNodeId(downStreamNodes.get(streamId));
+			srcReportMsg.setEventType(eventType);
+			
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
 			try {
 				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);

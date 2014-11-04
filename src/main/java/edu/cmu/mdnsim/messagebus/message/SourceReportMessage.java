@@ -4,8 +4,22 @@ public class SourceReportMessage extends MbMessage {
 
 	String streamId;
 	int totalBytesTransferred;
-	String startTime;
-
+	/**
+	 * Indicates time when the event occurred.
+	 * If event is start sending then it indicates start time.
+	 * If event is done sending then it indicates end time. 
+	 */
+	String time; 
+	/**
+	 * Indicate what event occurred which triggered sending of report message
+	 */
+	private EventType eventType;
+	/**
+	 * It can be either node which is sending data to this node 
+	 * or node which is receiving data from this node
+	 */
+	private String destinationNodeId;
+	
 	public SourceReportMessage() {
 		super();
 		streamId = "";
@@ -26,10 +40,26 @@ public class SourceReportMessage extends MbMessage {
 		this.totalBytesTransferred = totalBytesTransferred;
 	}
 	
-	public String getStartTime() {
-		return startTime;
+	public String getTime() {
+		return time;
 	}
-	public void setStartTime(String startTime) {
-		this.startTime = startTime;
+	public void setTime(String time) {
+		this.time = time;
+	}
+
+	public EventType getEventType() {
+		return eventType;
+	}
+
+	public void setEventType(EventType eventType) {
+		this.eventType = eventType;
+	}
+
+	public String getDestinationNodeId() {
+		return destinationNodeId;
+	}
+
+	public void setDestinationNodeId(String destinationNodeId) {
+		this.destinationNodeId = destinationNodeId;
 	}
 }

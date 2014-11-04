@@ -17,7 +17,7 @@
 		  "NodeType":"PROCESSING",
 		  "NodeId":"tomato:processing1",
 		  "UpstreamId":"orange:source1",
-		  "ProcessingLoop":"10000",
+		  "ProcessingLoop":"100000",
 		  "ProcessingMemory":"1000"
 		},
 		{

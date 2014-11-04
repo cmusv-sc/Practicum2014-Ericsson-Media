@@ -3,7 +3,7 @@
 "StreamSpecList":
   [
 	{
-	  "StreamId":"stream1234",
+	  "StreamId":"stream123",
 	  "DataSize":"20000000",
 	  "ByteRate":"625000",
 	  "Flow":

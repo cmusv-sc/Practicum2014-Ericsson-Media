@@ -1,4 +1,4 @@
-//Required for custom edge rendering
+//Required for custom edge rendering - works only with canvas renderer
 sigma.utils.pkg('sigma.canvas.edges');
 /**
  * The following function defines new type of edge render. 
@@ -62,9 +62,7 @@ var cam = null;
  */
 function createGraph(initial_data){
 	if(s){
-		s.graph.clear();
-		s.graph.read(initial_data);
-		s.refresh();  
+		refreshGraph(initial_data);		
 	}else{
 		s = new sigma({
 			graph: initial_data
@@ -74,8 +72,7 @@ function createGraph(initial_data){
 			container: $("#svg")[0],
 			type: 'svg',
 			camera: cam
-		});
-		// Refresh the instance to refresh the new svg renderer
+		});		
 		s.refresh();
 	}
 	attachNodeEvents();
@@ -94,9 +91,9 @@ function attachNodeEvents(){
 		var y = e.pageY - this.offsetTop;
 		if(s.graph.nodes(nodeId).tag){
 			$("<p id=p"+nodeId+" class='tooltip'></p>")
-				.text(s.graph.nodes(nodeId).tag)
-				.appendTo('body')
-				.fadeIn('slow');
+			.text(s.graph.nodes(nodeId).tag)
+			.appendTo('body')
+			.fadeIn('slow');
 			$('#p' + jq(nodeId)).css({ top: y, left: x });
 		}
 	},function(e){
@@ -140,27 +137,57 @@ function refreshGraph(updated_data){
 //	"nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
 //	{"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
 //	{"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}]};
+	//console.log(updated_data);
+	var nodes = updated_data.nodes;
+	var edges = updated_data.edges;	
+	updated_data = {"nodes":nodes,"edges":edges};
+	//console.log(updated_data);
 	//TODO: Find out way to update the graph without refreshing the entire graph
-	s.graph.clear();
-	s.graph.read(updated_data);
-	s.refresh();  
+	
+	if(s != null){
+		
+		s.graph.clear();
+		for(var i=0; i<nodes.length; i++){			
+			s.graph.addNode(nodes[i]);
+		}		
+		for(var i=0; i<edges.length; i++){			
+			//console.log(edges[i]);			
+			s.graph.addEdge(edges[i]);
+			//console.log($( "line[data-edge-id='"+edges[i].id+"']" ));
+			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
+		}
+		//s.graph.read(updated_data);		
+		//s.refresh();   
+		attachNodeEvents();
+		attachEdgeEvents();
+	}else{
+		createGraph(updated_data);
+	}
 }
 /**
  * Called on click of start button. 
- * It reads the files at path specified in file input box and sends them to Master Node.
- * TODO: Input validation (like file exists or not, valid file type)
+ * It reads the files at path specified in file input box and sends them to Master Node. 
  */
 function startSimulation(){
 	console.log("startSimulation");
 	Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: "start"});
 }
-
+/**
+ * Called on click of stop button
+ */
+function stopSimulation(){
+	console.log("stopSimulation");
+	Warp.send({to: "warp://cmu-sv:mdn-manager/simulations",data: "stop"});
+}
+/**
+ * Whenever new input file is selected, it asks Master to create/update the simulation parameters
+ * @param evt
+ */
 function handleWsFileSelect(evt) {
 	var files = evt.target.files; // FileList object
-	// Loop through the FileList and render image files as thumbnails.
+	// Loop through the FileList 
 	for (var i = 0, f; f = files[i]; i++) {
 		var reader = new FileReader();
-
 		// Closure to capture the file information.
 		reader.onload = (function(theFile) {
 			return function(e) {
@@ -168,8 +195,7 @@ function handleWsFileSelect(evt) {
 				console.log("Hello from handleWsFileSelect");
 			};
 		})(f);
-
-		// Read in the image file as a data URL.
+		//Read the file
 		reader.readAsBinaryString(f);
 	}
 }
@@ -200,23 +226,31 @@ function initWarp(){
 	 * Create Resource Handler - used to initialize the graph object 
 	 */
 	Warp.at("/create").on("message", function(m) {
-		console.log("Got initial graph: " + m.object);
+		console.log("Got initial graph: ");
+		console.log(m.object);
 		createGraph(m.object);
 	});
 	/**
 	 * Update Resource Handler - used to refresh the graph to show current status
 	 */
 	Warp.at("/update").on("message", function(m) {
-		console.log("Got update: " + m.object);
+		//console.log("Got update: " );
+		//console.log(m.object);
 		refreshGraph(m.object);
+		//createGraph(m.object);
 	});
 }
+/**
+ * Init function
+ */
 $(document).ready(function() {
 	initWarp();
 	$("#btnStart").click(function(e){
 		startSimulation();
-	});
-	
+	});	
+	$("#btnStop").click(function(e){
+		stopSimulation();
+	});	
 	document.getElementById('wsinput').onchange = function(event) {
 		handleWsFileSelect(event);
 	};
@@ -227,5 +261,5 @@ $(document).ready(function() {
  * @returns {String}
  */
 function jq( myid ) {	 
-    return myid.replace( /(:|\.|\[|\])/g, "\\$1" ); 
+	return myid.replace( /(:|\.|\[|\])/g, "\\$1" ); 
 }

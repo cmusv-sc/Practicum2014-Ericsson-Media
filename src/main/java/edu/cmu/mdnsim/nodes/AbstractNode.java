@@ -5,7 +5,9 @@ import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import com.ericsson.research.warp.api.message.Message;
 
@@ -31,6 +33,17 @@ public abstract class AbstractNode {
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
+	/**
+	 * Used for reporting purposes. 
+	 * Key = Stream Id, Value = UpStreamNodeId
+	 */
+	protected Map<String,String> upStreamNodes = new HashMap<String,String>();
+	/**
+	 * Used for reporting purposes.
+	 * Key = Stream Id, Value = DownStreamNodeId
+	 */
+	protected Map<String,String> downStreamNodes = new HashMap<String,String>();
+	
 	public AbstractNode() throws UnknownHostException {
 		/* 
 		 * Note: This may not be sufficient for proper DNS resolution
@@ -45,7 +58,7 @@ public abstract class AbstractNode {
 		
 		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", 
 				this, "executeTask");
-		
+		//TODO: The resource names and method need to be properly named 
 		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "POST", 
 				this, "terminateTask");
 		
