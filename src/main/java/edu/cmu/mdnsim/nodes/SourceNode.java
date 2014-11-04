@@ -152,12 +152,13 @@ public class SourceNode extends AbstractNode {
 			
 			byte[] buf = null;
 			
+			int packetId = 0;
 			while (!finished && !isKilled()) {
 				
 				long begin = System.currentTimeMillis();
 				
-				buf = new byte[bytesToTransfer <= STD_DATAGRAM_SIZE ? bytesToTransfer : STD_DATAGRAM_SIZE];
-				buf[0] = (byte) (bytesToTransfer <= STD_DATAGRAM_SIZE ? 0 : 1);	
+				NodePacket nodePacket = bytesToTransfer <= STD_DATAGRAM_SIZE ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+				buf = nodePacket.serialize();	
 	
 				DatagramPacket packet = null;
 				try {
@@ -184,6 +185,7 @@ public class SourceNode extends AbstractNode {
 						ie.printStackTrace();
 					}
 				}
+				packetId++;
 			}
 			
 			if(!unitTest){
@@ -244,8 +246,5 @@ public class SourceNode extends AbstractNode {
 		private synchronized boolean isStopped() {
 			return stopped;
 		}
-	}
-
-
-	
+	}	
 }

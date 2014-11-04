@@ -69,18 +69,13 @@ public abstract class AbstractNode {
 		this.msgBusClient = msgBusClient;
 		nodeName = nName;
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", 
-				this, "executeTask");
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", this, "executeTask");
 		//TODO: The resource names and method need to be properly named 
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "POST", 
-				this, "terminateTask");
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "POST", this, "terminateTask");
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "DELETE",
-				this, "releaseResource");
+		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "DELETE", this, "releaseResource");
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/confirm_node", 
-				"PUT", this, "setRegistered");
-		
+		msgBusClient.addMethodListener("/" + getNodeName() + "/confirm_node", "PUT", this, "setRegistered");
 	}
 	
 	public void register() {
@@ -107,8 +102,7 @@ public abstract class AbstractNode {
 	}	
 
 	public String currentTime(){
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", 
-				Locale.US);
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		Date date = new Date();
 		return dateFormat.format(date);
 	}
@@ -116,8 +110,7 @@ public abstract class AbstractNode {
 	public synchronized void setRegistered(Message msg) {
 		registered = true;
 		if (ClusterConfig.DEBUG) {
-			System.out.println("AbstractNode.setRegistered(): " + getNodeName() 
-					+ " successfully registered");
+			System.out.println("AbstractNode.setRegistered(): " + getNodeName() + " successfully registered");
 		}
 	}
 	

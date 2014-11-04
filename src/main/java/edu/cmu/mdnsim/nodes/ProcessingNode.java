@@ -27,7 +27,6 @@ public class ProcessingNode extends AbstractNode{
 
 	public ProcessingNode() throws UnknownHostException {
 		super();
-		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 
 
@@ -90,9 +89,9 @@ public class ProcessingNode extends AbstractNode{
 	 */
 	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 
-		ReceiveProcessAndSendRunnable th = new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory);
-		runningMap.put(streamId, th);
-		WarpThreadPool.executeCached(th);
+		ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory);
+		runningMap.put(streamId, thread);
+		WarpThreadPool.executeCached(thread);
 
 	}
 
@@ -160,14 +159,14 @@ public class ProcessingNode extends AbstractNode{
 	private class ReceiveProcessAndSendRunnable implements Runnable {
 
 		private String streamId;
-		private InetAddress dstAddress;
-		private int dstPort;
+		
+		private DatagramSocket receiveSocket;
+		
 		private long processingLoop;
 		private int processingMemory;
-
-		private DatagramSocket receiveSocket = null;
-		private DatagramSocket sendSocket = null;
-
+		private InetAddress dstAddress;
+		private int dstPort;
+		private DatagramSocket sendSocket;
 
 		private boolean killed = false;
 		private boolean stopped = false;
@@ -197,7 +196,6 @@ public class ProcessingNode extends AbstractNode{
 				se.printStackTrace();
 			}
 
-
 			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
@@ -207,10 +205,13 @@ public class ProcessingNode extends AbstractNode{
 			int totalBytes = 0;
 
 			boolean finished = false;
-
-			while (!finished && !isKilled()) {
-				try {
-					receiveSocket.receive(packet);
+			try{
+				while (!finished && !isKilled()) {
+					try {
+						receiveSocket.receive(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 					if(!receiveStarted) {
 						startTime = System.currentTimeMillis();
 						receiveStarted = true;
@@ -219,15 +220,24 @@ public class ProcessingNode extends AbstractNode{
 							report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
 						}
 					}
-					byte[] data = packet.getData();
-					totalBytes += packet.getLength();
-					System.out.println("Processing Started");
+					
+					byte[] rawData = packet.getData();
+					NodePacket nodePacket = new NodePacket(rawData);
+					totalBytes += nodePacket.size();
+					byte[] data = nodePacket.getData();
 					process(data);
-					System.out.println("Processing Ended");
-					packet.setData(data);
+					nodePacket.setData(data);
+					packet.setData(nodePacket.serialize());
+					
+					
+					
 					packet.setAddress(dstAddress);
 					packet.setPort(dstPort);					
-					sendSocket.send(packet);
+					try {
+						sendSocket.send(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 					//Report to Master that SEND has Started
 					if(!sendStarted){
 						sendStarted = true;
@@ -238,15 +248,17 @@ public class ProcessingNode extends AbstractNode{
 					if (unitTest) {
 						System.out.println("[Processing] totalBytes processed " + totalBytes + " " + currentTime());
 					}
-
-					if (packet.getData()[0] == 0) {
+	
+					if(nodePacket.isLast()){
 						finished = true;
 					}
-
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-				}
-			}	
+				}	
+			} catch(Exception e){
+			} finally{
+				this.receiveSocket.close();
+				this.sendSocket.close();
+				streamSocketMap.remove(streamId);
+			}
 
 			long endTime = System.currentTimeMillis();
 
@@ -256,19 +268,13 @@ public class ProcessingNode extends AbstractNode{
 				report(endTime, downStreamNodes.get(streamId), EventType.SEND_END);
 			}
 
-			if (finished) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
-							+ "Processing node has finished simulation." );
-				}
-				clean();
-			} else if (isKilled()) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
-							+ "Processing node has been killed (not finished yet)." );
+			if (ClusterConfig.DEBUG) {
+				if(finished){
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
+				} else if(isKilled()){
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
 				}
 			}
-
 			stop();
 		}
 

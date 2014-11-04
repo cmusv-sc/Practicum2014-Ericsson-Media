@@ -25,12 +25,10 @@ import edu.cmu.util.Utility;
 public class SinkNode extends AbstractNode {
 	
 	/* Key: stream ID; Value: ReceiveThread */
-	private Map<String, ReceiveRunnable> runningThreadMap;
+	private Map<String, ReceiveRunnable> runningThreadMap = new ConcurrentHashMap<String, ReceiveRunnable>();
 	
 	public SinkNode() throws UnknownHostException {
 		super();
-		streamSocketMap = new HashMap<String, DatagramSocket>();
-		runningThreadMap = new ConcurrentHashMap<String, ReceiveRunnable>();
 	}
 	
 
@@ -76,6 +74,42 @@ public class SinkNode extends AbstractNode {
 	public void receiveAndReportTest(String streamId){
 		ExecutorService executorService = Executors.newCachedThreadPool();
 		executorService.execute(new ReceiveRunnable(streamId));
+	}
+	
+	@Override
+	public void terminateTask(StreamSpec streamSpec) {
+		
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(streamSpec));
+		}
+		
+		ReceiveRunnable thread = runningThreadMap.get(streamSpec.StreamId);
+		if(thread == null){
+			throw new TerminateTaskBeforeExecutingException();
+		}
+		thread.kill();
+		
+		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		
+		try {
+			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
+		} catch (MessageBusException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+
+	@Override
+	public void releaseResource(StreamSpec streamSpec) {
+		if (ClusterConfig.DEBUG) {
+			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
+		}
+		
+		ReceiveRunnable rcvThread = runningThreadMap.get(streamSpec.StreamId);
+		while (!rcvThread.isStopped());
+		rcvThread.clean();
+		runningThreadMap.remove(streamSpec.StreamId);
 	}
 	
 	/**
@@ -125,6 +159,7 @@ public class SinkNode extends AbstractNode {
 			while (!isKilled() && !finished) {
 				try {	
 					socket.receive(packet);
+					NodePacket nodePacket = new NodePacket(packet.getData());
 					if (startTime == 0) {
 						startTime = System.currentTimeMillis();
 					}
@@ -133,7 +168,7 @@ public class SinkNode extends AbstractNode {
 						System.out.println("[Sink] " + totalBytes + " bytes received at " + currentTime());		
 					}
 					
-					finished = (packet.getData()[0] == 0);
+					finished = nodePacket.isLast();
 
 				} catch (IOException ioe) {
 					ioe.printStackTrace();
@@ -212,45 +247,5 @@ public class SinkNode extends AbstractNode {
 			socket.close();
 			streamSocketMap.remove(streamId);
 		}
-	}
-
-	@Override
-	public void terminateTask(StreamSpec streamSpec) {
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(streamSpec));
-		}
-		
-		ReceiveRunnable thread = runningThreadMap.get(streamSpec.StreamId);
-		if(thread == null){
-			throw new TerminateTaskBeforeExecutingException();
-		}
-		thread.kill();
-		
-		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
-		
-		try {
-			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
-		} catch (MessageBusException e) {
-			e.printStackTrace();
-		}
-		
-	}
-
-
-	@Override
-	public void releaseResource(StreamSpec streamSpec) {
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
-		}
-		
-		ReceiveRunnable rcvThread = runningThreadMap.get(streamSpec.StreamId);
-		while (!rcvThread.isStopped());
-		rcvThread.clean();
-		runningThreadMap.remove(streamSpec.StreamId);
-	}
-	
-
-	
-	
+	}	
 }
