@@ -2,3 +2,4 @@
 *.class
 #Ignore the target
 target/
+.metadata/
