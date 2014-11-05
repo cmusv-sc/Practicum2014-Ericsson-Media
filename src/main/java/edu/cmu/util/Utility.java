@@ -7,21 +7,21 @@ import java.util.Date;
 import java.util.Locale;
 
 public class Utility {
-
-	private static DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 	
 	public static String currentTime(){
 		Date date = new Date();
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		return dateFormat.format(date);
 	}
 
-
 	public static String millisecondTimeToString(long endTime) {
 		Date date = new Date(endTime);
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		return dateFormat.format(date);
 	}
 	
 	public static long stringToMillisecondTime(String time) throws ParseException {
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		return dateFormat.parse(time).getTime();
 	}
 }
