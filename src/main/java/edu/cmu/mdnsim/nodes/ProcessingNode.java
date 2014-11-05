@@ -147,9 +147,9 @@ public class ProcessingNode extends AbstractNode{
 	private class ReceiveProcessAndSendRunnable implements Runnable {
 
 		private String streamId;
-		
+
 		private DatagramSocket receiveSocket;
-		
+
 		private long processingLoop;
 		private int processingMemory;
 		private InetAddress dstAddress;
@@ -208,14 +208,14 @@ public class ProcessingNode extends AbstractNode{
 							report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
 						}
 					}
-					
+
 					byte[] rawData = packet.getData();
 					NodePacket nodePacket = new NodePacket(rawData);					
 					totalBytesTransported += nodePacket.size();
 					byte[] data = nodePacket.getData();
 					process(data);
 					nodePacket.setData(data);
-					
+
 					packet.setData(nodePacket.serialize());	
 					packet.setAddress(dstAddress);
 					packet.setPort(dstPort);					
@@ -224,7 +224,7 @@ public class ProcessingNode extends AbstractNode{
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					
+
 					//Report to Master that SEND has Started
 					if(!sendStarted){
 						sendStarted = true;
@@ -235,7 +235,7 @@ public class ProcessingNode extends AbstractNode{
 					if (unitTest) {
 						System.out.println("[Processing]" + totalBytesTransported + " " + currentTime());
 					}
-	
+
 					if(nodePacket.isLast()){
 						finished = true;
 					}
@@ -279,7 +279,7 @@ public class ProcessingNode extends AbstractNode{
 			procReportMsg.setTime(Utility.millisecondTimeToString(time));
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
-			
+
 			String fromPath = ProcessingNode.super.getNodeName() + "/finish-rcv";
 			try {
 				msgBusClient.sendToMaster(fromPath, "/processing_report", "POST", procReportMsg);
@@ -287,9 +287,9 @@ public class ProcessingNode extends AbstractNode{
 				e.printStackTrace();
 			}
 
-//			System.out.println("[INFO] Processing Node finished at Stream-ID " + streamId 
-//					+ " Total bytes " + totalBytes + 
-//					" Total Time " + ((endTime - startTime) / 1000) + "(sec)");
+			//			System.out.println("[INFO] Processing Node finished at Stream-ID " + streamId 
+			//					+ " Total bytes " + totalBytes + 
+			//					" Total Time " + ((endTime - startTime) / 1000) + "(sec)");
 		}
 
 		public synchronized void kill() {
