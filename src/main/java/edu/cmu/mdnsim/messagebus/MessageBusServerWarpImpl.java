@@ -64,7 +64,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		try {
 			_svc.register();
 		} catch (WarpException e) {
-			throw new MessageBusException(e);			
+			throw new MessageBusException(e);
 		}
 		
 	}
