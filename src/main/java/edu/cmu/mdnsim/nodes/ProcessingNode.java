@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -22,16 +23,10 @@ import edu.cmu.util.Utility;
 
 public class ProcessingNode extends AbstractNode{
 
-	private HashMap<String, DatagramSocket> streamSocketMap;
-
-	private boolean UNIT_TEST = false;
-
-	private Map<String, ReceiveProcessAndSendThread> runningMap = 
-			new HashMap<String, ReceiveProcessAndSendThread>();
+	private Map<String, ReceiveProcessAndSendRunnable> runningMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
 
 	public ProcessingNode() throws UnknownHostException {
 		super();
-		streamSocketMap = new HashMap<String, DatagramSocket>();
 	}
 
 
@@ -47,7 +42,10 @@ public class ProcessingNode extends AbstractNode{
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 
 				/* Open a socket for receiving data from upstream node */
-				Integer port = bindAvailablePortToStream(streamSpec.StreamId);
+				int port = bindAvailablePortToStream(streamSpec.StreamId);
+				if(port == 0){
+					//TODO, report to the management layer, we failed to bind a port to a socket
+				}
 
 				/* Get processing parameters */
 				long processingLoop = Long.valueOf(nodePropertiesMap.get("ProcessingLoop"));
@@ -64,7 +62,9 @@ public class ProcessingNode extends AbstractNode{
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					receiveProcessAndSend(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+					runningMap.put(streamSpec.StreamId, thread);
+					WarpThreadPool.executeCached(thread);
 				} catch (UnknownHostException e1) {
 					e1.printStackTrace();
 				}
@@ -72,7 +72,7 @@ public class ProcessingNode extends AbstractNode{
 				if (nodePropertiesMap.get("UpstreamUri") != null){
 					try {
 						HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
-						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port);
 						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
@@ -84,55 +84,11 @@ public class ProcessingNode extends AbstractNode{
 	}
 
 	/**
-	 * Creates a DatagramSocket and binds it to any available port
-	 * The streamId and the DatagramSocket are added to a 
-	 * HashMap<streamId, DatagramSocket> in the MdnSinkNode object
-	 * 
-	 * @param streamId
-	 * @return port number to which the DatagramSocket is bound to
-	 * -1 if DatagramSocket creation failed
-	 * 0 if DatagramSocket is created but is not bound to any port
-	 */
-
-	public int bindAvailablePortToStream(String streamId) {
-
-		if (streamSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamSocketMap.get(streamId).getPort();
-		} else {
-			DatagramSocket udpSocekt = null;
-			try {
-				udpSocekt = new DatagramSocket(0, super.getHostAddr());
-			} catch (SocketException e) {
-				e.printStackTrace();
-			}
-			streamSocketMap.put(streamId, udpSocekt);
-			return udpSocekt.getLocalPort();
-		}
-	}
-
-	/**
-	 * Start to receive packets from a stream and report to the management layer
-	 * @param streamId
-	 * @param msgBusClient
-	 */
-	private void receiveProcessAndSend(String streamId,  InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
-
-		ReceiveProcessAndSendThread th = new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory);
-		runningMap.put(streamId, th);
-		WarpThreadPool.executeCached(th);
-
-	}
-
-	/**
 	 * For Unit Test
 	 */
 	public void receiveProcessAndSendTest(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveProcessAndSendThread(streamId, destAddress, dstPort, processingLoop, processingMemory));
+		executorService.execute(new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
 	@Override
@@ -142,8 +98,11 @@ public class ProcessingNode extends AbstractNode{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
 		}
 
-		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
-		th.kill();
+		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		if(thread == null){
+			throw new TerminateTaskBeforeExecutingException();
+		}
+		thread.kill();
 
 		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
 
@@ -161,9 +120,9 @@ public class ProcessingNode extends AbstractNode{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		ReceiveProcessAndSendThread th = runningMap.get(streamSpec.StreamId);
-		while (!th.isStopped());
-		th.clean();
+		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		while (!thread.isStopped());
+		thread.clean();
 
 		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
 		try {
@@ -185,22 +144,22 @@ public class ProcessingNode extends AbstractNode{
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveProcessAndSendThread implements Runnable {
+	private class ReceiveProcessAndSendRunnable implements Runnable {
 
 		private String streamId;
-		private InetAddress dstAddress;
-		private int dstPort;
+		
+		private DatagramSocket receiveSocket;
+		
 		private long processingLoop;
 		private int processingMemory;
-
-		private DatagramSocket receiveSocket = null;
-		private DatagramSocket sendSocket = null;
-
+		private InetAddress dstAddress;
+		private int dstPort;
+		private DatagramSocket sendSocket;
 
 		private boolean killed = false;
 		private boolean stopped = false;
 
-		public ReceiveProcessAndSendThread(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
+		public ReceiveProcessAndSendRunnable(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
 			this.streamId = streamId;
 			this.dstAddress = destAddress;
@@ -225,75 +184,83 @@ public class ProcessingNode extends AbstractNode{
 				se.printStackTrace();
 			}
 
-
-			byte[] buf = new byte[STD_DATAGRAM_SIZE]; 
+			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
 			boolean receiveStarted = false;
 			boolean sendStarted = false;
 			long startTime = 0;
-			int totalBytes = 0;
+			int totalBytesTransported = 0;
 
 			boolean finished = false;
-
-			while (!finished && !isKilled()) {
-				try {
-					receiveSocket.receive(packet);
+			try{
+				while (!finished && !isKilled()) {
+					try {
+						receiveSocket.receive(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 					if(!receiveStarted) {
 						startTime = System.currentTimeMillis();
 						receiveStarted = true;
 						//Report to Master that RECEIVE has Started
-						report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+						if(!unitTest){
+							report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+						}
 					}
-					byte[] data = packet.getData();
-					totalBytes += packet.getLength();
-					System.out.println("Processing Started");
+					
+					byte[] rawData = packet.getData();
+					NodePacket nodePacket = new NodePacket(rawData);					
+					totalBytesTransported += nodePacket.size();
+					byte[] data = nodePacket.getData();
 					process(data);
-					System.out.println("Processing Ended");
-					packet.setData(data);
+					nodePacket.setData(data);
+					
+					packet.setData(nodePacket.serialize());	
 					packet.setAddress(dstAddress);
 					packet.setPort(dstPort);					
-					sendSocket.send(packet);
+					try {
+						sendSocket.send(packet);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					
 					//Report to Master that SEND has Started
 					if(!sendStarted){
 						sendStarted = true;
-						report(System.currentTimeMillis(),downStreamNodes.get(streamId),
-								EventType.SEND_START);
+						if(!unitTest){
+							report(System.currentTimeMillis(),downStreamNodes.get(streamId), EventType.SEND_START);
+						}
 					}
-					if (UNIT_TEST) {
-						System.out.println("[Processing] totalBytes processed " + totalBytes + " " + currentTime());
+					if (unitTest) {
+						System.out.println("[Processing]" + totalBytesTransported + " " + currentTime());
 					}
-
-					if (packet.getData()[0] == 0) {
+	
+					if(nodePacket.isLast()){
 						finished = true;
 					}
-
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-				}
-			}	
+				}	
+			} catch(Exception e){
+				e.printStackTrace();
+			} finally{
+				clean();
+			}
 
 			long endTime = System.currentTimeMillis();
 
-			if (!UNIT_TEST) {
+			if (!unitTest) {
 				//TODO: How to figure out that RECEIVE has ended?
 				//Report to Master that SEND has Ended
 				report(endTime, downStreamNodes.get(streamId), EventType.SEND_END);
 			}
 
-			if (finished) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
-							+ "Processing node has finished simulation." );
-				}
-				clean();
-			} else if (isKilled()) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): "
-							+ "Processing node has been killed (not finished yet)." );
+			if (ClusterConfig.DEBUG) {
+				if(finished){
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
+				} else if(isKilled()){
+					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
 				}
 			}
-
 			stop();
 		}
 
@@ -351,9 +318,4 @@ public class ProcessingNode extends AbstractNode{
 			streamSocketMap.remove(streamId);
 		}
 	}
-
-	public void setUnitTest() {
-		UNIT_TEST = true;
-	}
-
 }

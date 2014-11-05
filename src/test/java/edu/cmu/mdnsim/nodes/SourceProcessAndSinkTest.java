@@ -26,9 +26,13 @@ public class SourceProcessAndSinkTest {
 		InetAddress processingAddress = processingNode.getHostAddr();
 		int processingPort = processingNode.bindAvailablePortToStream(streamId);
 		
-		int packageSize = 3000;
+		int packageSize = 3500;
 		int rate = 1000;
 	
+		sinkNode.setUnitTest(true);
+		processingNode.setUnitTest(true);
+		sourceNode.setUnitTest(true);
+
 		sinkNode.receiveAndReportTest(streamId);
 		processingNode.receiveProcessAndSendTest(streamId, sinkAddress, sinkPort,processingLoop, processingSpaceInByte);
 		sourceNode.sendAndReportTest(streamId, processingAddress, processingPort, packageSize, rate);	
