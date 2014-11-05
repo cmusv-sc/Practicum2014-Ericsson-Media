@@ -5,7 +5,7 @@ import java.net.UnknownHostException;
 
 public class SourceProcessAndSinkTest {
 
-	public static void main(String[] args){
+	public static void main(String[] args) {
 		
 		SourceNode sourceNode = null;
 		ProcessingNode processingNode = null;
@@ -18,6 +18,7 @@ public class SourceProcessAndSinkTest {
 			sinkNode = new SinkNode();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
+			return;
 		}
 		
 		String streamId = "stream-1";
