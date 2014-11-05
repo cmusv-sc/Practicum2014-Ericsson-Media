@@ -67,6 +67,8 @@ public class NodeContainer {
 			scan = PackageScanner.scan("edu.cmu.mdnsim.nodes");
 		} catch (IOException e) {
 			e.printStackTrace();
+		} if (scan == null) {
+			throw new ClassNotFoundException("No class is found in this folder");
 		}
 		
 		Class<?> objectiveNodeClass = null;
