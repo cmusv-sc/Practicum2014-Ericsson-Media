@@ -341,7 +341,7 @@ public class Master {
 						rgb = sinkRgb;
 						msg = sinkMsg;
 						sinkSet.add(nId);
-					} else if (nType.equals("PROCESSING")){						
+					} else if (nType.equals("PROCESSING")){	
 						rgb = procRgb;
 						msg = procMsg;
 						procSet.add(nId);
@@ -502,7 +502,7 @@ public class Master {
 			throws MessageBusException {
 
 		msgBusSvr.send("/", webClientURI.toString()+  "/update", "POST", webClientUpdateMessage);
-		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
+//		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 	}
 	/**
 	 * Reports sent by the Source Nodes
@@ -627,12 +627,15 @@ public class Master {
 
 	public void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
 
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.procReport(): Processing node .");
-		}
 		String nodeId = getNodeId(request);
 		//Update Node
 		if(procReport.getEventType() == EventType.RECEIVE_START){
+			
+			String info = String.format("[DEBUG]Master.precReport(): PROC node starts receiving");
+			if (ClusterConfig.DEBUG) {
+				System.out.println(info);
+			}
+			
 			System.out.println("Processing Node started processing : "+JSON.toJSON(procReport));
 			String procNodeMsg = "Processing Node started processing data for stream " + procReport.getStreamId() ;
 			//Update Node
@@ -640,6 +643,21 @@ public class Master {
 			//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
 			synchronized(n){
 				n.tag = procNodeMsg;
+			}
+		} else if (procReport.getEventType() == EventType.RECEIVE_END) {
+			String info = String.format("[DEBUG]Master.procReport(): PROC node ends receiving");
+			if (ClusterConfig.DEBUG) {
+					System.out.println(info);
+			}
+		} else if (procReport.getEventType() == EventType.SEND_END) {
+			String info = String.format("[DEBUG]Master.precReport(): PROC node ends sending");
+			if (ClusterConfig.DEBUG) {
+				System.out.println(info);
+			}
+		} else if (procReport.getEventType() == EventType.SEND_START) {
+			String info = String.format("[DEBUG]Master.precReport(): PROC node starts sending");
+			if (ClusterConfig.DEBUG) {
+				System.out.println(info);
 			}
 		}
 		//Update Edge

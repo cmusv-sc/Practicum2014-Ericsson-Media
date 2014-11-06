@@ -106,22 +106,17 @@ public class SourceNode extends AbstractNode {
 		
 	}
 
-	private class SendRunnable implements Runnable {
-		
-		private String streamId;
+	private class SendRunnable extends NodeRunnable {
 		
 		private DatagramSocket sendSocket = null;
 		private InetAddress dstAddrStr;
 		private int dstPort;
 		private int bytesToTransfer;
 		private int rate;
-				
-		private boolean killed = false;
-		private boolean stopped = false;
 		
 		public SendRunnable(String streamId, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
 			
-			this.streamId = streamId;
+			super(streamId);
 			this.dstAddrStr = dstAddrStr;
 			this.dstPort = dstPort;
 			this.bytesToTransfer = bytesToTransfer;
@@ -152,7 +147,6 @@ public class SourceNode extends AbstractNode {
 			}
 			
 			byte[] buf = null;
-			int totalBytesTransported = 0;
 			int packetId = 0;
 			try{
 				while (!finished && !isKilled()) {
@@ -169,10 +163,17 @@ public class SourceNode extends AbstractNode {
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
+					if(startedTime == 0){
+						startedTime = System.currentTimeMillis();
+					}
 					bytesToTransfer -= packet.getLength();
-					totalBytesTransported += packet.getLength();
+					
+					totalBytesSemaphore.acquire();
+					totalBytes += packet.getLength();
+					totalBytesSemaphore.release();
+					
 					if (unitTest) {
-						System.out.println("[Source] " + totalBytesTransported + " " + currentTime());
+						System.out.println("[Source] " + totalBytes + " " + currentTime());
 					}
 					
 					long end = System.currentTimeMillis();
@@ -189,8 +190,12 @@ public class SourceNode extends AbstractNode {
 						}
 					}
 					packetId++;
+					if(unitTest){
+						packetId++;
+					}
 				}
 			} catch(Exception e){
+				e.printStackTrace();
 			} finally{
 				clean();
 			}
@@ -237,22 +242,6 @@ public class SourceNode extends AbstractNode {
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			};
-		}
-		
-		private synchronized void kill() {
-			killed = true;
-		}
-		
-		private synchronized boolean isKilled() {
-			return killed;
-		}
-		
-		private synchronized void stop() {
-			stopped = true;
-		}
-		
-		private synchronized boolean isStopped() {
-			return stopped;
 		}
 	}	
 }
