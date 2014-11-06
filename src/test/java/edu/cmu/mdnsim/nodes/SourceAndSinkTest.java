@@ -14,6 +14,7 @@ public class SourceAndSinkTest {
 			sinkNode = new SinkNode();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
+			return;
 		}
 		
 		String streamId = "stream-1";

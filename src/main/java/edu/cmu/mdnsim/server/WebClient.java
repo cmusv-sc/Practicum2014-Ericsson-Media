@@ -91,7 +91,7 @@ public class WebClient {
 	 * @throws IOException
 	 * @throws TrapException
 	 */
-	public void load(WarpDomain domain) throws WarpException, IOException, TrapException{
+	public static void load(WarpDomain domain) throws WarpException, IOException, TrapException{
 		domain.getJSLibraryURI(true);
 		js = domain.getEmbeddedJSWithAuthToken(true, true);
 		

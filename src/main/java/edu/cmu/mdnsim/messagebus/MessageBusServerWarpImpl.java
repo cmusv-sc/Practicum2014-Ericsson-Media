@@ -43,7 +43,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		// Load the WebClient
 		_webClient = new WebClient();
 		try {
-			_webClient.load(_warpDomain);
+			WebClient.load(_warpDomain);
 		} catch (WarpException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -64,7 +64,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		try {
 			_svc.register();
 		} catch (WarpException e) {
-			new MessageBusException(e);
+			throw new MessageBusException(e);
 		}
 		
 	}

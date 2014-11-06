@@ -18,7 +18,10 @@ import edu.cmu.mdnsim.nodes.NodeType;
  * with label tomato, the other(source) in orange. This WorkConfig is with streamID
  * test-1. This test case simulates the simplest topology (source -> sink) in the simulator.
  * 
- * @author Jeremy Fu, Vinay Kumar Vavili, Jigar Patel, Hao Wang
+ * @author Jeremy Fu
+ * @author Vinay Kumar Vavili
+ * @author Jigar Patel
+ * @author Hao Wang
  *
  */
 public class WorkConfigTestCase implements MessageBusTestCase {
@@ -50,7 +53,7 @@ public class WorkConfigTestCase implements MessageBusTestCase {
 		flow.add(sinkInfo);
 		
 		HashMap<String, String> procInfo = new HashMap<String, String>();
-		procInfo.put("NodeType", "PROC");
+		procInfo.put("NodeType", "PROCESSING");
 		procInfo.put("NodeId", "apple:proc1");
 		procInfo.put("UpstreamId", "orange:source1");
 		procInfo.put("ProcessingLoop", "3000");
