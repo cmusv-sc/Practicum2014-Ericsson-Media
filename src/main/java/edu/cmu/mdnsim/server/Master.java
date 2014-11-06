@@ -367,7 +367,7 @@ public class Master {
 		if (webClientURI != null) {
 			try {
 				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientGraph.getUpdateMessage());
-				System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
+				//System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}

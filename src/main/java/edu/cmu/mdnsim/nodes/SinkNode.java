@@ -159,7 +159,7 @@ public class SinkNode extends AbstractNode {
 			try{
 				while (!isKilled() && !finished) {
 					try {	
-						socket.receive(packet);
+						socket.receive(packet);						
 						NodePacket nodePacket = new NodePacket(packet.getData());
 						if (startTime == 0) {
 							startTime = System.currentTimeMillis();
@@ -168,14 +168,16 @@ public class SinkNode extends AbstractNode {
 						if (unitTest) {
 							System.out.println("[Sink] " + totalBytesTransported + " " + currentTime());		
 						}
-						
+						System.out.println("[Sink] received " + totalBytesTransported + " bytes at time " + currentTime());
 						finished = nodePacket.isLast();
-	
+						if(finished)
+							System.out.println("[SINK] Finished.");
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
 					}
 				}	
 			} catch(Exception e){
+				e.printStackTrace();
 			} finally{
 				clean();
 			}
@@ -201,7 +203,7 @@ public class SinkNode extends AbstractNode {
 		}
 		
 		private void report(long startTime, long endTime, int totalBytes){
-
+			System.out.println("[SINK] Reporting to master StreamId:" + streamId);
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
 			sinkReportMsg.setStreamId(streamId);
 			sinkReportMsg.setTotalBytes(totalBytes);
@@ -249,6 +251,7 @@ public class SinkNode extends AbstractNode {
 		}
 		
 		private void clean() {
+			System.out.println("[Sink Node] Cleaning up resources");
 			socket.close();
 			streamSocketMap.remove(streamId);
 		}
