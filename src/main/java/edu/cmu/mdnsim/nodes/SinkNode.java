@@ -176,6 +176,7 @@ public class SinkNode extends AbstractNode {
 					}
 				}	
 			} catch(Exception e){
+				e.printStackTrace();
 			} finally{
 				clean();
 			}
@@ -183,7 +184,6 @@ public class SinkNode extends AbstractNode {
 			long endTime= System.currentTimeMillis();
 			
 			stop();
-			
 			if (ClusterConfig.DEBUG) {
 				if (finished) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");

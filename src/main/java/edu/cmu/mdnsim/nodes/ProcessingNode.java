@@ -7,7 +7,11 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,7 +32,6 @@ public class ProcessingNode extends AbstractNode{
 	public ProcessingNode() throws UnknownHostException {
 		super();
 	}
-
 
 	@Override
 	public void executeTask(StreamSpec streamSpec) {
@@ -62,7 +65,7 @@ public class ProcessingNode extends AbstractNode{
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamSpec.StreamId, targetAddress, targetPort, processingLoop, processingMemory);
+					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamSpec.StreamId, Integer.valueOf(streamSpec.DataSize), targetAddress, targetPort, processingLoop, processingMemory);
 					runningMap.put(streamSpec.StreamId, thread);
 					WarpThreadPool.executeCached(thread);
 				} catch (UnknownHostException e1) {
@@ -86,9 +89,9 @@ public class ProcessingNode extends AbstractNode{
 	/**
 	 * For Unit Test
 	 */
-	public void receiveProcessAndSendTest(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
+	public void receiveProcessAndSendTest(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
 		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveProcessAndSendRunnable(streamId, destAddress, dstPort, processingLoop, processingMemory));
+		executorService.execute(new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, dstPort, processingLoop, processingMemory));
 	}
 
 	@Override
@@ -147,6 +150,7 @@ public class ProcessingNode extends AbstractNode{
 	private class ReceiveProcessAndSendRunnable implements Runnable {
 
 		private String streamId;
+		private int totalData;
 		
 		private DatagramSocket receiveSocket;
 		
@@ -159,15 +163,23 @@ public class ProcessingNode extends AbstractNode{
 		private boolean killed = false;
 		private boolean stopped = false;
 
-		public ReceiveProcessAndSendRunnable(String streamId, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
+		public ReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
 			this.streamId = streamId;
+			this.totalData = totalData;
 			this.dstAddress = destAddress;
 			this.dstPort = dstPort;
 			this.processingLoop = processingLoop;
 			this.processingMemory = processingMemory;
 		}
 
+		/**
+		 * For packet lost statistical information:
+		 * When a new packet is received, there are three status:
+		 * 	NEW, this packet is with the highest id among all the received packet
+		 *  WAITING, this packet is added into waiting to be lost map when some high id packet was received
+		 *  LOST, this packet is added to the lost set by the timer in the waiting map because of time out of wating
+		 */
 		@Override
 		public void run() {
 
@@ -190,9 +202,15 @@ public class ProcessingNode extends AbstractNode{
 			boolean receiveStarted = false;
 			boolean sendStarted = false;
 			long startTime = 0;
-			int totalBytesTransported = 0;
-
 			boolean finished = false;
+			int totalBytesTransported = 0;
+			
+			/* These variables are for tracking packet lost */
+			int totalPacketNum = (int) Math.ceil(totalData / NodePacket.PACKET_MAX_LENGTH);
+			HashSet<Integer> lostPacketIdSet = new HashSet<Integer>();
+			HashMap<Integer, Timer> packetIdToTimerMap = new HashMap<Integer, Timer>();
+			int highestReceivedPacketId = -1;
+			
 			try{
 				while (!finished && !isKilled()) {
 					try {
@@ -210,7 +228,29 @@ public class ProcessingNode extends AbstractNode{
 					}
 					
 					byte[] rawData = packet.getData();
-					NodePacket nodePacket = new NodePacket(rawData);					
+					NodePacket nodePacket = new NodePacket(rawData);
+					
+					int packetId = nodePacket.getMessageId();
+					NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lostPacketIdSet, packetIdToTimerMap, packetId);
+					switch(newArrivedPacketStatus){
+						case LOST:
+							continue;
+						case WAIT:
+							Timer timer = packetIdToTimerMap.get(packetId);
+							timer.cancel();
+							packetIdToTimerMap.remove(packetId);
+							break;
+						case NEW:
+							for(int i = highestReceivedPacketId + 1; i < packetId; i++){
+								AddPacketIdToLostSetTask task = new AddPacketIdToLostSetTask(i, lostPacketIdSet);
+								Timer newTimer = new Timer();
+								newTimer.schedule(task, MAX_WAITING_TIME_IN_MILLISECOND);
+								packetIdToTimerMap.put(i, newTimer);
+							}
+							highestReceivedPacketId = packetId;
+							break;
+					}
+
 					totalBytesTransported += nodePacket.size();
 					byte[] data = nodePacket.getData();
 					process(data);
@@ -256,7 +296,17 @@ public class ProcessingNode extends AbstractNode{
 
 			if (ClusterConfig.DEBUG) {
 				if(finished){
+					try { // wait for enough time to let the timers add the lost packetId to lost set
+						Thread.sleep(MAX_WAITING_TIME_IN_MILLISECOND * 2);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
+					System.out.print("[DEBUG]ProcessingNode packet lost id:");
+					for(Integer i : lostPacketIdSet){
+						System.out.print(i + " ");
+					}
+					System.out.println();
 				} else if(isKilled()){
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
 				}
@@ -317,5 +367,38 @@ public class ProcessingNode extends AbstractNode{
 			}
 			streamSocketMap.remove(streamId);
 		}
+		
+		public NewArrivedPacketStatus getNewArrivedPacketStatus(HashSet<Integer> lostPacketIdSet, HashMap<Integer, Timer> packetIdToTimerMap, int packetId){
+			
+			if(lostPacketIdSet.contains(packetId)){
+				return NewArrivedPacketStatus.LOST;
+			} else if(packetIdToTimerMap.containsKey(packetId)){
+				return NewArrivedPacketStatus.WAIT;
+			} else{
+				return NewArrivedPacketStatus.NEW;
+			}
+		}
+		
+		/**
+		 * This task is a process that will add the packetId to the lost set.
+		 * It can be called by the timer with a scheduled delay time for the execution
+		 */
+		public class AddPacketIdToLostSetTask extends TimerTask{  
+			  
+			private int packetId;
+			private Set<Integer> set;
+			public AddPacketIdToLostSetTask(int packetId, Set<Integer> set){
+				this.packetId = packetId;
+				this.set =set;
+			}
+			@Override  
+			public void run() {  
+				set.add(packetId);
+			}  
+		} 
+	}
+	
+	public enum NewArrivedPacketStatus{
+		NEW, WAIT, LOST; 
 	}
 }

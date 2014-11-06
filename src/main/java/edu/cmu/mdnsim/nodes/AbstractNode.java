@@ -39,7 +39,11 @@ public abstract class AbstractNode {
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
+	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 5000;
+	
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
+	
+	
 	
 	/**
 	 * Used for reporting purposes. 

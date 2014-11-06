@@ -189,8 +189,12 @@ public class SourceNode extends AbstractNode {
 						}
 					}
 					packetId++;
+					if(unitTest){
+						packetId++;
+					}
 				}
 			} catch(Exception e){
+				e.printStackTrace();
 			} finally{
 				clean();
 			}
