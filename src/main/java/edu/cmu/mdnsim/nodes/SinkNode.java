@@ -123,28 +123,20 @@ public class SinkNode extends AbstractNode {
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveRunnable implements Runnable {
+	private class ReceiveRunnable extends NodeRunnable {
 		
-		private String streamId;
-		private DatagramSocket socket = null;
+		private DatagramSocket receiveSocket = null;
 
-		private boolean killed = false;
-		private boolean stopped = false;
-		
 		public ReceiveRunnable(String streamId) {
-			this.streamId = streamId;
+			super(streamId);
 		}
 		
 		@Override
 
 		public void run() {				
 
-			long startTime = 0;
-			int totalBytesTransported = 0;
-
-			
-			socket = streamSocketMap.get(streamId);
-			if (socket == null) {
+			receiveSocket = streamIdToSocketMap.get(streamId);
+			if (receiveSocket == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
@@ -159,14 +151,18 @@ public class SinkNode extends AbstractNode {
 			try{
 				while (!isKilled() && !finished) {
 					try {	
-						socket.receive(packet);
-						NodePacket nodePacket = new NodePacket(packet.getData());
-						if (startTime == 0) {
-							startTime = System.currentTimeMillis();
+						receiveSocket.receive(packet);
+						if(startedTime == 0){
+							startedTime = System.currentTimeMillis();
 						}
-						totalBytesTransported += packet.getLength();	
+						NodePacket nodePacket = new NodePacket(packet.getData());
+
+						totalBytesSemaphore.acquire();
+						totalBytes += packet.getLength();	
+						totalBytesSemaphore.release();
+						
 						if (unitTest) {
-							System.out.println("[Sink] " + totalBytesTransported + " " + currentTime());		
+							System.out.println("[Sink] " + totalBytes + " " + currentTime());		
 						}
 						
 						finished = nodePacket.isLast();
@@ -195,7 +191,7 @@ public class SinkNode extends AbstractNode {
 			}
 			
 			if(!unitTest){
-				report(startTime, endTime, totalBytesTransported);
+				report(startedTime, endTime, totalBytes);
 			}
 				
 		}
@@ -232,25 +228,9 @@ public class SinkNode extends AbstractNode {
 			}
 		}
 		
-		private synchronized void kill() {
-			killed = true;
-		}
-		
-		private synchronized boolean isKilled() {
-			return killed;
-		}
-		
-		private synchronized void stop() {
-			stopped = true;
-		}
-		
-		private synchronized boolean isStopped() {
-			return stopped;
-		}
-		
 		private void clean() {
-			socket.close();
-			streamSocketMap.remove(streamId);
+			receiveSocket.close();
+			streamIdToSocketMap.remove(streamId);
 		}
 	}	
 }

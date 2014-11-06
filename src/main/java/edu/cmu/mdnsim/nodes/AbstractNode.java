@@ -10,6 +10,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.Semaphore;
 
 import com.ericsson.research.warp.api.message.Message;
 
@@ -34,16 +38,13 @@ public abstract class AbstractNode {
 	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
 	protected boolean unitTest = false;
 	
-	/* Key: stream ID; Value: DatagramSocket */
-	protected HashMap<String, DatagramSocket> streamSocketMap;
+	protected HashMap<String, DatagramSocket> streamIdToSocketMap;
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
 	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 5000;
 	
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
-	
-	
 	
 	/**
 	 * Used for reporting purposes. 
@@ -63,7 +64,7 @@ public abstract class AbstractNode {
 		 */
 		hostAddr = java.net.InetAddress.getLocalHost();
 		
-		streamSocketMap = new HashMap<String, DatagramSocket>();
+		streamIdToSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
 	public void config(MessageBusClient msgBusClient, NodeType nType, String nName) throws MessageBusException {
@@ -166,12 +167,12 @@ public abstract class AbstractNode {
 
 	public int bindAvailablePortToStream(String streamId) {
 
-		if (streamSocketMap.containsKey(streamId)) {
+		if (streamIdToSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
-			return streamSocketMap.get(streamId).getPort();
+			return streamIdToSocketMap.get(streamId).getPort();
 		} else {
 			
 			DatagramSocket udpSocket = null;
@@ -192,9 +193,87 @@ public abstract class AbstractNode {
 				return -1;
 			}
 			
-			streamSocketMap.put(streamId, udpSocket);
+			streamIdToSocketMap.put(streamId, udpSocket);
 			return udpSocket.getLocalPort();
 		}
+	}
+	
+	protected class NodeRunnable implements Runnable {
+		
+		protected String streamId;
+		
+		protected long startedTime = 0;
+		protected int totalBytes = 0;
+		protected Semaphore totalBytesSemaphore = new Semaphore(1);
+		
+		protected boolean killed = false;
+		protected boolean stopped = false;
+		
+		public NodeRunnable(String streamId){
+			this.streamId = streamId;
+			
+			ReportTransportationRateTask task = new ReportTransportationRateTask();
+			Timer timer = new Timer();
+			timer.schedule(task, 0, 1000);
+		}
+		
+		public void run(){
+		}
+		
+		public synchronized void kill() {
+			killed = true;
+		}
+
+		public synchronized boolean isKilled() {
+			return killed;
+		}
+
+		public synchronized void stop() {
+			stopped = true;
+		}
+
+		public synchronized boolean isStopped() {
+			return stopped;
+		}
+		
+		protected class ReportTransportationRateTask extends TimerTask{  
+			  
+			protected int lastRecordedTotalBytes = 0;
+			// -1 to avoid time difference to be 0 when used as a divider
+			protected long lastRecordedTime = System.currentTimeMillis() - 1;
+
+			@Override  
+			public void run() {  
+				long currentTime = System.currentTimeMillis();
+				
+				try {
+					totalBytesSemaphore.acquire();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				int localTotalBytes = totalBytes;
+				totalBytesSemaphore.release();
+				
+				long timeDiffInMillisecond = currentTime - lastRecordedTime;
+				int bytesDiff = localTotalBytes - lastRecordedTotalBytes;
+				long instantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
+				
+				long totalTimeDiffInMillisecond = currentTime - startedTime;
+				long totalRate = (long)(localTotalBytes * 1.0 / totalTimeDiffInMillisecond * 1000) ;
+						
+				lastRecordedTotalBytes = localTotalBytes;
+				lastRecordedTime = currentTime;
+				
+				if(startedTime != 0){
+					reportTransportationRate(totalRate, instantRate);
+				}				
+			}  
+			
+			private void reportTransportationRate(long totalRate, long instantRate){
+				System.out.println("[RATE]" + totalRate + " " + instantRate);
+			}
+		} 
 	}
 
 }

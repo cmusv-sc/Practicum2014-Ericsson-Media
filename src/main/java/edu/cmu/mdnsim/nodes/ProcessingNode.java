@@ -147,9 +147,8 @@ public class ProcessingNode extends AbstractNode{
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveProcessAndSendRunnable implements Runnable {
+	private class ReceiveProcessAndSendRunnable extends NodeRunnable {
 
-		private String streamId;
 		private int totalData;
 		private DatagramSocket receiveSocket;
 
@@ -159,12 +158,10 @@ public class ProcessingNode extends AbstractNode{
 		private int dstPort;
 		private DatagramSocket sendSocket;
 
-		private boolean killed = false;
-		private boolean stopped = false;
-
 		public ReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
 
-			this.streamId = streamId;
+			super(streamId);
+			
 			this.totalData = totalData;
 			this.dstAddress = destAddress;
 			this.dstPort = dstPort;
@@ -175,14 +172,16 @@ public class ProcessingNode extends AbstractNode{
 		/**
 		 * For packet lost statistical information:
 		 * When a new packet is received, there are three status:
-		 * 	NEW, this packet is with the highest id among all the received packet
-		 *  WAITING, this packet is added into waiting to be lost map when some high id packet was received
-		 *  LOST, this packet is added to the lost set by the timer in the waiting map because of time out of wating
+		 * - NEW, this packet is with the highest id among all the received packet
+		 * - WAITING, this packet is added into waiting to be lost map when some high id packet was received
+		 * - LOST, this packet is added to the lost set by the timer in the waiting map because of time out of wating
+		 * 
+		 * Assumption: The last packet that contains termination information must not be lost in this implementation
 		 */
 		@Override
 		public void run() {
 
-			if ((receiveSocket = streamSocketMap.get(streamId)) == null) {
+			if ((receiveSocket = streamIdToSocketMap.get(streamId)) == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
@@ -198,11 +197,8 @@ public class ProcessingNode extends AbstractNode{
 			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
-			boolean receiveStarted = false;
 			boolean sendStarted = false;
-			long startTime = 0;
 			boolean finished = false;
-			int totalBytesTransported = 0;
 			
 			/* These variables are for tracking packet lost */
 			int totalPacketNum = (int) Math.ceil(totalData / NodePacket.PACKET_MAX_LENGTH);
@@ -217,12 +213,11 @@ public class ProcessingNode extends AbstractNode{
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					if(!receiveStarted) {
-						startTime = System.currentTimeMillis();
-						receiveStarted = true;
+					if(startedTime == 0) {
+						startedTime = System.currentTimeMillis();
 						//Report to Master that RECEIVE has Started
 						if(!unitTest){
-							report(startTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+							report(startedTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
 						}
 					}
 
@@ -250,7 +245,10 @@ public class ProcessingNode extends AbstractNode{
 							break;
 					}
 
-					totalBytesTransported += nodePacket.size();
+					totalBytesSemaphore.acquire();
+					totalBytes += nodePacket.size();
+					totalBytesSemaphore.release();
+					
 					byte[] data = nodePacket.getData();
 					process(data);
 					nodePacket.setData(data);
@@ -272,25 +270,20 @@ public class ProcessingNode extends AbstractNode{
 						}
 					}
 					if (unitTest) {
-						System.out.println("[Processing]" + totalBytesTransported + " " + currentTime());
+						System.out.println("[Processing]" + totalBytes + " " + currentTime());
 					}
 
 					if(nodePacket.isLast()){
 						finished = true;
+						if (!unitTest) {
+							report(System.currentTimeMillis(), downStreamNodes.get(streamId), EventType.SEND_END);
+						}
 					}
 				}	
 			} catch(Exception e){
 				e.printStackTrace();
 			} finally{
 				clean();
-			}
-
-			long endTime = System.currentTimeMillis();
-
-			if (!unitTest) {
-				//TODO: How to figure out that RECEIVE has ended?
-				//Report to Master that SEND has Ended
-				report(endTime, downStreamNodes.get(streamId), EventType.SEND_END);
 			}
 
 			if (ClusterConfig.DEBUG) {
@@ -335,26 +328,6 @@ public class ProcessingNode extends AbstractNode{
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
-
-			//			System.out.println("[INFO] Processing Node finished at Stream-ID " + streamId 
-			//					+ " Total bytes " + totalBytes + 
-			//					" Total Time " + ((endTime - startTime) / 1000) + "(sec)");
-		}
-
-		public synchronized void kill() {
-			killed = true;
-		}
-
-		public synchronized boolean isKilled() {
-			return killed;
-		}
-
-		public synchronized void stop() {
-			stopped = true;
-		}
-
-		public synchronized boolean isStopped() {
-			return stopped;
 		}
 
 		public void clean() {
@@ -364,7 +337,7 @@ public class ProcessingNode extends AbstractNode{
 			if (!sendSocket.isClosed()) {
 				sendSocket.close();
 			}
-			streamSocketMap.remove(streamId);
+			streamIdToSocketMap.remove(streamId);
 		}
 		
 		public NewArrivedPacketStatus getNewArrivedPacketStatus(HashSet<Integer> lostPacketIdSet, HashMap<Integer, Timer> packetIdToTimerMap, int packetId){
