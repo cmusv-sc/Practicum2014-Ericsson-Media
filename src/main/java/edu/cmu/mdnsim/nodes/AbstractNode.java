@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
 import com.ericsson.research.warp.api.message.Message;
@@ -45,6 +47,8 @@ public abstract class AbstractNode {
 	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 5000;
 	
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
+	
+	private static final int INTERVAL_IN_MILLISECOND = 1000;
 	
 	/**
 	 * Used for reporting purposes. 
@@ -203,8 +207,9 @@ public abstract class AbstractNode {
 		protected String streamId;
 		
 		protected long startedTime = 0;
-		protected int totalBytes = 0;
+		protected int totalBytesTranfered = 0;
 		protected Semaphore totalBytesSemaphore = new Semaphore(1);
+		protected boolean finished = false;
 		
 		protected boolean killed = false;
 		protected boolean stopped = false;
@@ -212,9 +217,9 @@ public abstract class AbstractNode {
 		public NodeRunnable(String streamId){
 			this.streamId = streamId;
 			
-			ReportTransportationRateTask task = new ReportTransportationRateTask();
-			Timer timer = new Timer();
-			timer.schedule(task, 0, 1000);
+			ReportTransportationRateRunnable reportTransportationRateRunnable = new ReportTransportationRateRunnable(INTERVAL_IN_MILLISECOND);
+			ExecutorService executorService = Executors.newCachedThreadPool();
+			executorService.execute(reportTransportationRateRunnable);
 		}
 		
 		public void run(){
@@ -236,42 +241,54 @@ public abstract class AbstractNode {
 			return stopped;
 		}
 		
-		protected class ReportTransportationRateTask extends TimerTask{  
+		protected class ReportTransportationRateRunnable implements Runnable{  
 			  
 			protected int lastRecordedTotalBytes = 0;
 			// -1 to avoid time difference to be 0 when used as a divider
 			protected long lastRecordedTime = System.currentTimeMillis() - 1;
+			
+			private int intervalInMillisecond;
 
+			public ReportTransportationRateRunnable(int intervalInMillisecond){
+				this.intervalInMillisecond = intervalInMillisecond;
+			}
 			@Override  
 			public void run() {  
-				long currentTime = System.currentTimeMillis();
-				
-				try {
-					totalBytesSemaphore.acquire();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				int localTotalBytes = totalBytes;
-				totalBytesSemaphore.release();
-				
-				long timeDiffInMillisecond = currentTime - lastRecordedTime;
-				int bytesDiff = localTotalBytes - lastRecordedTotalBytes;
-				long instantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
-				
-				long totalTimeDiffInMillisecond = currentTime - startedTime;
-				long totalRate = (long)(localTotalBytes * 1.0 / totalTimeDiffInMillisecond * 1000) ;
+				while(!finished){
+					long currentTime = System.currentTimeMillis();
+					
+					try {
+						totalBytesSemaphore.acquire();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					int localTotalBytes = totalBytesTranfered;
+					totalBytesSemaphore.release();
+					
+					long timeDiffInMillisecond = currentTime - lastRecordedTime;
+					int bytesDiff = localTotalBytes - lastRecordedTotalBytes;
+					long instantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
+					
+					long totalTimeDiffInMillisecond = currentTime - startedTime;
+					long averageRate = (long)(localTotalBytes * 1.0 / totalTimeDiffInMillisecond * 1000) ;
+							
+					lastRecordedTotalBytes = localTotalBytes;
+					lastRecordedTime = currentTime;
+					
+					if(startedTime != 0){
+						reportTransportationRate(averageRate, instantRate);
+					}				
 						
-				lastRecordedTotalBytes = localTotalBytes;
-				lastRecordedTime = currentTime;
-				
-				if(startedTime != 0){
-					reportTransportationRate(totalRate, instantRate);
-				}				
+					try {
+						Thread.sleep(intervalInMillisecond);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
 			}  
 			
-			private void reportTransportationRate(long totalRate, long instantRate){
-				System.out.println("[RATE]" + totalRate + " " + instantRate);
+			private void reportTransportationRate(long averageRate, long instantRate){
+				System.out.println("[RATE]" + averageRate + " " + instantRate);
 			}
 		} 
 	}

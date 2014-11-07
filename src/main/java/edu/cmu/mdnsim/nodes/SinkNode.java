@@ -146,8 +146,6 @@ public class SinkNode extends AbstractNode {
 			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
-			boolean finished = false;
-			
 			try{
 				while (!isKilled() && !finished) {
 					try {	
@@ -158,11 +156,11 @@ public class SinkNode extends AbstractNode {
 						NodePacket nodePacket = new NodePacket(packet.getData());
 
 						totalBytesSemaphore.acquire();
-						totalBytes += packet.getLength();	
+						totalBytesTranfered += packet.getLength();	
 						totalBytesSemaphore.release();
 						
 						if (unitTest) {
-							System.out.println("[Sink] " + totalBytes + " " + currentTime());		
+							System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
 						}
 						
 						finished = nodePacket.isLast();
@@ -191,7 +189,7 @@ public class SinkNode extends AbstractNode {
 			}
 			
 			if(!unitTest){
-				report(startedTime, endTime, totalBytes);
+				report(startedTime, endTime, totalBytesTranfered);
 			}
 				
 		}

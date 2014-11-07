@@ -12,8 +12,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
 
@@ -174,7 +176,7 @@ public class ProcessingNode extends AbstractNode{
 		 * When a new packet is received, there are three status:
 		 * - NEW, this packet is with the highest id among all the received packet
 		 * - WAITING, this packet is added into waiting to be lost map when some high id packet was received
-		 * - LOST, this packet is added to the lost set by the timer in the waiting map because of time out of wating
+		 * - LOST, this packet is added to the lost set by the timer in the waiting map because of time out of waiting
 		 * 
 		 * Assumption: The last packet that contains termination information must not be lost in this implementation
 		 */
@@ -198,13 +200,12 @@ public class ProcessingNode extends AbstractNode{
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 
 			boolean sendStarted = false;
-			boolean finished = false;
 			
 			/* These variables are for tracking packet lost */
-			int totalPacketNum = (int) Math.ceil(totalData / NodePacket.PACKET_MAX_LENGTH);
-			HashSet<Integer> lostPacketIdSet = new HashSet<Integer>();
-			HashMap<Integer, Timer> packetIdToTimerMap = new HashMap<Integer, Timer>();
-			int highestReceivedPacketId = -1;
+			//int totalPacketNum = (int) Math.ceil(totalData / NodePacket.PACKET_MAX_LENGTH);
+			AtomicInteger lostPacketCount = new AtomicInteger(0);
+			Map<Integer, Timer> packetIdToTimerMap = new ConcurrentHashMap<Integer, Timer>();
+			int highestPacketIdReceived = -1;
 			
 			try{
 				while (!finished && !isKilled()) {
@@ -225,7 +226,7 @@ public class ProcessingNode extends AbstractNode{
 					NodePacket nodePacket = new NodePacket(rawData);
 					
 					int packetId = nodePacket.getMessageId();
-					NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lostPacketIdSet, packetIdToTimerMap, packetId);
+					NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(packetIdToTimerMap, highestPacketIdReceived, packetId);
 					switch(newArrivedPacketStatus){
 						case LOST:
 							continue;
@@ -235,18 +236,18 @@ public class ProcessingNode extends AbstractNode{
 							packetIdToTimerMap.remove(packetId);
 							break;
 						case NEW:
-							for(int i = highestReceivedPacketId + 1; i < packetId; i++){
-								AddPacketIdToLostSetTask task = new AddPacketIdToLostSetTask(i, lostPacketIdSet);
+							for(int i = highestPacketIdReceived + 1; i < packetId; i++){
+								AddLostPacketCountByOneTask task = new AddLostPacketCountByOneTask(packetIdToTimerMap, i, lostPacketCount);
 								Timer newTimer = new Timer();
 								newTimer.schedule(task, MAX_WAITING_TIME_IN_MILLISECOND);
 								packetIdToTimerMap.put(i, newTimer);
 							}
-							highestReceivedPacketId = packetId;
+							highestPacketIdReceived = packetId;
 							break;
 					}
 
 					totalBytesSemaphore.acquire();
-					totalBytes += nodePacket.size();
+					totalBytesTranfered += nodePacket.size();
 					totalBytesSemaphore.release();
 					
 					byte[] data = nodePacket.getData();
@@ -270,7 +271,7 @@ public class ProcessingNode extends AbstractNode{
 						}
 					}
 					if (unitTest) {
-						System.out.println("[Processing]" + totalBytes + " " + currentTime());
+						System.out.println("[Processing]" + totalBytesTranfered + " " + currentTime());
 					}
 
 					if(nodePacket.isLast()){
@@ -294,11 +295,7 @@ public class ProcessingNode extends AbstractNode{
 						e.printStackTrace();
 					}
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
-					System.out.print("[DEBUG]ProcessingNode packet lost id:");
-					for(Integer i : lostPacketIdSet){
-						System.out.print(i + " ");
-					}
-					System.out.println();
+					System.out.println("[DEBUG]ProcessingNode total lost packet number:" + lostPacketCount);
 				} else if(isKilled()){
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
 				}
@@ -340,14 +337,16 @@ public class ProcessingNode extends AbstractNode{
 			streamIdToSocketMap.remove(streamId);
 		}
 		
-		public NewArrivedPacketStatus getNewArrivedPacketStatus(HashSet<Integer> lostPacketIdSet, HashMap<Integer, Timer> packetIdToTimerMap, int packetId){
+		public NewArrivedPacketStatus getNewArrivedPacketStatus(Map<Integer, Timer> packetIdToTimerMap, int highestPacketIdReceived, int packetId){
 			
-			if(lostPacketIdSet.contains(packetId)){
-				return NewArrivedPacketStatus.LOST;
-			} else if(packetIdToTimerMap.containsKey(packetId)){
-				return NewArrivedPacketStatus.WAIT;
-			} else{
+			if(packetId > highestPacketIdReceived){
 				return NewArrivedPacketStatus.NEW;
+			} else{
+				if(packetIdToTimerMap.containsKey(packetId)){
+					return NewArrivedPacketStatus.WAIT;
+				} else{
+					return NewArrivedPacketStatus.LOST;
+				}
 			}
 		}
 		
@@ -355,22 +354,28 @@ public class ProcessingNode extends AbstractNode{
 		 * This task is a process that will add the packetId to the lost set.
 		 * It can be called by the timer with a scheduled delay time for the execution
 		 */
-		public class AddPacketIdToLostSetTask extends TimerTask{  
+		public class AddLostPacketCountByOneTask extends TimerTask{  
 			  
+			private AtomicInteger lostPacketCount;
+			private Map<Integer, Timer> packetIdToTimerMap;
 			private int packetId;
-			private Set<Integer> set;
-			public AddPacketIdToLostSetTask(int packetId, Set<Integer> set){
+			
+			public AddLostPacketCountByOneTask(Map<Integer, Timer> packetIdToTimerMap, int packetId, AtomicInteger lostPacketCount){
+				this.packetIdToTimerMap = packetIdToTimerMap;
 				this.packetId = packetId;
-				this.set =set;
+				this.lostPacketCount = lostPacketCount;
 			}
 			@Override  
 			public void run() {  
-				set.add(packetId);
+				Timer timer = packetIdToTimerMap.get(packetId);
+				timer.cancel();
+				packetIdToTimerMap.remove(packetId);
+				lostPacketCount.getAndIncrement();
 			}  
 		} 
 	}
 	
-	public enum NewArrivedPacketStatus{
+	private enum NewArrivedPacketStatus{
 		NEW, WAIT, LOST; 
 	}
 }

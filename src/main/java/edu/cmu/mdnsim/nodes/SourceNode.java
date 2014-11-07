@@ -56,9 +56,9 @@ public class SourceNode extends AbstractNode {
 				downStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("DownstreamId"));
 				
 				try {
-					SendRunnable sndThread = new SendRunnable(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
-					runningMap.put(streamSpec.StreamId, sndThread);
-					WarpThreadPool.executeCached(sndThread);
+					SendRunnable sendThread = new SendRunnable(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
+					runningMap.put(streamSpec.StreamId, sendThread);
+					WarpThreadPool.executeCached(sendThread);
 				} catch (UnknownHostException e) {
 					e.printStackTrace();
 				}
@@ -135,7 +135,7 @@ public class SourceNode extends AbstractNode {
 		public void run() {
 			double packetPerSecond = rate / NodePacket.PACKET_MAX_LENGTH;
 			long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
-			boolean finished = false;
+
 			try {
 				sendSocket = new DatagramSocket();
 			} catch (SocketException socketException) {
@@ -169,11 +169,11 @@ public class SourceNode extends AbstractNode {
 					bytesToTransfer -= packet.getLength();
 					
 					totalBytesSemaphore.acquire();
-					totalBytes += packet.getLength();
+					totalBytesTranfered += packet.getLength();
 					totalBytesSemaphore.release();
 					
 					if (unitTest) {
-						System.out.println("[Source] " + totalBytes + " " + currentTime());
+						System.out.println("[Source] " + totalBytesTranfered + " " + currentTime());
 					}
 					
 					long end = System.currentTimeMillis();
@@ -206,11 +206,9 @@ public class SourceNode extends AbstractNode {
 			
 			if (ClusterConfig.DEBUG) {
 				if (finished) {
-					System.out.println("[DEBUG]SourceNode.SendDataThread.run():"
-							+ " This thread has finished.");
+					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has finished.");
 				} else if (isKilled()){
-					System.out.println("[DEBUG]SourceNode.SendDataThread.run():"
-							+ " This thread has been killed(not finished yet).");
+					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has been killed(not finished yet).");
 				}
 			}
 			stop();
