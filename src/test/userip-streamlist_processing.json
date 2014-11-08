@@ -1,30 +1,54 @@
 {
 "SimId":"sim1",
-"StreamSpecList":
+"StreamList":
   [
 	{
 	  "StreamId":"stream1234",
 	  "DataSize":"20000000",
-	  "ByteRate":"625000",
-	  "Flow":
-	  [
-		{
-		  "NodeType":"SINK",
-		  "NodeId":"tomato:sink1",
-		  "UpstreamId":"tomato:processing1"
-		},
-		{
-		  "NodeType":"PROCESSING",
-		  "NodeId":"tomato:processing1",
-		  "UpstreamId":"orange:source1",
-		  "ProcessingLoop":"100000",
-		  "ProcessingMemory":"1000"
-		},
-		{
-		  "NodeType":"SOURCE",
-		  "NodeId":"orange:source1",
-		  "UpstreamId":"NULL"
-		}
+	  "BitRate":"625000",
+	  "FlowList":[
+		  {
+			  [
+				{
+				  "NodeType":"SINK",
+				  "NodeId":"tomato:sink1",
+				  "UpstreamId":"tomato:processing1"
+				},
+				{
+				  "NodeType":"PROCESSING",
+				  "NodeId":"tomato:processing1",
+				  "UpstreamId":"orange:source1",
+				  "ProcessingLoop":"100000",
+				  "ProcessingMemory":"1000"
+				},
+				{
+				  "NodeType":"SOURCE",
+				  "NodeId":"orange:source1",
+				  "UpstreamId":"NULL"
+				}
+			  ]
+		  },
+		  {
+		  	 [
+				{
+				  "NodeType":"SINK",
+				  "NodeId":"tomato:sink2",
+				  "UpstreamId":"tomato:processing1"
+				},
+				{
+				  "NodeType":"PROCESSING",
+				  "NodeId":"tomato:processing1",
+				  "UpstreamId":"orange:source1",
+				  "ProcessingLoop":"100000",
+				  "ProcessingMemory":"1000"
+				},
+				{
+				  "NodeType":"SOURCE",
+				  "NodeId":"orange:source1",
+				  "UpstreamId":"NULL"
+				}
+			  ]
+		  }
 	  ]
 	}
   ]
