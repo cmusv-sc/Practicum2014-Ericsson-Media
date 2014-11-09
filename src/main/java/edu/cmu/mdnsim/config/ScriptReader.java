@@ -26,7 +26,7 @@ public class ScriptReader {
 		//return (StreamConfig) jsonDeserializer.deserialize(new InputStreamReader(inputStream), StreamConfig.class);
 	}
 	
-	public StreamConfig getStreamConfigFromScript(String fileName){
+	public WorkConfig getStreamConfigFromScript(String fileName){
 		if(fileName == null){
 			return null;
 		}
@@ -38,7 +38,7 @@ public class ScriptReader {
 			e.printStackTrace();
 		}
 	
-		return  JSON.fromJSON(inputStream, StreamConfig.class);
+		return  JSON.fromJSON(inputStream, WorkConfig.class);
 		//JSONDeserializer jsonDeserializer = new JSONDeserializer();
 		//return (StreamConfig) jsonDeserializer.deserialize(new InputStreamReader(inputStream), StreamConfig.class);
 	}

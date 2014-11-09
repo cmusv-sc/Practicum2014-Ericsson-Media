@@ -16,8 +16,8 @@ public class ScriptReaderTest {
 		ScriptReader scriptReader = new ScriptReader();
 		WorkConfig workConfig = scriptReader.getWorkConfigFromScript("script");
 				
-		assertEquals("100", workConfig.getStreamSpecList().get(0).ByteRate);
-		assertEquals("us-west-3", workConfig.getStreamSpecList().get(1).Flow.get(0).get("upstreamId"));
+		assertEquals("100", workConfig.getStreamList().get(0).KiloBitRate);
+		assertEquals("us-west-3", workConfig.getStreamList().get(1).Flow.get(0).get("upstreamId"));
 		
 		
 	}

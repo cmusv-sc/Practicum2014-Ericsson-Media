@@ -17,7 +17,8 @@ import java.util.concurrent.Semaphore;
 
 import com.ericsson.research.warp.api.message.Message;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -38,7 +39,7 @@ public abstract class AbstractNode {
 	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
 	protected boolean unitTest = false;
 	
-	protected HashMap<String, DatagramSocket> streamIdToSocketMap;
+	protected HashMap<String, DatagramSocket> flowIdToSocketMap;
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
@@ -48,12 +49,12 @@ public abstract class AbstractNode {
 	
 	/**
 	 * Used for reporting purposes. 
-	 * Key = Stream Id, Value = UpStreamNodeId
+	 * Key = FlowId, Value = UpStreamNodeId
 	 */
 	protected Map<String,String> upStreamNodes = new HashMap<String,String>();
 	/**
 	 * Used for reporting purposes.
-	 * Key = Stream Id, Value = DownStreamNodeId
+	 * Key = FlowId, Value = DownStreamNodeId
 	 */
 	protected Map<String,String> downStreamNodes = new HashMap<String,String>();
 	
@@ -64,7 +65,7 @@ public abstract class AbstractNode {
 		 */
 		hostAddr = java.net.InetAddress.getLocalHost();
 		
-		streamIdToSocketMap = new HashMap<String, DatagramSocket>();
+		flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
 	public void config(MessageBusClient msgBusClient, NodeType nType, String nName) throws MessageBusException {
@@ -130,9 +131,9 @@ public abstract class AbstractNode {
 	 * It is supposed to receive/send data and also inform its upstream to 
 	 * start appropriate behaviors.
 	 * 
-	 * @param s
+	 * @param flow
 	 */
-	public abstract void executeTask(StreamSpec s);
+	public abstract void executeTask(Flow flow);
 	
 	/**
 	 * 
@@ -140,9 +141,9 @@ public abstract class AbstractNode {
 	 * It is supposed send a message to inform its upstream to stop
 	 * sending data as well.
 	 * 
-	 * @param streamSpec
+	 * @param flow
 	 */
-	public abstract void terminateTask(StreamSpec streamSpec);
+	public abstract void terminateTask(Flow flow);
 	
 	/**
 	 * 
@@ -150,29 +151,29 @@ public abstract class AbstractNode {
 	 * as Datagram socket. It is supposed to send a message to inform its 
 	 * downstream to clean up resources as well.
 	 * 
-	 * @param streamSpec
+	 * @param flow
 	 */
-	public abstract void releaseResource(StreamSpec streamSpec);
+	public abstract void releaseResource(Flow flow);
 	
 	/**
 	 * Creates a DatagramSocket and binds it to any available port
-	 * The streamId and the DatagramSocket are added to a 
-	 * HashMap<streamId, DatagramSocket> in the MdnSinkNode object
+	 * The flowId and the DatagramSocket are added to a 
+	 * HashMap<flowId, DatagramSocket> in the MdnSinkNode object
 	 * 
-	 * @param streamId
+	 * @param flowId
 	 * @return port number to which the DatagramSocket is bound to
 	 * -1 if DatagramSocket creation failed
 	 * 0 if DatagramSocket is created but is not bound to any port
 	 */
 
-	public int bindAvailablePortToStream(String streamId) {
+	public int bindAvailablePortToFlow(String flowId) {
 
-		if (streamIdToSocketMap.containsKey(streamId)) {
+		if (flowIdToSocketMap.containsKey(flowId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
-			return streamIdToSocketMap.get(streamId).getPort();
+			return flowIdToSocketMap.get(flowId).getPort();
 		} else {
 			
 			DatagramSocket udpSocket = null;
@@ -193,14 +194,14 @@ public abstract class AbstractNode {
 				return -1;
 			}
 			
-			streamIdToSocketMap.put(streamId, udpSocket);
+			flowIdToSocketMap.put(flowId, udpSocket);
 			return udpSocket.getLocalPort();
 		}
 	}
 	
 	protected class NodeRunnable implements Runnable {
 		
-		protected String streamId;
+		protected String flowId;
 		
 		protected long startedTime = 0;
 		protected int totalBytes = 0;
@@ -209,8 +210,8 @@ public abstract class AbstractNode {
 		protected boolean killed = false;
 		protected boolean stopped = false;
 		
-		public NodeRunnable(String streamId){
-			this.streamId = streamId;
+		public NodeRunnable(String flowId){
+			this.flowId = flowId;
 			
 			ReportTransportationRateTask task = new ReportTransportationRateTask();
 			Timer timer = new Timer();
@@ -236,7 +237,7 @@ public abstract class AbstractNode {
 			return stopped;
 		}
 		
-		protected class ReportTransportationRateTask extends TimerTask{  
+		protected class ReportTransportationRateTask extends TimerTask {  
 			  
 			protected int lastRecordedTotalBytes = 0;
 			// -1 to avoid time difference to be 0 when used as a divider

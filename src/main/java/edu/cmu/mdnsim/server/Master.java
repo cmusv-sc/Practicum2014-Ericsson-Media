@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -16,7 +17,8 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusServer;
@@ -67,10 +69,15 @@ public class Master {
 
 	/* Used to keep track of the statistics for a stream */
 	/**
-	 * Key: SimuID, Value: WorkConfig
+	 * Key: SimID, Value: WorkConfig
 	 */
-	private Map<String, StreamSpec> streamMap = new ConcurrentHashMap<String, StreamSpec>();
-	private Map<String, StreamSpec> runningStreamMap = new ConcurrentHashMap<String, StreamSpec>();
+	private Map<String, Stream> streamMap = new ConcurrentHashMap<String, Stream>();
+	private Map<String, Stream> runningStreamMap = new ConcurrentHashMap<String, Stream>();
+	/**
+	 * Map of flow id's to a Flow. The flows in this map have not started yet
+	 */
+	private Map<String, Flow> flowMap = new ConcurrentHashMap<String, Flow>();
+	private Map<String, Flow> runningFlowMap = new ConcurrentHashMap<String, Flow>();
 
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 
@@ -185,7 +192,7 @@ public class Master {
 		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
 
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
-		msgBusSvr.addMethodListener("/validate_user_spec", "POST", this, "validateUserSpec");
+		msgBusSvr.addMethodListener("/work_config", "POST", this, "handleWorkConfig");
 
 		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
 		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
@@ -283,11 +290,10 @@ public class Master {
 	/**
 	 * Method handler to handle validate user spec message.
 	 * Validates user spec and creates the graph
-	 * 
-	 * @param msg
-	 * @param streamSpec
+	 * @param Message
+	 * @param WorkConfig
 	 */
-	public void validateUserSpec(Message mesg, WorkConfig wc) {
+	public void handleWorkConfig(Message mesg, WorkConfig wc) {
 
 		Set<String> srcSet = new HashSet<String>();
 		Set<String> sinkSet = new HashSet<String>();
@@ -306,58 +312,61 @@ public class Master {
 		String procMsg = "This is a Processing Node";
 		int nodeSize = 6;
 
-		for (StreamSpec streamSpec : wc.getStreamSpecList()) {
-
-			String streamId = streamSpec.StreamId;
-			System.out.println("Stream Id is "+streamSpec.StreamId);
-			System.out.println("DataSize is "+streamSpec.DataSize);
-			System.out.println("ByteRate is "+streamSpec.ByteRate);
-
-			for (HashMap<String, String> node : streamSpec.Flow) {
-				String nType = node.get("NodeType");
-				String nId = node.get("NodeId");
-				String upstreamNode = node.get("UpstreamId");
-				String rgb = "";
-				String msg = "";
-				String edgeId = getEdgeId(upstreamNode,nId);
-				String edgeType = "";
-				String edgeColor = "rgb(0,0,0)";
-				int  edgeSize = 1;
-				if (webClientGraph.getNode(nId) == null) {
-					/*
-					 * The above check is used to ensure that the node is added only once to the node list.
-					 * This situation can arise if a sink node is connected to two upstream sources at the 
-					 * same time
-					 */
-					//TODO: Come up with some better logic to assign positions to the nodes
-					NodeLocation nl = webClientGraph.getNewNodeLocation();
-					x = nl.x;
-					y = nl.y;
-					if (nType.equals("SOURCE")) {
-						rgb = srcRgb;
-						msg = srcMsg;
-						srcSet.add(nId);
-					} else if (nType.equals("SINK")) {
-						rgb = sinkRgb;
-						msg = sinkMsg;
-						sinkSet.add(nId);
-					} else if (nType.equals("PROCESSING")){	
-						rgb = procRgb;
-						msg = procMsg;
-						procSet.add(nId);
+		for (Stream stream : wc.getStreamList()) {
+			String streamId = stream.StreamId;
+			String kiloBitRate = stream.KiloBitRate;
+			String dataSize = stream.DataSize;
+			for (Flow flow : stream.getFlowList()) {
+				for (Map<String, String> node : flow.getNodeList()) {
+					String nType = node.get("NodeType");
+					String nId = node.get("NodeId");
+					String upstreamNode = node.get("UpstreamId");
+					String rgb = "";
+					String msg = "";
+					String edgeId = getEdgeId(upstreamNode,nId);
+					String edgeType = "";
+					String edgeColor = "rgb(0,0,0)";
+					int  edgeSize = 1;
+					if (webClientGraph.getNode(nId) == null) {
+						/*
+						 * The above check is used to ensure that the node is added only once to the node list.
+						 */
+						//TODO: Come up with some better logic to assign positions to the nodes
+						NodeLocation nl = webClientGraph.getNewNodeLocation();
+						x = nl.x;
+						y = nl.y;
+						if (nType.toLowerCase().contains("source")) {
+							rgb = srcRgb;
+							msg = srcMsg;
+							srcSet.add(nId);
+						} else if (nType.toLowerCase().contains("sink")) {
+							rgb = sinkRgb;
+							msg = sinkMsg;
+							sinkSet.add(nId);
+						} else if (nType.toLowerCase().contains("processing")){	
+							rgb = procRgb;
+							msg = procMsg;
+							procSet.add(nId);
+						}
+						Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
+						webClientGraph.addNode(n);
 					}
-					Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
-					webClientGraph.addNode(n);
-				}
 
-				if(!upstreamNode.equals("NULL") && webClientGraph.getEdge(edgeId) == null) {
-					Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId, edgeColor,edgeSize);
-					webClientGraph.addEdge(e);
+					if(!upstreamNode.equals("NULL") && webClientGraph.getEdge(edgeId) == null) {
+						Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId, edgeColor,edgeSize);
+						webClientGraph.addEdge(e);
+					}
 				}
+				String flowId = flow.generateFlowId(streamId);
+				flow.setStreamId(streamId);
+				flow.setDataSize(dataSize);
+				flow.setKiloBitRate(kiloBitRate);
+				if (!flowMap.containsKey(flowId))
+					flowMap.put(flowId, flow);
 			}
 
 			if (!streamMap.containsKey(streamId)) {
-				streamMap.put(streamId, streamSpec);
+				streamMap.put(streamId, stream);
 			} else {
 				//TODO: change to checked exception
 				throw new RuntimeException("Duplicate stream ID");
@@ -434,14 +443,14 @@ public class Master {
 	 */
 
 	public void startSimulation(Message msg) throws MessageBusException {
-
-		for (StreamSpec streamSpec : streamMap.values()) {
-			String sinkUri = updateStreamSpec(streamSpec);
-			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", streamSpec);
-			runningStreamMap.put(streamSpec.StreamId, streamSpec);
+		Collection<Flow> flowsToStart = flowMap.values();
+		for (Flow flow : flowsToStart) {
+			String sinkUri = updateFlow(flow);
+			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
+			runningFlowMap.put(flow.getFlowId(), flow);
 		}
 
-		streamMap.clear();
+		flowMap.clear();
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
 					+ "has started");
@@ -457,18 +466,18 @@ public class Master {
 	 * [2] Automatically fills in the downstream id and downstream URI based on
 	 * the relationship specified by upstream.
 	 * 
-	 * @param wc WorkConfig waited to be updated
+	 * @param flow Flow to be updated
 	 * @return the URI of the sink node (starting point of the control message).
 	 */
-	private String updateStreamSpec(StreamSpec streamSpec) {
+	private String updateFlow(Flow flow) {
 
 		String sinkUri = null;
 		String sinkNodeId = null;
 
 		String downStreamId = null;
-		for (int i = 0; i < streamSpec.Flow.size(); i++) {
+		for (int i = 0; i < flow.getNodeList().size(); i++) {
 
-			HashMap<String, String> nodeMap = streamSpec.Flow.get(i);
+			Map<String, String> nodeMap = flow.getNodeList().get(i);
 			nodeMap.put("NodeUri", nodeNameToURITbl.get(nodeMap.get("NodeId")));
 			if (i == 0) {
 				sinkNodeId = nodeMap.get("NodeId");
@@ -485,13 +494,10 @@ public class Master {
 		}
 
 		if (ClusterConfig.DEBUG) {
-			assert isValidWorkConfig(streamSpec);
+			assert isValidFlow(flow);
 		}
-
 		return sinkUri;
-
 	}
-
 
 	/**
 	 * Sends Update message (updated graph) to the web client 
@@ -504,6 +510,7 @@ public class Master {
 		msgBusSvr.send("/", webClientURI.toString()+  "/update", "POST", webClientUpdateMessage);
 //		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 	}
+	
 	/**
 	 * Reports sent by the Source Nodes
 	 * @param request
@@ -516,11 +523,11 @@ public class Master {
 		String sourceNodeMsg= null;
 		if(srcMsg.getEventType() == EventType.SEND_START){
 			System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
-			putStartTime(srcMsg.getStreamId(), srcMsg.getTime());
-			sourceNodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
+			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
+			sourceNodeMsg = "Started sending data for stream " + srcMsg.getFlowId() ;
 			
-		}else{
-			sourceNodeMsg = "Done sending data for stream " + srcMsg.getStreamId() ;
+		} else {
+			sourceNodeMsg = "Done sending data for stream " + srcMsg.getFlowId() ;
 		}
 		//Update Node
 		Node n = webClientGraph.getNode(nodeId);
@@ -536,10 +543,10 @@ public class Master {
 		synchronized(e){
 			if(srcMsg.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
-				e.tag = "Stream Id: " + srcMsg.getStreamId();
+				e.tag = "Stream Id: " + srcMsg.getFlowId();
 			}else if(srcMsg.getEventType() == EventType.SEND_END){
 				e.color = "rgb(255,0,0)";
-				e.tag = "Stream Id: " + srcMsg.getStreamId();
+				e.tag = "Stream Id: " + srcMsg.getFlowId();
 			}
 		}
 
@@ -590,12 +597,12 @@ public class Master {
 		if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 			try {
 				totalTime = Utility.stringToMillisecondTime(sinkMsg.getTime()) 
-						- Utility.stringToMillisecondTime(this.getStartTimeForStream(sinkMsg.getStreamId()));
+						- Utility.stringToMillisecondTime(this.getStartTimeForFlow(sinkMsg.getFlowId()));
 			} catch (ParseException e) {
 				e.printStackTrace();
 				totalTime = -1;
 			}
-			String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
+			String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getFlowId() + " . Got " + 
 					sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
@@ -616,7 +623,7 @@ public class Master {
 				e.tag = "Stream Id: " + sinkMsg.getStreamId();*/
 			}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 				e.color = "rgb(255,0,0)";
-				e.tag = "Stream Id: " + sinkMsg.getStreamId();
+				e.tag = "Stream Id: " + sinkMsg.getFlowId();
 			}
 		}
 
@@ -680,12 +687,13 @@ public class Master {
 		}
 	}
 
-	public void putStartTime(String streamId, String startTime) {
-		this.startTimeMap.put(streamId, startTime);
+	public void putStartTime(String flowId, String startTime) {
+		this.startTimeMap.put(flowId, startTime);
 	}
-	public String getStartTimeForStream(String streamId) {
-		return this.startTimeMap.get(streamId);
+	public String getStartTimeForFlow(String flowId) {
+		return this.startTimeMap.get(flowId);
 	}
+	
 	/**
 	 * Stop Simulation request
 	 * @throws MessageBusException
@@ -697,9 +705,9 @@ public class Master {
 			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");
 		}
-		for(Map.Entry<String, StreamSpec> streams : runningStreamMap.entrySet()){
-			StreamSpec streamSpec = runningStreamMap.get(streams.getKey());
-			msgBusSvr.send("/", streamSpec.findSinkNodeURI() + "/tasks", "POST", streamSpec);
+		for(String flowId : runningFlowMap.keySet()) {
+			Flow flow = runningFlowMap.get(flowId);
+			msgBusSvr.send("/", flow.findSinkNodeURI() + "/tasks", "POST", flow);
 		}
 
 	}
@@ -709,19 +717,66 @@ public class Master {
 		mdnDomain.init();
 	}
 
-	public static boolean isValidWorkConfig(StreamSpec streamSpec) {
+	/**
+	 * Validate the input WorkConfiguration
+	 * @param stream
+	 * @return 
+	 */
+	public static boolean isValidWorkConfig(WorkConfig wc) {
+		
+		for (Stream stream : wc.getStreamList()) {
+			// For every stream in the stream list
+			for (int i = 0; i < stream.FlowList.size(); i++) {
+				// For every flow in the flow list
+				Flow flow = stream.FlowList.get(i);
+				int flowMemberIndex = 0;
+				int flowMemberListSize = flow.getNodeList().size();
+				
+				for (Map<String, String> nodeMap : flow.getNodeList()) {
+					// For every flow member (a node map) in the flow
+					String nodeId = nodeMap.get("NodeType");
+					String nodeType = nodeMap.get("NodeType");
+					String upstreamId = nodeMap.get("UpstreamId");
+					
+					if (nodeId == null || nodeId.equals(""))
+						return false;
+					if (nodeType == null || nodeType.equals(""))
+						return false;
+					if (upstreamId == null || upstreamId.equals("")) 
+						return false;
 
+					if (flowMemberIndex == 0)
+						continue;
+					else if (flowMemberIndex < flowMemberListSize-1) {
+						// This is the NodeId of the node that is next in the FlowMemberList list
+						// the upstreamNodeId has to match the upstreamId in current map
+						String upstreamNodeId = flow.getNodeList().get(flowMemberIndex+1).get("NodeId");
+						if (!upstreamId.equals(upstreamNodeId))
+							return false;
+					} else {
+						// The final Node Map in the FlowMemberList. The upstreamId must be the String "NULL"
+						if (!upstreamId.equals("NULL"))
+							return false;
+					}
+					flowMemberIndex++;
+				}
+			}
+		}
+		return true;
+	}
+	
+	public static boolean isValidFlow(Flow flow) {
 		String downStreamNodeId = null;
 		String upStreamIdOfDownStreamNode = null;
-		for (int i = 0; i < streamSpec.Flow.size(); i++) {
-			Map<String, String> nodeMap = streamSpec.Flow.get(i);
+		int i=0;
+		for (Map<String, String>nodeMap : flow.getNodeList()) {
 			if (i == 0) {
 				if (nodeMap.get("DownstreamId") != null) {
 					return false;
 				}
 				downStreamNodeId = nodeMap.get("NodeId");
 				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
-			} else if (i == streamSpec.Flow.size() - 1){
+			} else if (i == flow.getNodeList().size() - 1){
 				if (nodeMap.get("UpstreamId") != null) {
 					return false;
 				}
@@ -738,6 +793,7 @@ public class Master {
 				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
 				downStreamNodeId = nodeMap.get("NodeId");
 			}
+			i++;
 		}
 
 		return true;

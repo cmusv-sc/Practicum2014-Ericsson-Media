@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -39,10 +39,10 @@ public class WorkConfigTestCase implements MessageBusTestCase {
 		
 		WorkConfig wc = new WorkConfig();
 		wc.setSimId(simuID);
-		List<StreamSpec> streamSpecList = new ArrayList<StreamSpec>();
-		StreamSpec streamSpec = new StreamSpec();
+		List<Stream> streamSpecList = new ArrayList<Stream>();
+		Stream streamSpec = new Stream();
 		streamSpec.StreamId = simuID;
-		streamSpec.ByteRate = "625000";
+		streamSpec.KiloBitRate = "625000";
 		streamSpec.DataSize = "20000000";
 		ArrayList<HashMap<String, String>> flow = new ArrayList<HashMap<String, String>>();
 		
@@ -68,7 +68,7 @@ public class WorkConfigTestCase implements MessageBusTestCase {
 		
 		streamSpec.Flow = flow;
 		streamSpecList.add(streamSpec);
-		wc.setStreamSpecList(streamSpecList);
+		wc.setStreamList(streamSpecList);
 
 		try {
 			msgBusClient.sendToMaster("/", "/validate_user_spec", "POST", wc);

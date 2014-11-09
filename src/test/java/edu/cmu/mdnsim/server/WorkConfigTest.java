@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 
 public class WorkConfigTest {
@@ -18,10 +18,10 @@ public class WorkConfigTest {
 		
 		WorkConfig wc = new WorkConfig();
 		wc.setSimId(simuID);
-		List<StreamSpec> streamSpecList = new ArrayList<StreamSpec>();
-		StreamSpec streamSpec = new StreamSpec();
+		List<Stream> streamSpecList = new ArrayList<Stream>();
+		Stream streamSpec = new Stream();
 		streamSpec.StreamId = simuID;
-		streamSpec.ByteRate = "625000";
+		streamSpec.KiloBitRate = "625000";
 		streamSpec.DataSize = "20000000";
 		ArrayList<HashMap<String, String>> flow = new ArrayList<HashMap<String, String>>();
 		
@@ -46,9 +46,9 @@ public class WorkConfigTest {
 		
 		streamSpec.Flow = flow;
 		streamSpecList.add(streamSpec);
-		wc.setStreamSpecList(streamSpecList);
+		wc.setStreamList(streamSpecList);
 		
-		for (StreamSpec s : wc.getStreamSpecList()) {
+		for (Stream s : wc.getStreamList()) {
 			assertTrue("Test valid WorkConfig", Master.isValidWorkConfig(s));
 		}
 		

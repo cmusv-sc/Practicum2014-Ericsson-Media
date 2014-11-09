@@ -4,7 +4,7 @@ import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
@@ -98,7 +98,7 @@ public class Stimulus extends AbstractNode {
 
 
 	@Override
-	public void executeTask(StreamSpec s) {
+	public void executeTask(Stream s) {
 		
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any
@@ -110,7 +110,7 @@ public class Stimulus extends AbstractNode {
 	}
 
 	@Override
-	public void terminateTask(StreamSpec streamSpec) {
+	public void terminateTask(Stream streamSpec) {
 
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any
@@ -121,7 +121,7 @@ public class Stimulus extends AbstractNode {
 	}
 
 	@Override
-	public void releaseResource(StreamSpec streamSpec) {
+	public void releaseResource(Stream streamSpec) {
 		
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any
