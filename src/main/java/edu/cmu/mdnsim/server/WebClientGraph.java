@@ -286,8 +286,8 @@ public class WebClientGraph {
 	public void createNodeZones(List<String> nodeLabels, List<String> nodeTypes){
 		int minX, maxX = 10;
 		int minY, maxY = 10;
-		int xRange = (this.canvasWidth-50) / nodeLabels.size();
-		int yRange = (this.canvasHeight-50) / nodeTypes.size();
+		int xRange = (this.canvasWidth-100) / nodeLabels.size();
+		int yRange = (this.canvasHeight-100) / nodeTypes.size();
 		for(String nodeLabel : nodeLabels){
 			minX = maxX; //previous zone's end is new zone's start
 			maxX = minX + xRange;
