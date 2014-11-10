@@ -101,7 +101,6 @@ public class SinkNode extends AbstractNode {
 
 	}
 
-
 	@Override
 	public void releaseResource(Flow flow) {
 		if (ClusterConfig.DEBUG) {
@@ -154,44 +153,32 @@ public class SinkNode extends AbstractNode {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			} 
-			
-			try{
-				while (!isKilled() && !finished) {
-					try{
-						receiveSocket.receive(packet);
-					} catch(SocketTimeoutException ste){
-						finished = true;
-						
-						if(unitTest){
-							System.out.println("Sink Time out");
-						}
-						break;
-					} 
-					
-					if(startedTime == 0){
-						startedTime = System.currentTimeMillis();
-					}
-					NodePacket nodePacket = new NodePacket(packet.getData());
+		
+			while (!isKilled()) {
+				try{
+					receiveSocket.receive(packet);
+				} catch(SocketTimeoutException ste){
+					break;
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} 
+				
+				if(startedTime == 0){
+					startedTime = System.currentTimeMillis();
+				}
+				NodePacket nodePacket = new NodePacket(packet.getData());
 
-					totalBytesSemaphore.acquire();
-					totalBytesTranfered += packet.getLength();	
-					totalBytesSemaphore.release();
-					
-					if (unitTest) {
-						System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
-					}
-					
-					finished = nodePacket.isLast();
-				}	
-			} catch(Exception e){
-				e.printStackTrace();
-			} finally{
-				clean();
-			}
-
+				totalBytesTranfered += packet.getLength();	
+				
+				if (unitTest) {
+					System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
+				}
+			}	
+		
+			clean();
+			finished = true;
 			long endTime= System.currentTimeMillis();
-
-			stop();
 			if (ClusterConfig.DEBUG) {
 				if (finished) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
@@ -205,7 +192,8 @@ public class SinkNode extends AbstractNode {
 			if(!unitTest){
 				report(startedTime, endTime, totalBytesTranfered);
 			}
-
+			
+			stop();
 		}
 
 		private void report(long startTime, long endTime, int totalBytes){

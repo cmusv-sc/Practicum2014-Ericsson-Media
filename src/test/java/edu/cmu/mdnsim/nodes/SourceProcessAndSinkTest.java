@@ -30,8 +30,8 @@ public class SourceProcessAndSinkTest {
 /*		int totalDataSize = 6250000;
 		int rate = 625000;*/
 		
-		int totalDataSize = 350000000;
-		int rate = 6200;
+		int totalDataSize = 3500;
+		int rate = 1000;
 	
 		sinkNode.setUnitTest(true);
 		processingNode.setUnitTest(true);
