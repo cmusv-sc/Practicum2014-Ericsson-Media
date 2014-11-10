@@ -32,12 +32,10 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
-import edu.cmu.mdnsim.server.WebClientGraph.NodeLocation;
 import edu.cmu.util.Utility;
 /**
  * It represents the Master Node of the Simulator.
@@ -163,7 +161,7 @@ public class Master {
 		nodeTypes.add(WorkConfig.SOURCE_NODE_TYPE_INPUT);
 		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
 		nodeTypes.add(WorkConfig.RELAY_NODE_TYPE_INPUT);
-		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
+		nodeTypes.add(WorkConfig.SINK_NODE_TYPE_INPUT);
 		webClientGraph.createNodeZones(nodeLabels, nodeTypes);
 
 	}
@@ -346,6 +344,7 @@ public class Master {
 				}
 				
 				String flowId = flow.generateFlowId(streamId);
+				
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
@@ -435,6 +434,7 @@ public class Master {
 		Collection<Stream> streamsToStart = streamMap.values();
 		for (Stream stream : streamsToStart) {
 			for (Flow flow : stream.getFlowList()) {
+				System.err.println(flow.getFlowId());
 				String sinkUri = updateFlow(flow);
 				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
 				runningFlowMap.put(flow.getFlowId(), flow);
