@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -150,6 +152,19 @@ public class Master {
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 
 		msgBusSvr.register();
+		
+
+		//TODO: Initialize the zones in better way. Currently it is hardcoded and the order is extremely imp. 
+		List<String> nodeLabels = new ArrayList<String>();
+		List<String> nodeTypes = new ArrayList<String>();
+		nodeLabels.add("orange");
+		nodeLabels.add("tomato");
+		nodeLabels.add("apple");
+		nodeTypes.add(WorkConfig.SOURCE_NODE_TYPE_INPUT);
+		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
+		nodeTypes.add(WorkConfig.RELAY_NODE_TYPE_INPUT);
+		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
+		webClientGraph.createNodeZones(nodeLabels, nodeTypes);
 
 	}
 	
@@ -218,8 +233,6 @@ public class Master {
 		return server;
 	
 	}
-
-	
 
 	/**
 	 * Master sends node create requests to NodeContainer based on the user WorkSpecification
@@ -320,12 +333,12 @@ public class Master {
 					
 					//TODO:A new node might have been instantiated but it hasn't registered at master
 					if (!nodeNameToURITbl.containsKey(node.get(Flow.NODE_ID))) {
-						String nodeType = node.get("NodeType").toLowerCase();
-						if (nodeType.equals("source")) {
+						String nodeType = node.get(Flow.NODE_TYPE);
+						if (nodeType.equals(WorkConfig.SOURCE_NODE_TYPE_INPUT)) {
 							srcSet.add(node.get(Flow.NODE_ID));
-						} else if (nodeType.equals("sink")) {
+						} else if (nodeType.equals(WorkConfig.SINK_NODE_TYPE_INPUT)) {
 							sinkSet.add(node.get(Flow.NODE_ID));
-						} else if (nodeType.equals("processing")) {
+						} else if (nodeType.equals(WorkConfig.PROC_NODE_TYPE_INPUT)) {
 							procSet.add(node.get(Flow.NODE_ID));
 						}
 					}
@@ -396,7 +409,7 @@ public class Master {
 					nodeClass = "edu.cmu.mdnsim.nodes.ProcessingNode";
 				} else {
 					//TODO: throw an exception
-					nodeClass = "UNDIFINED";
+					nodeClass = "UNDEFINED";
 				}
 				//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
 				CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
@@ -501,10 +514,10 @@ public class Master {
 		if(srcMsg.getEventType() == EventType.SEND_START){
 			System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
-			sourceNodeMsg = "Started sending data for stream " + srcMsg.getFlowId() ;
+			sourceNodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
 			
 		} else {
-			sourceNodeMsg = "Done sending data for stream " + srcMsg.getFlowId() ;
+			sourceNodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
 		}
 		//Update Node
 		Node n = webClientGraph.getNode(nodeId);
@@ -570,7 +583,7 @@ public class Master {
 				e.printStackTrace();
 				totalTime = -1;
 			}
-			String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getFlowId() + " . Got " + 
+			String sinkNodeMsg = "Done receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
 					sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
@@ -612,7 +625,7 @@ public class Master {
 			}
 			
 			System.out.println("Processing Node started processing : "+JSON.toJSON(procReport));
-			String procNodeMsg = "Processing Node started processing data for stream " + procReport.getStreamId() ;
+			String procNodeMsg = "Processing Node started processing data for flow " + procReport.getStreamId() ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
 			//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)

@@ -87,8 +87,8 @@ public class Stimulus extends AbstractNode {
 		stimulus.runTestCase(1, "Start the simulation");
 		Thread.sleep(1000 * 2);
 		
-		/* Stop the simulation */
-		stimulus.runTestCase(2, "Stop the simulation");
+//		/* Stop the simulation */
+//		stimulus.runTestCase(2, "Stop the simulation");
 		
 		
 		

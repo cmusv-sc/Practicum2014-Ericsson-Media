@@ -138,7 +138,7 @@ public class Flow extends MbMessage {
 		for (Map<String, String>nodeMap : getNodeList()) {
 			
 			if (i == 0) {
-				if (nodeMap.get("DownstreamId") != null) {
+				if (nodeMap.get(Flow.DOWNSTREAM_ID) != null) {
 					return false;
 				}
 				
@@ -149,14 +149,17 @@ public class Flow extends MbMessage {
 				if (nodeMap.get(Flow.UPSTREAM_ID) != null) {
 					return false;
 				}
-				if (!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
+				if (nodeMap.get(Flow.DOWNSTREAM_ID) == null ||
+						!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
 					return false;
 				}
 			} else {
-				if (!nodeMap.get(Flow.NODE_ID).equals(upStreamIdOfDownStreamNode)) {
+				if (nodeMap.get(Flow.NODE_ID) == null ||
+						!nodeMap.get(Flow.NODE_ID).equals(upStreamIdOfDownStreamNode)) {
 					return false;
 				}
-				if (!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
+				if (nodeMap.get(Flow.DOWNSTREAM_ID) == null ||
+						!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
 					return false;
 				}
 				upStreamIdOfDownStreamNode = nodeMap.get(Flow.UPSTREAM_ID);

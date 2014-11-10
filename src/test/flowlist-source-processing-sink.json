@@ -4,8 +4,8 @@
   [
 	{
 	  "StreamId":"stream1234",
-	  "DataSize":"20000000",
-	  "KiloBitRate":"625000",
+	  "DataSize":"200000",
+	  "KiloBitRate":"6250",
 	  "FlowList":
 	  [
 		  {
@@ -14,11 +14,11 @@
 				{
 				  "NodeType":"SinkNode",
 				  "NodeId":"tomato:sink1",
-				  "UpstreamId":"tomato:processing1"
+				  "UpstreamId":"apple:processing1"
 				},
 				{
 				  "NodeType":"ProcessingNode",
-				  "NodeId":"tomato:processing1",
+				  "NodeId":"apple:processing1",
 				  "UpstreamId":"orange:source1",
 				  "ProcessingLoop":"100000",
 				  "ProcessingMemory":"1000"

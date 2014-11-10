@@ -2,6 +2,8 @@ package edu.cmu.mdnsim.integratedtest;
 
 import java.util.HashMap;
 
+import com.ericsson.research.warp.util.JSON;
+
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
@@ -47,28 +49,28 @@ public class SingleFlowTestCase implements MessageBusTestCase {
 		Flow flow = new Flow();
 		
 		HashMap<String, String> sinkInfo = new HashMap<String, String>();
-		sinkInfo.put("NodeType","SINK");
-		sinkInfo.put("NodeId", "tomato:sink1");
-		sinkInfo.put("UpstreamId", "orange:source1");
+		sinkInfo.put(Flow.NODE_TYPE, WorkConfig.SINK_NODE_TYPE_INPUT);
+		sinkInfo.put(Flow.NODE_ID, "tomato:sink1");
+		sinkInfo.put(Flow.UPSTREAM_ID, "apple:proc1");
 		flow.addNode(sinkInfo);
 		
 		HashMap<String, String> procInfo = new HashMap<String, String>();
-		procInfo.put("NodeType", "PROCESSING");
-		procInfo.put("NodeId", "apple:proc1");
-		procInfo.put("UpstreamId", "orange:source1");
+		procInfo.put(Flow.NODE_TYPE, WorkConfig.PROC_NODE_TYPE_INPUT);
+		procInfo.put(Flow.NODE_ID, "apple:proc1");
+		procInfo.put(Flow.UPSTREAM_ID, "orange:source1");
 		procInfo.put("ProcessingLoop", "3000");
 		procInfo.put("ProcessingMemory", "1000");
 		flow.addNode(procInfo);
 		
 		HashMap<String, String> sourceInfo = new HashMap<String, String>();
-		sourceInfo.put("NodeType", "SOURCE");
-		sourceInfo.put("NodeId", "orange:source1");
-		sourceInfo.put("UpstreamId", "NULL");
+		sourceInfo.put(Flow.NODE_TYPE, WorkConfig.SOURCE_NODE_TYPE_INPUT);
+		sourceInfo.put(Flow.NODE_ID, "orange:source1");
+		sourceInfo.put(Flow.UPSTREAM_ID, "NULL");
 		flow.addNode(sourceInfo);
 
 		stream.addFlow(flow);
 		wc.addStream(stream);
-
+		
 		try {
 			msgBusClient.sendToMaster("/", "/work_config", "POST", wc);
 		} catch (MessageBusException e) {
