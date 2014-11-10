@@ -508,7 +508,7 @@ public class Master {
 	 * @throws MessageBusException 
 	 * @throws WarpException
 	 */
-	public void sourceReport(Message request, SourceReportMessage srcMsg) throws MessageBusException {
+	public synchronized void sourceReport(Message request, SourceReportMessage srcMsg) throws MessageBusException {
 		String nodeId = getNodeId(request);
 		String sourceNodeMsg= null;
 		if(srcMsg.getEventType() == EventType.SEND_START){
@@ -525,8 +525,9 @@ public class Master {
 		synchronized(n){
 			n.tag = sourceNodeMsg;
 		}
+		
 		//Update Edge
-		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,srcMsg.getDestinationNodeId()));
+		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId , srcMsg.getDestinationNodeId()));
 		
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(srcMsg.getDestinationNodeId(),nodeId));
@@ -534,10 +535,10 @@ public class Master {
 		synchronized(e){
 			if(srcMsg.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
-				e.tag = "Stream Id: " + srcMsg.getFlowId();
+				e.tag = "Flow Id: " + srcMsg.getFlowId();
 			}else if(srcMsg.getEventType() == EventType.SEND_END){
 				e.color = "rgb(255,0,0)";
-				e.tag = "Stream Id: " + srcMsg.getFlowId();
+				e.tag = "Flow Id: " + srcMsg.getFlowId();
 			}
 		}
 
@@ -567,11 +568,11 @@ public class Master {
 	 * @param sinkMsg
 	 * @throws MessageBusException 
 	 */
-	public void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
+	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 
 		long totalTime = 0;
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.sinkReport(): Sink finished receiving data.\n" + JSON.toJSON(sinkMsg));
+			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
 		}
 		String nodeId = getNodeId(request);
 
@@ -597,6 +598,7 @@ public class Master {
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
 		}
+		
 		synchronized(e){
 			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
 				//TODO: What to do?
@@ -604,7 +606,7 @@ public class Master {
 				e.tag = "Stream Id: " + sinkMsg.getStreamId();*/
 			}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 				e.color = "rgb(255,0,0)";
-				e.tag = "Stream Id: " + sinkMsg.getFlowId();
+				e.tag = "Flow Id: " + sinkMsg.getFlowId();
 			}
 		}
 
@@ -613,19 +615,17 @@ public class Master {
 		}
 	}
 
-	public void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
+	public synchronized void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
 
 		String nodeId = getNodeId(request);
 		//Update Node
 		if(procReport.getEventType() == EventType.RECEIVE_START){
 			
-			String info = String.format("[DEBUG]Master.precReport(): PROC node starts receiving");
+			String info = String.format("[DEBUG]Master.precReport(): PROC node starts receiving (FLOW ID=%s)", procReport.getFlowId());
 			if (ClusterConfig.DEBUG) {
 				System.out.println(info);
 			}
-			
-			System.out.println("Processing Node started processing : "+JSON.toJSON(procReport));
-			String procNodeMsg = "Processing Node started processing data for flow " + procReport.getStreamId() ;
+			String procNodeMsg = "Processing Node started processing data for flow " + procReport.getFlowId() ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
 			//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
@@ -656,7 +656,7 @@ public class Master {
 		synchronized(e){
 			if(procReport.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
-				e.tag = "Stream Id: " + procReport.getStreamId();
+				e.tag = "Stream Id: " + procReport.getFlowId();
 			}else if(procReport.getEventType() == EventType.SEND_END){
 				//TODO: What to do?
 				/*e.color = "rgb(100,0,0)";
@@ -681,7 +681,6 @@ public class Master {
 	 */
 	public void stopSimulation() throws MessageBusException {
 
-		//StopSimulationRequest req;
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");

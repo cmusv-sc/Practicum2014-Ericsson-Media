@@ -334,7 +334,7 @@ public class ProcessingNode extends AbstractNode {
 		private void report(long time, String destinationNodeId, EventType eventType) {
 
 			ProcReportMessage procReportMsg = new ProcReportMessage();
-			procReportMsg.setStreamId(flowId);
+			procReportMsg.setFlowId(flowId);
 			procReportMsg.setTime(Utility.millisecondTimeToString(time));
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
