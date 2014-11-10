@@ -46,7 +46,10 @@ import edu.cmu.util.Utility;
  * 4. Naming of the nodes and mapping them to the names given by the user
  * 5. Staring Message Bus Server and registering resource for reporting
  * 
- * @author CMU-SV Ericsson Media Team
+ * @author Jeremy Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class Master {
@@ -101,7 +104,56 @@ public class Master {
 	public Master(String msgBusSvrClassName) throws MessageBusException {
 		msgBusSvr = instantiateMsgBusServer(msgBusSvrClassName);
 	}
+	
+	/**
+	 * 
+	 * Initialize the message bus server
+	 * 
+	 * Initialization of MdnMaster. Specifically, it registers itself with 
+	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
+	 * for service("warp://provider_name:service_name"); It also registers some
+	 * method listener to handle requests from Web interface and MDNNode in the
+	 * control message layer
+	 * 
+	 * @throws WarpException. IOException and TrapException
+	 * @throws MessageBusException 
+	 */
+	public void init() throws WarpException, IOException, TrapException, MessageBusException {
 
+		msgBusSvr.config();
+
+		/* Register a new node. This is called from a real Node */
+		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
+
+		/* Register a new node container. This is called from a node container */
+		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
+
+		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
+		msgBusSvr.addMethodListener("/work_config", "POST", this, "uploadWorkConfig");
+
+		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
+		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
+
+		/* Add listener for web browser call (start simulation) */
+		msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
+
+		/* Source report listener */
+		msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
+
+		/* Sink report listener */
+		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
+
+		/* Proc Node report listener */
+		msgBusSvr.addMethodListener("/processing_report", "POST", this, "procReport");
+
+		/* Add listener for suspend a simulation */
+		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
+
+		msgBusSvr.register();
+
+	}
+	
+	
 	/**
 	 * Takes in the MessageBus class name used for communicating among the nodes and 
 	 * initializes the MessageBusServer interface with object of that class
@@ -113,6 +165,7 @@ public class Master {
 	 * @param className
 	 * @return
 	 * @throws MessageBusException
+	 * 
 	 */
 	private MessageBusServer instantiateMsgBusServer(String className) throws MessageBusException {
 
@@ -163,58 +216,10 @@ public class Master {
 		}
 
 		return server;
+	
 	}
 
-	/**
-	 * 
-	 * Initialize the message bus server
-	 * 
-	 * Initialization of MdnMaster. Specifically, it registers itself with 
-	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
-	 * for service("warp://provider_name:service_name"); It also registers some
-	 * method listener to handle requests from Web interface and MDNNode in the
-	 * control message layer
-	 * 
-	 * @throws WarpException. IOException and TrapException
-	 * @throws MessageBusException 
-	 */
-	public void init() throws WarpException, IOException, TrapException, MessageBusException {
-
-		msgBusSvr.config();
-		//TODO: The resource names and method need to be properly named 
-		//		/* Create a new node in the NodeContainer. This is called by WorkSpecification Parser.*/
-		//		msgBusSvr.addMethodListener("/nodes", "POST", this, "createNode");
-
-		/* Register a new node. This is called from a real Node */
-		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
-
-		/* Register a new node container. This is called from a node container */
-		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
-
-		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
-		msgBusSvr.addMethodListener("/work_config", "POST", this, "handleWorkConfig");
-
-		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
-		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
-
-		/* Add listener for web browser call (start simulation) */
-		msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
-
-		/* Source report listener */
-		msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
-
-		/* Sink report listener */
-		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
-
-		/* Proc Node report listener */
-		msgBusSvr.addMethodListener("/processing_report", "POST", this, "procReport");
-
-		/* Add listener for suspend a simulation */
-		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
-
-		msgBusSvr.register();
-
-	}
+	
 
 	/**
 	 * Master sends node create requests to NodeContainer based on the user WorkSpecification
@@ -293,78 +298,49 @@ public class Master {
 	 * @param Message
 	 * @param WorkConfig
 	 */
-	public void handleWorkConfig(Message mesg, WorkConfig wc) {
+	public void uploadWorkConfig(Message mesg, WorkConfig wc) {
 
 		Set<String> srcSet = new HashSet<String>();
 		Set<String> sinkSet = new HashSet<String>();
 		Set<String> procSet = new HashSet<String>();
 		Map<NodeType, Set<String>> nodesToInstantiate = new HashMap<NodeType, Set<String>>();
 
-		double x = 0.1;
-		double y = 0.1;
-
-		String srcRgb = "rgb(0,204,0)";
-		String sinkRgb = "rgb(0,204,204)";
-		String procRgb = "rgb(204,204,0)";
-
-		String srcMsg = "This is a Source Node";
-		String sinkMsg = "This is a Sink Node";
-		String procMsg = "This is a Processing Node";
-		int nodeSize = 6;
-
 		for (Stream stream : wc.getStreamList()) {
-			String streamId = stream.StreamId;
-			String kiloBitRate = stream.KiloBitRate;
-			String dataSize = stream.DataSize;
+			
+			String streamId = stream.getStreamId();
+			String kiloBitRate = stream.getKiloBitRate();
+			String dataSize = stream.getDataSize();
+			
 			for (Flow flow : stream.getFlowList()) {
+				
 				for (Map<String, String> node : flow.getNodeList()) {
-					String nType = node.get("NodeType");
-					String nId = node.get("NodeId");
-					String upstreamNode = node.get("UpstreamId");
-					String rgb = "";
-					String msg = "";
-					String edgeId = getEdgeId(upstreamNode,nId);
-					String edgeType = "";
-					String edgeColor = "rgb(0,0,0)";
-					int  edgeSize = 1;
-					if (webClientGraph.getNode(nId) == null) {
-						/*
-						 * The above check is used to ensure that the node is added only once to the node list.
-						 */
-						//TODO: Come up with some better logic to assign positions to the nodes
-						NodeLocation nl = webClientGraph.getNewNodeLocation();
-						x = nl.x;
-						y = nl.y;
-						if (nType.toLowerCase().contains("source")) {
-							rgb = srcRgb;
-							msg = srcMsg;
-							srcSet.add(nId);
-						} else if (nType.toLowerCase().contains("sink")) {
-							rgb = sinkRgb;
-							msg = sinkMsg;
-							sinkSet.add(nId);
-						} else if (nType.toLowerCase().contains("processing")){	
-							rgb = procRgb;
-							msg = procMsg;
-							procSet.add(nId);
-						}
-						Node n = webClientGraph.new Node(nId, nId, x, y, rgb, nodeSize,  msg);					
-						webClientGraph.addNode(n);
-					}
 
-					if(!upstreamNode.equals("NULL") && webClientGraph.getEdge(edgeId) == null) {
-						Edge e = webClientGraph.new Edge(edgeId, upstreamNode, nId, edgeType, edgeId, edgeColor,edgeSize);
-						webClientGraph.addEdge(e);
+					webClientGraph.addNode(node);
+					webClientGraph.addEdge(node);
+					
+					//TODO:A new node might have been instantiated but it hasn't registered at master
+					if (!nodeNameToURITbl.containsKey(node.get(Flow.NODE_ID))) {
+						String nodeType = node.get("NodeType").toLowerCase();
+						if (nodeType.equals("source")) {
+							srcSet.add(node.get(Flow.NODE_ID));
+						} else if (nodeType.equals("sink")) {
+							sinkSet.add(node.get(Flow.NODE_ID));
+						} else if (nodeType.equals("processing")) {
+							procSet.add(node.get(Flow.NODE_ID));
+						}
 					}
+	
 				}
+				
 				String flowId = flow.generateFlowId(streamId);
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
-				if (!flowMap.containsKey(flowId))
+				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);
+				}
 			}
-
+			
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {
@@ -376,7 +352,6 @@ public class Master {
 		if (webClientURI != null) {
 			try {
 				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientGraph.getUpdateMessage());
-				//System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
@@ -385,7 +360,7 @@ public class Master {
 		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
 		nodesToInstantiate.put(NodeType.SINK, sinkSet);
 		nodesToInstantiate.put(NodeType.PROC, procSet);
-
+		
 		instantiateNodes(nodesToInstantiate);
 
 	}
@@ -443,14 +418,16 @@ public class Master {
 	 */
 
 	public void startSimulation(Message msg) throws MessageBusException {
-		Collection<Flow> flowsToStart = flowMap.values();
-		for (Flow flow : flowsToStart) {
-			String sinkUri = updateFlow(flow);
-			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
-			runningFlowMap.put(flow.getFlowId(), flow);
+		
+		Collection<Stream> streamsToStart = streamMap.values();
+		for (Stream stream : streamsToStart) {
+			for (Flow flow : stream.getFlowList()) {
+				String sinkUri = updateFlow(flow);
+				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
+				runningFlowMap.put(flow.getFlowId(), flow);
+			}
 		}
-
-		flowMap.clear();
+		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
 					+ "has started");
@@ -478,23 +455,23 @@ public class Master {
 		for (int i = 0; i < flow.getNodeList().size(); i++) {
 
 			Map<String, String> nodeMap = flow.getNodeList().get(i);
-			nodeMap.put("NodeUri", nodeNameToURITbl.get(nodeMap.get("NodeId")));
+			nodeMap.put("NodeUri", nodeNameToURITbl.get(nodeMap.get(Flow.NODE_ID)));
 			if (i == 0) {
-				sinkNodeId = nodeMap.get("NodeId");
+				sinkNodeId = nodeMap.get(Flow.NODE_ID);
 				sinkUri = nodeNameToURITbl.get(sinkNodeId);
-				downStreamId = nodeMap.get("NodeId");
+				downStreamId = nodeMap.get(Flow.NODE_ID);
 				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
 			} else {
 				nodeMap.put("DownstreamId", downStreamId);
 				nodeMap.put("DownstreamUri", nodeNameToURITbl.get(downStreamId));
-				downStreamId = nodeMap.get("NodeId");
+				downStreamId = nodeMap.get(Flow.NODE_ID);
 				nodeMap.put("UpstreamUri", nodeNameToURITbl.get(nodeMap.get("UpstreamId")));
 			}
 
 		}
 
 		if (ClusterConfig.DEBUG) {
-			assert isValidFlow(flow);
+			assert flow.isValidFlow();
 		}
 		return sinkUri;
 	}
@@ -536,9 +513,10 @@ public class Master {
 			n.tag = sourceNodeMsg;
 		}
 		//Update Edge
-		Edge e = webClientGraph.getEdge(getEdgeId(nodeId,srcMsg.getDestinationNodeId()));
+		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,srcMsg.getDestinationNodeId()));
+		
 		if(e == null){
-			e = webClientGraph.getEdge(getEdgeId(srcMsg.getDestinationNodeId(),nodeId));
+			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(srcMsg.getDestinationNodeId(),nodeId));
 		}
 		synchronized(e){
 			if(srcMsg.getEventType() == EventType.SEND_START){
@@ -555,17 +533,7 @@ public class Master {
 		}
 
 	}
-	/**
-	 * Generate Edge Id using source and destination node ids.
-	 * Edge ids should be generated using this function only
-	 * @param sourceNodeId
-	 * @param destinationNodeId
-	 * @return
-	 */
-	private String getEdgeId(String sourceNodeId, String destinationNodeId) {
-		//System.out.println(sourceNodeId + "-" + destinationNodeId);
-		return sourceNodeId + "-" + destinationNodeId;
-	}
+
 
 	/**
 	 * Extracts node id from messageRequest.from
@@ -612,9 +580,9 @@ public class Master {
 		}
 
 		//Update Edge
-		Edge e = webClientGraph.getEdge(getEdgeId(nodeId,sinkMsg.getDestinationNodeId()));
+		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,sinkMsg.getDestinationNodeId()));
 		if(e == null){
-			e = webClientGraph.getEdge(getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
+			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
 		}
 		synchronized(e){
 			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
@@ -668,9 +636,9 @@ public class Master {
 			}
 		}
 		//Update Edge
-		Edge e = webClientGraph.getEdge(getEdgeId(nodeId,procReport.getDestinationNodeId()));
+		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
 		if(e == null){
-			e = webClientGraph.getEdge(getEdgeId(procReport.getDestinationNodeId(),nodeId));
+			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
 		}
 		synchronized(e){
 			if(procReport.getEventType() == EventType.SEND_START){
@@ -716,86 +684,6 @@ public class Master {
 		Master mdnDomain = new Master();
 		mdnDomain.init();
 	}
-
-	/**
-	 * Validate the input WorkConfiguration
-	 * @param stream
-	 * @return 
-	 */
-	public static boolean isValidWorkConfig(WorkConfig wc) {
-		
-		for (Stream stream : wc.getStreamList()) {
-			// For every stream in the stream list
-			for (int i = 0; i < stream.FlowList.size(); i++) {
-				// For every flow in the flow list
-				Flow flow = stream.FlowList.get(i);
-				int flowMemberIndex = 0;
-				int flowMemberListSize = flow.getNodeList().size();
-				
-				for (Map<String, String> nodeMap : flow.getNodeList()) {
-					// For every flow member (a node map) in the flow
-					String nodeId = nodeMap.get("NodeType");
-					String nodeType = nodeMap.get("NodeType");
-					String upstreamId = nodeMap.get("UpstreamId");
-					
-					if (nodeId == null || nodeId.equals(""))
-						return false;
-					if (nodeType == null || nodeType.equals(""))
-						return false;
-					if (upstreamId == null || upstreamId.equals("")) 
-						return false;
-
-					if (flowMemberIndex == 0)
-						continue;
-					else if (flowMemberIndex < flowMemberListSize-1) {
-						// This is the NodeId of the node that is next in the FlowMemberList list
-						// the upstreamNodeId has to match the upstreamId in current map
-						String upstreamNodeId = flow.getNodeList().get(flowMemberIndex+1).get("NodeId");
-						if (!upstreamId.equals(upstreamNodeId))
-							return false;
-					} else {
-						// The final Node Map in the FlowMemberList. The upstreamId must be the String "NULL"
-						if (!upstreamId.equals("NULL"))
-							return false;
-					}
-					flowMemberIndex++;
-				}
-			}
-		}
-		return true;
-	}
 	
-	public static boolean isValidFlow(Flow flow) {
-		String downStreamNodeId = null;
-		String upStreamIdOfDownStreamNode = null;
-		int i=0;
-		for (Map<String, String>nodeMap : flow.getNodeList()) {
-			if (i == 0) {
-				if (nodeMap.get("DownstreamId") != null) {
-					return false;
-				}
-				downStreamNodeId = nodeMap.get("NodeId");
-				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
-			} else if (i == flow.getNodeList().size() - 1){
-				if (nodeMap.get("UpstreamId") != null) {
-					return false;
-				}
-				if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
-					return false;
-				}
-			} else {
-				if (!nodeMap.get("NodeId").equals(upStreamIdOfDownStreamNode)) {
-					return false;
-				}
-				if (!nodeMap.get("DownstreamId").equals(downStreamNodeId)) {
-					return false;
-				}
-				upStreamIdOfDownStreamNode = nodeMap.get("UpstreamId");
-				downStreamNodeId = nodeMap.get("NodeId");
-			}
-			i++;
-		}
-
-		return true;
-	}
+	
 }
