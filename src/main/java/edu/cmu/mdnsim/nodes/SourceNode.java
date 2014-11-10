@@ -103,8 +103,6 @@ public class SourceNode extends AbstractNode {
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
-
-		
 	}
 
 	class SendRunnable extends NodeRunnable {
@@ -149,68 +147,59 @@ public class SourceNode extends AbstractNode {
 			
 			byte[] buf = null;
 			int packetId = 0;
-			try{
-				while (!finished && !isKilled()) {
-					
-					long begin = System.currentTimeMillis();
-					
-					NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(unitTest? 0: 1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+			while (bytesToTransfer > 0 && !isKilled()) {
+				
+				long begin = System.currentTimeMillis();
+				
+				NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+
+				buf = nodePacket.serialize();	
 	
-					buf = nodePacket.serialize();	
-		
-					DatagramPacket packet = null;
+				DatagramPacket packet = null;
+				try {
+					packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
+					sendSocket.send(packet);
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+				}
+				if(startedTime == 0){
+					startedTime = System.currentTimeMillis();
+				}
+				bytesToTransfer -= packet.getLength();
+				totalBytesTranfered += packet.getLength();
+			
+				if (unitTest) {
+					System.out.println("[Source] " + totalBytesTranfered + " " + currentTime());
+				}
+				
+				long end = System.currentTimeMillis();
+				long millisRemaining = millisecondPerPacket - (end - begin);
+				
+				if (millisRemaining > 0) {
 					try {
-						packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
-						sendSocket.send(packet);
-					} catch (IOException ioe) {
-						ioe.printStackTrace();
-					}
-					if(startedTime == 0){
-						startedTime = System.currentTimeMillis();
-					}
-					bytesToTransfer -= packet.getLength();
-					
-					totalBytesSemaphore.acquire();
-					totalBytesTranfered += packet.getLength();
-					totalBytesSemaphore.release();
-					
-					if (unitTest) {
-						System.out.println("[Source] " + totalBytesTranfered + " " + currentTime());
-					}
-					
-					long end = System.currentTimeMillis();
-					
-					finished = (bytesToTransfer <= 0);
-					
-					long millisRemaining = millisecondPerPacket - (end - begin);
-					
-					if (millisRemaining > 0) {
-						try {
-							Thread.sleep(millisRemaining);
-						} catch (InterruptedException ie) {
-							ie.printStackTrace();
-						}
-					}
-					packetId++;
-					if(unitTest){
-						packetId++;
+						Thread.sleep(millisRemaining);
+					} catch (InterruptedException ie) {
+						ie.printStackTrace();
 					}
 				}
-			} catch(Exception e){
-				e.printStackTrace();
-			} finally{
-				clean();
+				packetId++;
+				if(unitTest){
+					packetId++;
+				}
 			}
+			
+			finished = true;
+			clean();
 			
 			if(!unitTest){
 				report(EventType.SEND_END);
 			}
 			
 			if (ClusterConfig.DEBUG) {
-				if (finished) {
-					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has finished.");
-				} else if (isKilled()){
+				if (isKilled()) {
 					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has been killed(not finished yet).");
+				} else{
+					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has finished.");
 				}
 			}
 			stop();

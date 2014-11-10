@@ -62,6 +62,12 @@ public class NodeContainer {
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
 		
+		if (nodeMap.containsKey(req.getNodeId())) {
+			// Nothing to be done. Node already exists
+			System.out.println("Nothing to be done. Node already exists");
+			return;
+		}
+		
 		Class<?>[] scan = null;
 		try {
 			scan = PackageScanner.scan("edu.cmu.mdnsim.nodes");
