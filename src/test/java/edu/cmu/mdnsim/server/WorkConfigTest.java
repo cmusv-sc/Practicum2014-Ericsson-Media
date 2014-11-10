@@ -1,11 +1,13 @@
 package edu.cmu.mdnsim.server;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 
@@ -18,38 +20,37 @@ public class WorkConfigTest {
 		
 		WorkConfig wc = new WorkConfig();
 		wc.setSimId(simuID);
-		List<Stream> streamSpecList = new ArrayList<Stream>();
-		Stream streamSpec = new Stream();
-		streamSpec.StreamId = simuID;
-		streamSpec.KiloBitRate = "625000";
-		streamSpec.DataSize = "20000000";
-		ArrayList<HashMap<String, String>> flow = new ArrayList<HashMap<String, String>>();
+
+		Stream stream = new Stream();
+		stream.setStreamId(simuID);
+		stream.setKiloBitRate("625000");
+		stream.setDataSize("20000000");
 		
-		HashMap<String, String> sinkInfo = new HashMap<String, String>();
-		sinkInfo.put("NodeType","SINK");
-		sinkInfo.put("NodeId", "tomato:sink1");
-		sinkInfo.put("UpstreamId", "apple:relay1");
-		flow.add(sinkInfo);
+		Flow flow = new Flow();
+		Map<String, String> sink = new HashMap<String, String>();
+		sink.put(Flow.NODE_TYPE,"SINK");
+		sink.put(Flow.NODE_ID, "tomato:sink1");
+		sink.put(Flow.UPSTREAM_ID, "apple:relay1");
+		flow.addNode(sink);
 		
-		HashMap<String, String> relayInfo = new HashMap<String, String>();
-		relayInfo.put("NodeType", "Relay");
-		relayInfo.put("NodeId", "apple:relay1");
-		relayInfo.put("UpstreamId", "orange:source1");
-		relayInfo.put("DownstreamId", "tomato:sink1");
-		flow.add(relayInfo);
+		Map<String, String> relay = new HashMap<String, String>();
+		relay.put(Flow.NODE_TYPE, "RELAY");
+		relay.put(Flow.NODE_ID, "apple:relay1");
+		relay.put(Flow.UPSTREAM_ID, "orange:source1");
+		relay.put(Flow.DOWNSTREAM_ID, "tomato:sink1");
+		flow.addNode(relay);
 		
-		HashMap<String, String> sourceInfo = new HashMap<String, String>();
-		sourceInfo.put("NodeType", "SOURCE");
-		sourceInfo.put("NodeId", "orange:source1");
-		sourceInfo.put("DownstreamId", "apple:relay1");
-		flow.add(sourceInfo);
+		HashMap<String, String> source = new HashMap<String, String>();
+		source.put(Flow.NODE_TYPE, "SOURCE");
+		source.put(Flow.NODE_ID, "orange:source1");
+		source.put(Flow.DOWNSTREAM_ID, "apple:relay1");
+		flow.addNode(source);
 		
-		streamSpec.Flow = flow;
-		streamSpecList.add(streamSpec);
-		wc.setStreamList(streamSpecList);
+		stream.addFlow(flow);
+		wc.addStream(stream);
 		
 		for (Stream s : wc.getStreamList()) {
-			assertTrue("Test valid WorkConfig", Master.isValidWorkConfig(s));
+			assertTrue("Test valid WorkConfig", wc.isValidWorkConfig());
 		}
 		
 	}
