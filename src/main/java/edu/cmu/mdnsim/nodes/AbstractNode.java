@@ -288,7 +288,7 @@ public abstract class AbstractNode {
 			}  
 			
 			private void reportTransportationRate(long averageRate, long instantRate){
-				System.out.println("[RATE]" + averageRate + " " + instantRate);
+				System.out.println("[RATE]" + " " + averageRate + " " + instantRate);
 			}
 		} 
 	}

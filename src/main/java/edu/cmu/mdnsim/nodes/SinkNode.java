@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
@@ -146,28 +147,40 @@ public class SinkNode extends AbstractNode {
 			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
+			try {
+				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			} catch (SocketException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} 
+			
 			try{
 				while (!isKilled() && !finished) {
-					try {	
+					try{
 						receiveSocket.receive(packet);
-						if(startedTime == 0){
-							startedTime = System.currentTimeMillis();
-						}
-						NodePacket nodePacket = new NodePacket(packet.getData());
-
-						totalBytesSemaphore.acquire();
-						totalBytesTranfered += packet.getLength();	
-						totalBytesSemaphore.release();
+					} catch(SocketTimeoutException ste){
+						finished = true;
 						
-						if (unitTest) {
-							System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
+						if(unitTest){
+							System.out.println("Sink Time out");
 						}
-						
-						finished = nodePacket.isLast();
-	
-					} catch (IOException ioe) {
-						ioe.printStackTrace();
+						break;
+					} 
+					
+					if(startedTime == 0){
+						startedTime = System.currentTimeMillis();
 					}
+					NodePacket nodePacket = new NodePacket(packet.getData());
+
+					totalBytesSemaphore.acquire();
+					totalBytesTranfered += packet.getLength();	
+					totalBytesSemaphore.release();
+					
+					if (unitTest) {
+						System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
+					}
+					
+					finished = nodePacket.isLast();
 				}	
 			} catch(Exception e){
 				e.printStackTrace();

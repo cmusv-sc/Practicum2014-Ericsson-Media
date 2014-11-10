@@ -27,8 +27,11 @@ public class SourceProcessAndSinkTest {
 		InetAddress processingAddress = processingNode.getHostAddr();
 		int processingPort = processingNode.bindAvailablePortToStream(streamId);
 		
-		int totalDataSize = 3500;
-		int rate = 1000;
+/*		int totalDataSize = 6250000;
+		int rate = 625000;*/
+		
+		int totalDataSize = 350000000;
+		int rate = 6200;
 	
 		sinkNode.setUnitTest(true);
 		processingNode.setUnitTest(true);

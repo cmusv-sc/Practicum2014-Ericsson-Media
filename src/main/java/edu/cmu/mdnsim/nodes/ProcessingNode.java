@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -202,18 +203,36 @@ public class ProcessingNode extends AbstractNode{
 			boolean sendStarted = false;
 			
 			/* These variables are for tracking packet lost */
-			//int totalPacketNum = (int) Math.ceil(totalData / NodePacket.PACKET_MAX_LENGTH);
+			int expectedMaxPacketId = (int) Math.ceil(totalData * 1.0 / NodePacket.PACKET_MAX_LENGTH) - 1;
 			AtomicInteger lostPacketCount = new AtomicInteger(0);
+			int receivedPackageCount = 0;
 			Map<Integer, Timer> packetIdToTimerMap = new ConcurrentHashMap<Integer, Timer>();
 			int highestPacketIdReceived = -1;
+			try {
+				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			} catch (SocketException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} 
 			
 			try{
 				while (!finished && !isKilled()) {
 					try {
 						receiveSocket.receive(packet);
+						receivedPackageCount++;
+					} catch(SocketTimeoutException ste){
+						lostPacketCount.addAndGet(expectedMaxPacketId - highestPacketIdReceived);
+						finished = true;
+						
+						if(unitTest){
+							System.out.println("Processing Time out");
+						}
+						break;
 					} catch (IOException e) {
 						e.printStackTrace();
-					}
+						
+					} 
+					
 					if(startedTime == 0) {
 						startedTime = System.currentTimeMillis();
 						//Report to Master that RECEIVE has Started
@@ -283,6 +302,7 @@ public class ProcessingNode extends AbstractNode{
 				}	
 			} catch(Exception e){
 				e.printStackTrace();
+				// 
 			} finally{
 				clean();
 			}

@@ -106,7 +106,7 @@ public class SourceNode extends AbstractNode {
 		
 	}
 
-	private class SendRunnable extends NodeRunnable {
+	class SendRunnable extends NodeRunnable {
 		
 		private DatagramSocket sendSocket = null;
 		private InetAddress dstAddrStr;
@@ -153,7 +153,8 @@ public class SourceNode extends AbstractNode {
 					
 					long begin = System.currentTimeMillis();
 					
-					NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+					NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(unitTest? 0: 1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+	
 					buf = nodePacket.serialize();	
 		
 					DatagramPacket packet = null;
