@@ -209,7 +209,6 @@ public abstract class AbstractNode {
 		
 		protected long startedTime = 0;
 		protected int totalBytesTranfered = 0;
-		protected Semaphore totalBytesSemaphore = new Semaphore(1);
 		protected boolean finished = false;
 		
 		protected boolean killed = false;
@@ -243,7 +242,8 @@ public abstract class AbstractNode {
 		}
 		
 		protected class ReportTransportationRateRunnable implements Runnable{  
-  
+
+			  
 			protected int lastRecordedTotalBytes = 0;
 			// -1 to avoid time difference to be 0 when used as a divider
 			protected long lastRecordedTime = System.currentTimeMillis() - 1;
@@ -258,14 +258,7 @@ public abstract class AbstractNode {
 				while(!finished){
 					long currentTime = System.currentTimeMillis();
 					
-					try {
-						totalBytesSemaphore.acquire();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-					int localTotalBytes = totalBytesTranfered;
-					totalBytesSemaphore.release();
-					
+					int localTotalBytes = totalBytesTranfered;				
 					long timeDiffInMillisecond = currentTime - lastRecordedTime;
 					int bytesDiff = localTotalBytes - lastRecordedTotalBytes;
 					long instantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
