@@ -163,7 +163,7 @@ public class Master {
 		nodeTypes.add(WorkConfig.SOURCE_NODE_TYPE_INPUT);
 		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
 		nodeTypes.add(WorkConfig.RELAY_NODE_TYPE_INPUT);
-		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
+		nodeTypes.add(WorkConfig.SINK_NODE_TYPE_INPUT);
 		webClientGraph.createNodeZones(nodeLabels, nodeTypes);
 
 	}
@@ -346,6 +346,7 @@ public class Master {
 				}
 				
 				String flowId = flow.generateFlowId(streamId);
+				System.out.println("Flow Id: " + flowId);
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
@@ -435,6 +436,7 @@ public class Master {
 		Collection<Stream> streamsToStart = streamMap.values();
 		for (Stream stream : streamsToStart) {
 			for (Flow flow : stream.getFlowList()) {
+				System.err.println(flow.getFlowId());
 				String sinkUri = updateFlow(flow);
 				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
 				runningFlowMap.put(flow.getFlowId(), flow);

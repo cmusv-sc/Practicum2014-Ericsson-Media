@@ -344,7 +344,7 @@ public class WebClientGraph {
 	 */
 	public void addNode(Map<String, String> nodeMap) {
 		
-		if (containsNode(nodeMap.get(Flow.NODE_ID))) {
+		if (this.containsNode(nodeMap.get(Flow.NODE_ID))) {
 			return;
 		}
 		
@@ -370,7 +370,7 @@ public class WebClientGraph {
 		
 		
 		Node newNode = new Node(nodeMap.get(Flow.NODE_ID), 
-				nodeMap.get(Flow.NODE_ID).split(":")[0],
+				nodeMap.get(Flow.NODE_ID),
 				nl.x, nl.y, nodeRGB, Node.NODE_SIZE_IN_GRAPH,  nodeMsg);
 		
 		nodesMap.put(newNode.id, newNode);
