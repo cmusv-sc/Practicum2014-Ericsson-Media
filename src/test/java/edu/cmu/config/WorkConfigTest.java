@@ -1,63 +1,58 @@
 package edu.cmu.config;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.junit.Test;
-
-import com.ericsson.research.warp.util.JSON;
-
-import edu.cmu.mdnsim.config.NodeConfig;
-import edu.cmu.mdnsim.config.StreamConfig;
+import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 
 public class WorkConfigTest {
+	
+	@org.junit.Test
+	public void testIsValidWorkConfig() {
+		
+		String simuID = "test";
+		
+		WorkConfig wc = new WorkConfig();
+		wc.setSimId(simuID);
 
-	@Test
-	public void test() {
+		Stream stream = new Stream();
+		stream.setStreamId(simuID);
+		stream.setKiloBitRate("625000");
+		stream.setDataSize("20000000");
 		
-		/*
-		 * Stream1
-		 */
-		NodeConfig.Builder builder1 = new NodeConfig.Builder("Source");
-		NodeConfig nodeConfig1 = builder1.bitrate(500).id("us-west-1").build();
-
-		List<NodeConfig> list1 = new LinkedList<NodeConfig>();
-		list1.add(nodeConfig1);
+		Flow flow = new Flow();
+		Map<String, String> sink = new HashMap<String, String>();
+		sink.put(Flow.NODE_TYPE,"SINK");
+		sink.put(Flow.NODE_ID, "tomato:sink1");
+		sink.put(Flow.UPSTREAM_ID, "apple:relay1");
+		flow.addNode(sink);
 		
-		StreamConfig streamConfig1 = new StreamConfig();
-		streamConfig1.setSize(10);
-		streamConfig1.setId("1");
-		streamConfig1.setFlow(list1);
+		Map<String, String> relay = new HashMap<String, String>();
+		relay.put(Flow.NODE_TYPE, "RELAY");
+		relay.put(Flow.NODE_ID, "apple:relay1");
+		relay.put(Flow.UPSTREAM_ID, "orange:source1");
+		relay.put(Flow.DOWNSTREAM_ID, "tomato:sink1");
+		flow.addNode(relay);
 		
-		/*
-		 * Stream2
-		 */
-		NodeConfig.Builder builder2 = new NodeConfig.Builder("Sink");
-		NodeConfig nodeConfig2 = builder2.bitrate(400).build();
-
-		List<NodeConfig> list2 = new LinkedList<NodeConfig>();
-		list2.add(nodeConfig2);
+		HashMap<String, String> source = new HashMap<String, String>();
+		source.put(Flow.NODE_TYPE, "SOURCE");
+		source.put(Flow.NODE_ID, "orange:source1");
+		source.put(Flow.DOWNSTREAM_ID, "apple:relay1");
+		flow.addNode(source);
 		
-		StreamConfig streamConfig2 = new StreamConfig();
-		streamConfig2.setSize(20);
-		streamConfig2.setId("2");
-		streamConfig2.setFlow(list2);
+		stream.addFlow(flow);
+		wc.addStream(stream);
 		
-		/*
-		 * WorkConfig
-		 */	
-//		WorkConfig workConfig = new WorkConfig();
-//		workConfig.addStreamConfig(streamConfig1);
-//		workConfig.addStreamConfig(streamConfig2);
-//		
-//		System.out.println(JSON.toJSON(workConfig));
-//		
-//		assertEquals(500, workConfig.getStreamConfigList().get(0).getFlow().get(0).getBitrate());
-//		assertEquals(10, workConfig.getStreamConfigList().get(0).getSize());
-//		assertEquals(400,workConfig.getStreamConfigList().get(1).getFlow().get(0).getBitrate());
+		for (Stream s : wc.getStreamList()) {
+			assertTrue("Test valid WorkConfig", wc.isValidWorkConfig());
+		}
+		
 	}
-
+	
 }
