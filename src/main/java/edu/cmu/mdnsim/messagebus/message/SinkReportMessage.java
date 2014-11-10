@@ -2,7 +2,7 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class SinkReportMessage extends MbMessage {
 	
-	String streamId;
+	String flowId;
 	int totalBytes;
 	String endTime; // Indicates time (start or end) of any type of operation
 	/**
@@ -22,15 +22,15 @@ public class SinkReportMessage extends MbMessage {
 	private String destinationNodeId;
 
 	public SinkReportMessage() {
-		streamId = "";
+		flowId = "";
 		totalBytes = 0;
 	}
 	
-	public String getStreamId() {
-		return streamId;
+	public String getFlowId() {
+		return flowId;
 	}
-	public void setStreamId(String streamId) {
-		this.streamId = streamId;
+	public void setFlowId(String streamId) {
+		this.flowId = streamId;
 	}
 	
 	public int getTotalBytes() {

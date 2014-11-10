@@ -4,8 +4,8 @@ import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
-import edu.cmu.mdnsim.config.StreamSpec;
-import edu.cmu.mdnsim.config.WorkConfig;
+import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -68,7 +68,7 @@ public class Stimulus extends AbstractNode {
 		String simuID = "test-1";
 		
 		/* Add WorkConfig test case */
-		MessageBusTestCase testCase = new WorkConfigTestCase(stimulus.msgBusClient, simuID);
+		MessageBusTestCase testCase = new SingleFlowTestCase(stimulus.msgBusClient, simuID);
 		stimulus.addTestCase(testCase);
 		
 		/* Add start simulation test case */
@@ -80,15 +80,15 @@ public class Stimulus extends AbstractNode {
 		stimulus.addTestCase(testCase);
 		
 		/* Create topology specified by WorkConfig */
-		stimulus.runTestCase(0, "Finish validate the WorkConfig");
+		stimulus.runTestCase(0, "Start to send the WorkConfig");
 		Thread.sleep(1000 * 2);
 		
 		/* Start the simulation */
 		stimulus.runTestCase(1, "Start the simulation");
 		Thread.sleep(1000 * 2);
 		
-		/* Stop the simulation */
-		stimulus.runTestCase(2, "Stop the simulation");
+//		/* Stop the simulation */
+//		stimulus.runTestCase(2, "Stop the simulation");
 		
 		
 		
@@ -98,7 +98,7 @@ public class Stimulus extends AbstractNode {
 
 
 	@Override
-	public void executeTask(StreamSpec s) {
+	public void executeTask(Flow s) {
 		
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any
@@ -110,7 +110,7 @@ public class Stimulus extends AbstractNode {
 	}
 
 	@Override
-	public void terminateTask(StreamSpec streamSpec) {
+	public void terminateTask(Flow streamSpec) {
 
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any
@@ -121,7 +121,7 @@ public class Stimulus extends AbstractNode {
 	}
 
 	@Override
-	public void releaseResource(StreamSpec streamSpec) {
+	public void releaseResource(Flow streamSpec) {
 		
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any

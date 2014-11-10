@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -37,28 +37,29 @@ public class SourceNode extends AbstractNode {
 	}
 	
 	@Override
-	public void executeTask(StreamSpec streamSpec) {
+	public void executeTask(Flow flow) {
 
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.executeTask(): Source received a work specification.");
 		}
-		for (HashMap<String, String> nodePropertiesMap : streamSpec.Flow) {
+		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
 
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 				String[] ipAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
 				String destAddrStr = ipAndPort[0];
 				int destPort = Integer.parseInt(ipAndPort[1]);
-				int dataSize = Integer.parseInt(streamSpec.DataSize);
-				int rate = Integer.parseInt(streamSpec.ByteRate);
+				int dataSize = Integer.parseInt(flow.getDataSize());
+				int rate = Integer.parseInt(flow.getKiloBitRate());
 				//Get up stream and down stream node ids
 				//As of now Source Node does not have upstream id
 				//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
-				downStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("DownstreamId"));
+				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
 				
 				try {
-					SendRunnable sendThread = new SendRunnable(streamSpec.StreamId, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
-					runningMap.put(streamSpec.StreamId, sendThread);
-					WarpThreadPool.executeCached(sendThread);
+
+					SendRunnable sndThread = new SendRunnable(flow.getFlowId(), InetAddress.getByName(destAddrStr), destPort, dataSize, rate);
+					runningMap.put(flow.getFlowId(), sndThread);
+					WarpThreadPool.executeCached(sndThread);
 				} catch (UnknownHostException e) {
 					e.printStackTrace();
 				}
@@ -68,37 +69,37 @@ public class SourceNode extends AbstractNode {
 	}
 
 	@Override
-	public void terminateTask(StreamSpec streamSpec) {
+	public void terminateTask(Flow flow) {
 		
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SourceNode.terminateTask(): Source received terminate task.\n" + JSON.toJSON(streamSpec));
+			System.out.println("[DEBUG]SourceNode.terminateTask(): Source received terminate task.\n" + JSON.toJSON(flow));
 		}
 		
-		SendRunnable thread = runningMap.get(streamSpec.StreamId);
+		SendRunnable thread = runningMap.get(flow.getFlowId());
 		if(thread == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
 		thread.kill();
 		
-		releaseResource(streamSpec);
+		releaseResource(flow);
 	}
 	
 	@Override
-	public void releaseResource(StreamSpec streamSpec) {
+	public void releaseResource(Flow flow) {
 		
-		SendRunnable sndThread = runningMap.get(streamSpec.StreamId);
+		SendRunnable sndThread = runningMap.get(flow.getFlowId());
 		while (!sndThread.isStopped());
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.releaseResource(): Source starts to clean-up resource.");
 		}
 		
 		sndThread.clean();
-		runningMap.remove(streamSpec.StreamId);
+		runningMap.remove(flow.getFlowId());
 		
-		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
 		
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", streamSpec);
+			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -220,7 +221,7 @@ public class SourceNode extends AbstractNode {
 		 */
 		public void clean() {
 			sendSocket.close();
-			runningMap.remove(streamId);
+			runningMap.remove(flowId);
 		}
 		
 		private void report(EventType eventType){
@@ -229,10 +230,10 @@ public class SourceNode extends AbstractNode {
 				System.out.println("[DEBUG] SourceNode.SendDataThread.run(): " + "Source will start sending data. " + "Record satrt time and report to master");
 			}
 			SourceReportMessage srcReportMsg = new SourceReportMessage();
-			srcReportMsg.setStreamId(streamId);
+			srcReportMsg.setFlowId(flowId);
 			srcReportMsg.setTotalBytesTransferred(bytesToTransfer);
 			srcReportMsg.setTime(Utility.currentTime());	
-			srcReportMsg.setDestinationNodeId(downStreamNodes.get(streamId));
+			srcReportMsg.setDestinationNodeId(downStreamNodes.get(flowId));
 			srcReportMsg.setEventType(eventType);
 			
 			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";

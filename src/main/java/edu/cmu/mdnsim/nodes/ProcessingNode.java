@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
 
-import edu.cmu.mdnsim.config.StreamSpec;
+import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -28,7 +28,7 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.util.Utility;
 
-public class ProcessingNode extends AbstractNode{
+public class ProcessingNode extends AbstractNode {
 
 	private Map<String, ReceiveProcessAndSendRunnable> runningMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
 
@@ -37,18 +37,18 @@ public class ProcessingNode extends AbstractNode{
 	}
 
 	@Override
-	public void executeTask(StreamSpec streamSpec) {
+	public void executeTask(Flow flow) {
 
 		int flowIndex = -1;
 
-		for (HashMap<String, String> nodePropertiesMap : streamSpec.Flow) {
+		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
 
 			flowIndex++;
 
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 
 				/* Open a socket for receiving data from upstream node */
-				int port = bindAvailablePortToStream(streamSpec.StreamId);
+				int port = bindAvailablePortToFlow(flow.getFlowId());
 				if(port == 0){
 					//TODO, report to the management layer, we failed to bind a port to a socket
 				}
@@ -58,8 +58,8 @@ public class ProcessingNode extends AbstractNode{
 				int processingMemory = Integer.valueOf(nodePropertiesMap.get("ProcessingMemory"));
 
 				//Get up stream and down stream node ids
-				upStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("UpstreamId"));
-				downStreamNodes.put(streamSpec.StreamId, nodePropertiesMap.get("DownstreamId"));
+				upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
+				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
 
 				/* Get the IP:port */
 				String[] addressAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
@@ -68,8 +68,8 @@ public class ProcessingNode extends AbstractNode{
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(streamSpec.StreamId, Integer.valueOf(streamSpec.DataSize), targetAddress, targetPort, processingLoop, processingMemory);
-					runningMap.put(streamSpec.StreamId, thread);
+					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(flow.getFlowId(), Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, processingLoop, processingMemory);
+					runningMap.put(flow.getFlowId(), thread);
 					WarpThreadPool.executeCached(thread);
 				} catch (UnknownHostException e1) {
 					e1.printStackTrace();
@@ -77,9 +77,9 @@ public class ProcessingNode extends AbstractNode{
 
 				if (nodePropertiesMap.get("UpstreamUri") != null){
 					try {
-						HashMap<String, String> upstreamFlow = streamSpec.Flow.get(flowIndex+1);
+						Map<String, String> upstreamFlow = flow.getNodeList().get(flowIndex+1);
 						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port);
-						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri")+"/tasks", "PUT", streamSpec);
+						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri")+"/tasks", "PUT", flow);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					}
@@ -98,41 +98,41 @@ public class ProcessingNode extends AbstractNode{
 	}
 
 	@Override
-	public void terminateTask(StreamSpec streamSpec) {
+	public void terminateTask(Flow flow) {
 
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		ReceiveProcessAndSendRunnable thread = runningMap.get(flow.getFlowId());
 		if(thread == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
 		thread.kill();
 
-		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
 
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", streamSpec);
+			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
 	}
 
 	@Override
-	public void releaseResource(StreamSpec streamSpec) {
+	public void releaseResource(Flow flow) {
 
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = runningMap.get(streamSpec.StreamId);
+		ReceiveProcessAndSendRunnable thread = runningMap.get(flow.getFlowId());
 		while (!thread.isStopped());
 		thread.clean();
 
-		Map<String, String> nodeMap = streamSpec.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", streamSpec);
+			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -146,7 +146,7 @@ public class ProcessingNode extends AbstractNode{
 	 * reports the total time and total number of bytes received by the 
 	 * sink node back to the master using the message bus.
 	 * 
-	 * @param streamId The streamId is bind to a socket and stored in the map
+	 * @param flowId The streamId is bind to a socket and stored in the map
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
@@ -184,7 +184,7 @@ public class ProcessingNode extends AbstractNode{
 		@Override
 		public void run() {
 
-			if ((receiveSocket = streamIdToSocketMap.get(streamId)) == null) {
+			if ((receiveSocket = flowIdToSocketMap.get(flowId)) == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.run():" + "[Exception]Attempt to receive data for non existent stream");
 				}
@@ -237,7 +237,7 @@ public class ProcessingNode extends AbstractNode{
 						startedTime = System.currentTimeMillis();
 						//Report to Master that RECEIVE has Started
 						if(!unitTest){
-							report(startedTime,upStreamNodes.get(streamId),EventType.RECEIVE_START);
+							report(startedTime,upStreamNodes.get(flowId),EventType.RECEIVE_START);
 						}
 					}
 
@@ -286,7 +286,7 @@ public class ProcessingNode extends AbstractNode{
 					if(!sendStarted){
 						sendStarted = true;
 						if(!unitTest){
-							report(System.currentTimeMillis(),downStreamNodes.get(streamId), EventType.SEND_START);
+							report(System.currentTimeMillis(),downStreamNodes.get(flowId), EventType.SEND_START);
 						}
 					}
 					if (unitTest) {
@@ -296,7 +296,7 @@ public class ProcessingNode extends AbstractNode{
 					if(nodePacket.isLast()){
 						finished = true;
 						if (!unitTest) {
-							report(System.currentTimeMillis(), downStreamNodes.get(streamId), EventType.SEND_END);
+							report(System.currentTimeMillis(), downStreamNodes.get(flowId), EventType.SEND_END);
 						}
 					}
 				}	
@@ -334,7 +334,7 @@ public class ProcessingNode extends AbstractNode{
 		private void report(long time, String destinationNodeId, EventType eventType) {
 
 			ProcReportMessage procReportMsg = new ProcReportMessage();
-			procReportMsg.setStreamId(streamId);
+			procReportMsg.setStreamId(flowId);
 			procReportMsg.setTime(Utility.millisecondTimeToString(time));
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
@@ -354,7 +354,7 @@ public class ProcessingNode extends AbstractNode{
 			if (!sendSocket.isClosed()) {
 				sendSocket.close();
 			}
-			streamIdToSocketMap.remove(streamId);
+			flowIdToSocketMap.remove(flowId);
 		}
 		
 		public NewArrivedPacketStatus getNewArrivedPacketStatus(Map<Integer, Timer> packetIdToTimerMap, int highestPacketIdReceived, int packetId){

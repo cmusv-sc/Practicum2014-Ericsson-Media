@@ -118,9 +118,12 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
         
 		try {
-	 		_svc = Warp.init().service(Master.class.getName(), "cmu-sv", "mdn-manager")
-	         		.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
-	         
+			_svc=_warpDomain.createService("mdn-manager");
+	 		//_svc = Warp.init().service(Master.class.getName(), "cmu-sv", "mdn-manager").create();
+	         		//.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
+	         _svc.descriptor().setServiceProperty(ServicePropertyName.SERVICE_PROVIDER, "cmu-sv");
+	         _svc.unregister();
+	         _svc.register();
 	         _svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
 	             
 	             @Override

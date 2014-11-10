@@ -191,7 +191,7 @@ function handleWsFileSelect(evt) {
 		// Closure to capture the file information.
 		reader.onload = (function(theFile) {
 			return function(e) {
-				Warp.send({to: "warp://cmu-sv:mdn-manager/validate_user_spec", data: e.target.result});
+				Warp.send({to: "warp://cmu-sv:mdn-manager/work_config", data: e.target.result});
 				console.log("Hello from handleWsFileSelect");
 			};
 		})(f);
