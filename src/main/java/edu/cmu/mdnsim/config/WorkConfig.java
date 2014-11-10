@@ -4,6 +4,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.ericsson.research.warp.util.JSON;
+
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.config.Flow;
 
@@ -121,24 +123,26 @@ public class WorkConfig extends MbMessage{
 		this.simId = simId;
 	}
 	
-	@Override
-	public String toString() {
+	/**
+	 * Validate the input WorkConfiguration
+	 * @param stream
+	 * @return 
+	 */
+	public boolean isValidWorkConfig() {
 		
-		StringBuilder sb = new StringBuilder();
-		for (Stream stream : this.getStreamList()) {
-			sb.append("StreamSpec:");
-			sb.append("StreamId: "+stream.StreamId);
-			sb.append("DataSize: "+stream.DataSize);
-			sb.append("KiloBitRate: "+stream.KiloBitRate);
-			for (Flow flow : stream.getFlowList()) {
-				for (Map<String, String> node : flow.NodeList) {
-					sb.append("[nodeId" 
-							+ node.get("NodeId") + "]\t[UpstreamId" + node.get("UpstreamId") 
-							+ "]\t[DownstreamId" + node.get("DownstreamId") + "]");
-				}
+		for (Stream stream : getStreamList()) {
+			if (!stream.isValidStream()) {
+				return false;
 			}
 		}
-		return sb.toString();
+		return true;
+	}
+	
+	
+	@Override
+	public String toString() {
+		//TODO: should change this to Warp independent
+		return JSON.toJSON(this);
 		
 	}
 }

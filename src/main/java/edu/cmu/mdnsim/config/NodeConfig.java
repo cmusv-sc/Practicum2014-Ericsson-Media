@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.config;
 
+@Deprecated
 public class NodeConfig {
 
 	private String id;
@@ -22,6 +23,7 @@ public class NodeConfig {
 		private String upStreamNodeId = "";
 		private String desIP = "";
 		private int desPort = 0;
+		
 		
 		public Builder(String nodeType){
 			this.nodeType = nodeType;
