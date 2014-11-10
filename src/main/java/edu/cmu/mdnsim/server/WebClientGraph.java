@@ -28,7 +28,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
  */
 public class WebClientGraph {
 
-	public int canvasWidth = 1000;
+	public int canvasWidth = 1100;
 	public int canvasHeight = 500;
 
 	/**

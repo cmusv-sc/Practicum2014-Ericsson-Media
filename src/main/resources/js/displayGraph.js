@@ -63,7 +63,7 @@ var cam = null;
 function createGraph(initial_data){
 	if(s){
 		s.graph.clear();		
-		s.graph.read(updated_data);		
+		s.graph.read(initial_data);		
 	}else{
 		s = new sigma({
 			graph: initial_data
@@ -138,7 +138,7 @@ function refreshGraph(updated_data){
 //	"nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
 //	{"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
 //	{"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}]};
-	//console.log(updated_data);
+	console.log(updated_data);
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
 	updated_data = {"nodes":nodes,"edges":edges};
