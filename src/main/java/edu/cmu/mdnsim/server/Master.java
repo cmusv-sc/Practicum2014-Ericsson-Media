@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -213,6 +215,17 @@ public class Master {
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 
 		msgBusSvr.register();
+		
+		//TODO: Initialize the zones in better way. Currently it is hardcoded and the order is extremely imp. 
+		List<String> nodeLabels = new ArrayList<String>();
+		List<String> nodeTypes = new ArrayList<String>();
+		nodeLabels.add("orange");
+		nodeLabels.add("tomato");
+		nodeTypes.add("SourceNode");
+		nodeTypes.add("ProcessingNode");
+		nodeTypes.add("RelayNode");
+		nodeTypes.add("SinkNode");
+		webClientGraph.createNodeZones(nodeLabels, nodeTypes);
 
 	}
 
@@ -332,7 +345,7 @@ public class Master {
 						 * The above check is used to ensure that the node is added only once to the node list.
 						 */
 						//TODO: Come up with some better logic to assign positions to the nodes
-						NodeLocation nl = webClientGraph.getNewNodeLocation();
+						NodeLocation nl = webClientGraph.getNewNodeLocation(nType,nId.split(":")[0]);
 						x = nl.x;
 						y = nl.y;
 						if (nType.toLowerCase().contains("source")) {
@@ -421,7 +434,7 @@ public class Master {
 					nodeClass = "edu.cmu.mdnsim.nodes.ProcessingNode";
 				} else {
 					//TODO: throw an exception
-					nodeClass = "UNDIFINED";
+					nodeClass = "UNDEFINED";
 				}
 				//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
 				CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
@@ -524,10 +537,10 @@ public class Master {
 		if(srcMsg.getEventType() == EventType.SEND_START){
 			System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
-			sourceNodeMsg = "Started sending data for stream " + srcMsg.getFlowId() ;
+			sourceNodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
 			
 		} else {
-			sourceNodeMsg = "Done sending data for stream " + srcMsg.getFlowId() ;
+			sourceNodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
 		}
 		//Update Node
 		Node n = webClientGraph.getNode(nodeId);
@@ -602,7 +615,7 @@ public class Master {
 				e.printStackTrace();
 				totalTime = -1;
 			}
-			String sinkNodeMsg = "Done receiving data for stream " + sinkMsg.getFlowId() + " . Got " + 
+			String sinkNodeMsg = "Done receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
 					sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
@@ -644,7 +657,7 @@ public class Master {
 			}
 			
 			System.out.println("Processing Node started processing : "+JSON.toJSON(procReport));
-			String procNodeMsg = "Processing Node started processing data for stream " + procReport.getStreamId() ;
+			String procNodeMsg = "Processing Node started processing data for flow " + procReport.getStreamId() ;
 			//Update Node
 			Node n = webClientGraph.getNode(nodeId);
 			//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
