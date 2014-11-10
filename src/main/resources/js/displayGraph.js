@@ -62,7 +62,8 @@ var cam = null;
  */
 function createGraph(initial_data){
 	if(s){
-		refreshGraph(initial_data);		
+		s.graph.clear();		
+		s.graph.read(updated_data);		
 	}else{
 		s = new sigma({
 			graph: initial_data
@@ -72,9 +73,9 @@ function createGraph(initial_data){
 			container: $("#svg")[0],
 			type: 'svg',
 			camera: cam
-		});		
-		s.refresh();
+		});	
 	}
+	s.refresh();   
 	attachNodeEvents();
 	attachEdgeEvents();
 }

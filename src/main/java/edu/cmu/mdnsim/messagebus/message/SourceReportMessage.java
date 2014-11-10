@@ -19,6 +19,7 @@ public class SourceReportMessage extends MbMessage {
 	 * or node which is receiving data from this node
 	 */
 	private String destinationNodeId;
+
 	
 	public SourceReportMessage() {
 		super();

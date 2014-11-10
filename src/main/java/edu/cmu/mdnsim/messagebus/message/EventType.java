@@ -22,5 +22,10 @@ public enum EventType {
 	/**
 	 * Used when a node is done receiving data for a stream
 	 */
-	RECEIVE_END
+	RECEIVE_END,
+	/**
+	 * Used for intermediate reports
+	 */
+	PROGRESS_REPORT
+	
 }

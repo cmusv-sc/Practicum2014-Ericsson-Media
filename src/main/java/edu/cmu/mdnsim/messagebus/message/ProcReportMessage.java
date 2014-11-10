@@ -22,6 +22,11 @@ public class ProcReportMessage extends MbMessage {
 	 */
 	private String destinationNodeId;
 	
+	private String currentRate;
+	private String averageRate;
+	private String packetLoss;
+	
+	
 	public ProcReportMessage() {
 		super();
 	}
@@ -80,5 +85,28 @@ public class ProcReportMessage extends MbMessage {
 
 	public void setDestinationNodeId(String destinationNodeId) {
 		this.destinationNodeId = destinationNodeId;
+	}
+	public String getCurrentRate() {
+		return currentRate;
+	}
+
+	public void setCurrentRate(String currentRate) {
+		this.currentRate = currentRate;
+	}
+
+	public String getAverageRate() {
+		return averageRate;
+	}
+
+	public void setAverageRate(String averageRate) {
+		this.averageRate = averageRate;
+	}
+
+	public String getPacketLoss() {
+		return packetLoss;
+	}
+
+	public void setPacketLoss(String packetLoss) {
+		this.packetLoss = packetLoss;
 	}
 }
