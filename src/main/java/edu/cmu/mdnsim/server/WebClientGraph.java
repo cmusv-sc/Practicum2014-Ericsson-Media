@@ -1,8 +1,11 @@
 package edu.cmu.mdnsim.server;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 /**
  * Represents the actual state of the graph displayed in the web client. 
@@ -12,13 +15,184 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
  * The class internally uses ConcurrentHashMap for nodes and edges, 
  * 	but none of the add/remove methods provided by this class are synchronized 
  * 	=> Thread safety is same as guaranteed by ConcurrentHashMap  
- * @author CMU-SV Ericsson Media Team
+ * 
+ * @author Jeremy Fu
+ * @author Vinay Kumar Vavili
+ * @author Jigar Patel
+ * @author Hao Wang
  */
 public class WebClientGraph {
+	
+	/**
+	 * Key = Node Id, Value = Node
+	 */
+	private Map<String,Node> nodesMap;
+	/**
+	 * Key = Edge Id, Value = Edge
+	 */
+	private Map<String,Edge> edgesMap;
+	/**
+	 * Used to ensure that each node gets different location
+	 */
+	private Set<NodeLocation> nodeLocations ;
+	/**
+	 * Private constructor to ensure that there is only one object of the Graph
+	 */
+	private WebClientGraph(){
+		//TODO: Specify appropriate load factor, concurrency level for the maps 
+		nodesMap = new ConcurrentHashMap<String,Node>();
+		edgesMap = new ConcurrentHashMap<String,Edge>();
+		nodeLocations = new HashSet<NodeLocation>();
+	};	
+	public final static WebClientGraph INSTANCE = new WebClientGraph();
+	/**
+	 * Gets the node from the graph. Returns null if not present.
+	 * @param nodeId
+	 * @return
+	 */
+	public Node getNode(String nodeId){
+		return nodesMap.get(nodeId);
+	}
+	
+	/**
+	 * Check whether the node is contained in the graph.
+	 * 
+	 * @param nodeId
+	 * @return
+	 */
+	public boolean containsNode(String nodeId) {
+		return nodesMap.containsKey(nodeId);
+	}
+	
+	/**
+	 * If the node already exists it doesn't add the node to the graph
+	 * @param n
+	 */
+	public void addNode(Map<String, String> nodeMap) {
+		
+		if (containsNode(nodeMap.get(Flow.NODE_ID))) {
+			return;
+		}
+		
+		NodeLocation nl = getNewNodeLocation();
+		
+		String nodeMsg;
+		String nodeRGB;
+		String nodeType = nodeMap.get(Flow.NODE_TYPE).toLowerCase();
+		if (nodeType.equals("source")) {
+			nodeMsg = Node.SRC_MSG;
+			nodeRGB = Node.SRC_RGB;
+		} else if (nodeType.equals("sink")) {
+			nodeMsg = Node.SINK_MSG;
+			nodeRGB = Node.SINK_RGB;
+		} else if (nodeType.equals("processing")) {
+			nodeMsg = Node.PROC_MSG;
+			nodeRGB = Node.PROC_RGB;
+		} else {
+			//TODO: throw a checked exception, and show invalid message in the web browser.
+			throw new RuntimeException("Undefined node type (" + nodeType + ")");
+		}
+		
+		
+		Node newNode = new Node(nodeMap.get(Flow.NODE_ID), 
+				nodeMap.get(Flow.NODE_ID).split(":")[0],
+				nl.x, nl.y, nodeRGB, Node.NODE_SIZE_IN_GRAPH,  nodeMsg);
+		
+		nodesMap.put(newNode.id, newNode);
+		
+	}
+	/**
+	 * If the edge already exists it doesn't add it to the graph
+	 * @param e
+	 */
+	public void addEdge(Map<String, String> nodeMap) {
+		
+		String edgeId = getEdgeId(nodeMap.get("UpstreamId"), nodeMap.get(Flow.NODE_ID));
+		
+		if (nodeMap.get("UpstreamId").equals("NULL") ||
+				containsEdge(edgeId)) {
+			return;
+		}
+		
+		Edge newEdge = new Edge(edgeId, nodeMap.get("UpstreamId"), 
+				nodeMap.get(Flow.NODE_ID), "", edgeId, Edge.EDGE_COLOR, 
+				Edge.EDGE_SIZE_IN_GRAPH);
+		
+		edgesMap.put(newEdge.id, newEdge);
+	}
+	
+	
+	public void removeNode(Node n){
+		nodesMap.remove(n.id);
+		//TODO: Check if we need to remove corresponding edges here or let the user of this class handle it?
+	}
+	
+	public void removeEdge(Edge e){
+		edgesMap.remove(e.id);
+		//TODO: Check if we need to remove corresponding nodes or let the user of this class handle it?
+	}
+	
+	/**
+	 * Generate Edge Id using source and destination node ids.
+	 * Edge ids should be generated using this function only
+	 * @param sourceNodeId
+	 * @param destinationNodeId
+	 * @return
+	 */
+	protected static String getEdgeId(String sourceNodeId, String destinationNodeId) {
+		
+		return sourceNodeId + "-" + destinationNodeId;
+		
+	}
+	
+	/**
+	 * Used to generate WebClient Update Message - 
+	 * 	which can be easily converted JSON and parsed by the client code (javascript code) 
+	 * @return
+	 */
+	public WebClientUpdateMessage getUpdateMessage(){
+		WebClientUpdateMessage msg = new WebClientUpdateMessage();
+		msg.setNodes(this.nodesMap.values());
+		msg.setEdges(this.edgesMap.values());
+		return msg;
+	}
+	/**
+	 * Returns edge if available else null
+	 * @param edgeId
+	 * @return
+	 */
+	public Edge getEdge(String edgeId){
+		return edgesMap.get(edgeId);
+	}
+	
+	public boolean containsEdge(String edgeId) {
+		return edgesMap.containsKey(edgeId);
+	}
+	
+	public NodeLocation getNewNodeLocation(){
+		NodeLocation nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));		
+		while(this.nodeLocations.contains(nl)){
+			nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));
+		}
+		this.nodeLocations.add(nl);
+		return nl;
+	}
+	
 	/**
 	 * Represents the Node in the graph displayed in web client
 	 */
 	public class Node{
+		
+		public static final String SRC_RGB = "rgb(0,204,0)";
+		public static final String SINK_RGB = "rgb(0,204,204)";
+		public static final String PROC_RGB = "rgb(204,204,0)";
+		
+		public static final String SRC_MSG = "This is a Source Node";
+		public static final String SINK_MSG = "This is a Sink Node";
+		public static final String PROC_MSG = "This is a Processing Node";
+		
+		public static final int NODE_SIZE_IN_GRAPH = 6;
+		
 		/**
 		 * Unique value identifying the node
 		 */
@@ -89,6 +263,11 @@ public class WebClientGraph {
 		 * size of edge in numbers (it is relative size)
 		 */
 		public int size;
+		
+		public static final String EDGE_COLOR = "rgb(0,0,0)";
+		
+		public static final int EDGE_SIZE_IN_GRAPH = 1;
+		
 		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;
 			this.source = source;
@@ -123,84 +302,6 @@ public class WebClientGraph {
 			return this.x.equals(nl.x) && this.y.equals(nl.y);
 		}
 	}
-	/**
-	 * Key = Node Id, Value = Node
-	 */
-	private ConcurrentHashMap<String,Node> nodesMap;
-	/**
-	 * Key = Edge Id, Value = Edge
-	 */
-	private ConcurrentHashMap<String,Edge> edgesMap;
-	/**
-	 * Used to ensure that each node gets different location
-	 */
-	private Set<NodeLocation> nodeLocations ;
-	/**
-	 * Private constructor to ensure that there is only one object of the Graph
-	 */
-	private WebClientGraph(){
-		//TODO: Specify appropriate load factor, concurrency level for the maps 
-		nodesMap = new ConcurrentHashMap<String,Node>();
-		edgesMap = new ConcurrentHashMap<String,Edge>();
-		nodeLocations = new HashSet<NodeLocation>();
-	};	
-	public final static WebClientGraph INSTANCE = new WebClientGraph();
-	/**
-	 * Gets the node from the graph. Returns null if not present.
-	 * @param nodeId
-	 * @return
-	 */
-	public Node getNode(String nodeId){
-		return nodesMap.get(nodeId);
-	}
-	/**
-	 * If the node already exists it it over written
-	 * @param n
-	 */
-	public void addNode(Node n) {
-		nodesMap.put(n.id, n);
-	}
-	/**
-	 * If the edge already exists it is overwritten
-	 * @param e
-	 */
-	public void addEdge(Edge e) {
-		edgesMap.put(e.id, e);
-	}
-	public void removeNode(Node n){
-		nodesMap.remove(n.id);
-		//TODO: Check if we need to remove corresponding edges here or let the user of this class handle it?
-	}
-	public void removeEdge(Edge e){
-		edgesMap.remove(e.id);
-		//TODO: Check if we need to remove corresponding nodes or let the user of this class handle it?
-	}
-	/**
-	 * Used to generate WebClient Update Message - 
-	 * 	which can be easily converted JSON and parsed by the client code (javascript code) 
-	 * @return
-	 */
-	public WebClientUpdateMessage getUpdateMessage(){
-		WebClientUpdateMessage msg = new WebClientUpdateMessage();
-		msg.setNodes(this.nodesMap.values());
-		msg.setEdges(this.edgesMap.values());
-		return msg;
-	}
-	/**
-	 * Returns edge if available else null
-	 * @param edgeId
-	 * @return
-	 */
-	public Edge getEdge(String edgeId){
-		return edgesMap.get(edgeId);
-	}
 	
-	public NodeLocation getNewNodeLocation(){
-		NodeLocation nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));		
-		while(this.nodeLocations.contains(nl)){
-			nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));
-		}
-		this.nodeLocations.add(nl);
-		return nl;
-	}
+	
 }
