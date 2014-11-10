@@ -121,10 +121,10 @@ public class Flow extends MbMessage {
 		sb.append(streamId);
 		for (Map<String, String>nodeMap : nodeList) {
 			sb.append("-");
-			sb.append(nodeMap.get("NODE_ID"));
+			sb.append(nodeMap.get(Flow.NODE_ID));
 		}
-		this.flowId = sb.toString();
-		return this.flowId;
+		flowId = sb.toString();
+		return flowId;
 	}
 	
 	
