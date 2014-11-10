@@ -62,7 +62,7 @@ public class Stimulus extends AbstractNode {
 		msgBusClient.connect();
 		
 		Stimulus stimulus = new Stimulus();
-		stimulus.config(msgBusClient, NodeType.UNDEF, "STIMULUS");
+		stimulus.config(msgBusClient, "undefined", "STIMULUS");
 		stimulus.register();
 		Thread.sleep(1000 * 5);
 		String simuID = "test-1";

@@ -85,9 +85,18 @@ public class Master {
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 
 	/**
+	 * Map of NodeId to node type. Used in instantiateNodes function to find class
+	 * implementing the node
+	 */
+	private Map<String, String> nodesToInstantiate = new HashMap<String, String>();
+	/**
 	 * webClientURI records the URI of the web client
 	 */
 	private String webClientURI;
+	/**
+	 * Indicates whether a graph has been created in the web client 
+	 */
+	boolean graphCreated = false;
 
 	/**
 	 * Global object representing the nodes and edges as shown in WebClient. 
@@ -234,6 +243,10 @@ public class Master {
 
 	/**
 	 * Master sends node create requests to NodeContainer based on the user WorkSpecification
+	 * Multiple requests to create the same node on the NodeContainer may be sent. 
+	 * The NodeContainer should handle multiple requests and make sure the 
+	 * node is created only once. multiple requests may be sent due to 
+	 * potential race conditions in updating the nodesToInstantiate Map
 	 * @param req
 	 */
 	private void createNodeOnNodeContainer(CreateNodeRequest req) {
@@ -257,9 +270,10 @@ public class Master {
 
 	/**
 	 * The method (listener) is for accepting registration of new real node. 
-	 * During the bootstrap of MDNNodes, they connect to Master to register 
+	 * During the bootstrap of Node, they connect to Master to register 
 	 * itself in the cluster
-	 * 
+	 * Updates the Graph on the webclient to reflect all operational nodes
+	 * and edges
 	 * @param request The request message received by message bus
 	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
 	 * request
@@ -278,6 +292,18 @@ public class Master {
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
+		
+		if (webClientURI != null) {
+			try {
+				WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
+				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		// remove the node from nodesToInstantiate Map
+		this.nodesToInstantiate.remove(nodeName);
 	}
 
 	/**
@@ -311,11 +337,6 @@ public class Master {
 	 */
 	public void uploadWorkConfig(Message mesg, WorkConfig wc) {
 
-		Set<String> srcSet = new HashSet<String>();
-		Set<String> sinkSet = new HashSet<String>();
-		Set<String> procSet = new HashSet<String>();
-		Map<NodeType, Set<String>> nodesToInstantiate = new HashMap<NodeType, Set<String>>();
-
 		for (Stream stream : wc.getStreamList()) {
 			
 			String streamId = stream.getStreamId();
@@ -326,19 +347,14 @@ public class Master {
 				
 				for (Map<String, String> node : flow.getNodeList()) {
 
+					String nodeId = node.get("NodeId");
+					String nodeType = node.get("NodeType");
 					webClientGraph.addNode(node);
 					webClientGraph.addEdge(node);
 					
-					//TODO:A new node might have been instantiated but it hasn't registered at master
-					if (!nodeNameToURITbl.containsKey(node.get(Flow.NODE_ID))) {
-						String nodeType = node.get(Flow.NODE_TYPE);
-						if (nodeType.equals(WorkConfig.SOURCE_NODE_TYPE_INPUT)) {
-							srcSet.add(node.get(Flow.NODE_ID));
-						} else if (nodeType.equals(WorkConfig.SINK_NODE_TYPE_INPUT)) {
-							sinkSet.add(node.get(Flow.NODE_ID));
-						} else if (nodeType.equals(WorkConfig.PROC_NODE_TYPE_INPUT)) {
-							procSet.add(node.get(Flow.NODE_ID));
-						}
+					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
+						// Node is not yet registered.
+						nodesToInstantiate.put(nodeId, nodeType);
 					}
 	
 				}
@@ -357,23 +373,11 @@ public class Master {
 				streamMap.put(streamId, stream);
 			} else {
 				//TODO: change to checked exception
-				throw new RuntimeException("Duplicate stream ID");
+				//throw new RuntimeException("Duplicate stream ID");
 			}
 		}
-
-		if (webClientURI != null) {
-			try {
-				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", webClientGraph.getUpdateMessage());
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			}
-		}
-
-		nodesToInstantiate.put(NodeType.SOURCE, srcSet);
-		nodesToInstantiate.put(NodeType.SINK, sinkSet);
-		nodesToInstantiate.put(NodeType.PROC, procSet);
 		
-		instantiateNodes(nodesToInstantiate);
+		instantiateNodes();
 
 	}
 
@@ -387,43 +391,25 @@ public class Master {
 	}
 
 	/**
-	 * Gets a list of sets representing the set of nodes to instantiate in the
-	 * deployed NodeContainers
-	 * @param nodesToInstantiate
+	 * Issues request to NodeContainers to create nodes.
 	 */
-	private void instantiateNodes(Map<NodeType, Set<String>> nodesToInstantiate) {
+	private void instantiateNodes() {
 
-		/* Iterate each nodeType */
-		for (NodeType nodeType : nodesToInstantiate.keySet()) {
-
-			/* Iterate each node in certain NodeType */
-			for (String nodeId : nodesToInstantiate.get(nodeType)) {
-				String nodeClass = null;
-
-				if (nodeType == NodeType.SOURCE) {
-					nodeClass = "edu.cmu.mdnsim.nodes.SourceNode";
-				} else if (nodeType == NodeType.SINK) {
-					nodeClass = "edu.cmu.mdnsim.nodes.SinkNode";
-				} else if (nodeType == NodeType.PROC) {
-					nodeClass = "edu.cmu.mdnsim.nodes.ProcessingNode";
-				} else {
-					//TODO: throw an exception
-					nodeClass = "UNDEFINED";
-				}
+		for (String nodeId : nodesToInstantiate.keySet()) {
+			String nodeType = nodesToInstantiate.get(nodeId);
+				String nodeClass = "edu.cmu.mdnsim.nodes."+nodeType;
 				//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
 				CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
 				createNodeOnNodeContainer(req);
-			}
 		}
-
 	}
 
 	/**
-	 * Triggers the simulation by sending the StreamSpec to the sink
-	 * After a StreamSpec is sent to the sink, it is removed from the
-	 * "streamMap" hash map and put into the runningStreamMap.
-	 * This way, if the user wishes to add new streams to an already running
-	 * simulation, this method will send StreamSpec to sink of new streams
+	 * Triggers the simulation by sending the Flow to the sink
+	 * After a Flow is sent to the sink, it is removed from the
+	 * "FlowMap" hash map and put into the runningFlowMap.
+	 * This way, if the user wishes to add new flows to an already running
+	 * simulation, this method will send Flow to sink of new flows
 	 * 
 	 * @param msg
 	 * @throws WarpException
@@ -431,15 +417,12 @@ public class Master {
 
 	public void startSimulation(Message msg) throws MessageBusException {
 		
-		Collection<Stream> streamsToStart = streamMap.values();
-		for (Stream stream : streamsToStart) {
-			for (Flow flow : stream.getFlowList()) {
-				System.err.println(flow.getFlowId());
+			for (Flow flow : flowMap.values()) {
+				System.out.println(flow.getFlowId());
 				String sinkUri = updateFlow(flow);
 				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
 				runningFlowMap.put(flow.getFlowId(), flow);
 			}
-		}
 		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
@@ -496,8 +479,7 @@ public class Master {
 	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws MessageBusException {
-
-		msgBusSvr.send("/", webClientURI.toString()+  "/update", "POST", webClientUpdateMessage);
+		msgBusSvr.send("/", webClientURI.toString()+"/update", "POST", webClientUpdateMessage);
 //		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 	}
 	

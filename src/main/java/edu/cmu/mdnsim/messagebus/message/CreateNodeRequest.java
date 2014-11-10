@@ -4,16 +4,16 @@ import edu.cmu.mdnsim.nodes.NodeType;
 
 public class CreateNodeRequest extends MbMessage {
 	
-	private NodeType nodeType;
+	private String nodeType;
 	private String nodeClass;
 	private String nodeId; // node ID: tomato:sink1
 	private String ncLabel; // node container label: tomato
 	
 	public CreateNodeRequest() {
-		this(NodeType.UNDEF, "default", "");
+		this("undefined", "default", "");
 	}
 	
-	public CreateNodeRequest(NodeType type) {
+	public CreateNodeRequest(String type) {
 		this(type, "default", "");
 		nodeType = type;
 	}
@@ -24,14 +24,14 @@ public class CreateNodeRequest extends MbMessage {
 	 * @param label The label of node container
 	 * @param nClass the node class name
 	 */
-	public CreateNodeRequest(NodeType type, String nodeId, String nClass) {
+	public CreateNodeRequest(String type, String nodeId, String nClass) {
 		nodeType = type;
 		this.nodeId = nodeId;
 		ncLabel = nodeId.split(":")[0];
 		nodeClass = nClass;
 	}
 	
-	public NodeType getNodeType() {
+	public String getNodeType() {
 		return nodeType;
 	}
 	
@@ -47,7 +47,7 @@ public class CreateNodeRequest extends MbMessage {
 		return nodeClass;
 	}
 	
-	public void setNodeType(NodeType type) {
+	public void setNodeType(String type) {
 		nodeType = type;
 	}
 	

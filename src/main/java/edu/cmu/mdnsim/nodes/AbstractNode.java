@@ -72,7 +72,7 @@ public abstract class AbstractNode {
 		flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
-	public void config(MessageBusClient msgBusClient, NodeType nType, String nName) throws MessageBusException {
+	public void config(MessageBusClient msgBusClient, String nType, String nName) throws MessageBusException {
 		this.msgBusClient = msgBusClient;
 		nodeName = nName;
 		

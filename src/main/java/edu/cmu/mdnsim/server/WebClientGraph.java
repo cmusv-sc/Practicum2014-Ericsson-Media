@@ -1,10 +1,12 @@
 package edu.cmu.mdnsim.server;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import edu.cmu.mdnsim.config.Flow;
@@ -248,9 +250,12 @@ public class WebClientGraph {
 		edgesMap.remove(e.id);
 		//TODO: Check if we need to remove corresponding nodes or let the user of this class handle it?
 	}
+	
 	/**
 	 * Used to generate WebClient Update Message - 
-	 * 	which can be easily converted JSON and parsed by the client code (javascript code) 
+	 *  which can be easily converted JSON and parsed by the client code (javascript code)
+	 * This version of the over-loaded method returns the entire set of nodes and edges 
+	 * even though some nodes may not be operational yet 
 	 * @return
 	 */
 	public WebClientUpdateMessage getUpdateMessage(){
@@ -259,6 +264,36 @@ public class WebClientGraph {
 		msg.setEdges(this.edgesMap.values());
 		return msg;
 	}
+	
+	/**
+	 * Used to generate WebClient Update Message - 
+	 *  which can be easily converted JSON and parsed by the client code (javascript code)
+	 *  This version of the over-loaded method returns the set of nodes and edges which are 
+	 *  operational. (i.e. registered with the master)
+	 * @param operationalNodes
+	 * @return
+	 */
+	public WebClientUpdateMessage getUpdateMessage(Set<String> operationalNodes) {
+		WebClientUpdateMessage msg = new WebClientUpdateMessage();
+		List<Node> operationalNodeSet = new ArrayList<Node>();
+		List<Edge> operationalEdgeSet = new ArrayList<Edge>();
+		
+		for (String nodeId : operationalNodes)
+			operationalNodeSet.add(this.getNode(nodeId));
+		msg.setNodes(operationalNodeSet);
+		
+		/* Add the edge to be displayed in the graph only if both end points of 
+		 * the edge are up
+		 */
+		for (Edge e : this.edgesMap.values()) {
+			String[] nodes = e.id.split("-");
+			if (operationalNodes.contains(nodes[0]) && operationalNodes.contains(nodes[1]))
+				operationalEdgeSet.add(e);
+		}
+		msg.setEdges(operationalEdgeSet);
+		return msg;
+	}
+	
 	/**
 	 * Returns edge if available else null
 	 * @param edgeId
