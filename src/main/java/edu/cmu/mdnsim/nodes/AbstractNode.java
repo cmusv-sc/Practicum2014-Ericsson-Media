@@ -10,22 +10,20 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 
 import com.ericsson.research.warp.api.message.Message;
+import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.Flow;
-import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.EventType;
+import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
+import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 
 public abstract class AbstractNode {
 	
@@ -218,8 +216,7 @@ public abstract class AbstractNode {
 			this.flowId = flowId;
 			
 			ReportTransportationRateRunnable reportTransportationRateRunnable = new ReportTransportationRateRunnable(INTERVAL_IN_MILLISECOND);
-			ExecutorService executorService = Executors.newCachedThreadPool();
-			executorService.execute(reportTransportationRateRunnable);
+			WarpThreadPool.executeCached(reportTransportationRateRunnable);
 		}
 		
 		public void run(){
@@ -283,6 +280,63 @@ public abstract class AbstractNode {
 			
 			private void reportTransportationRate(long averageRate, long instantRate){
 				System.out.println("[RATE]" + " " + averageRate + " " + instantRate);
+				NodeType nodeType = getNodeType();
+				System.out.println("NodeType:" + nodeType);
+				if (nodeType == NodeType.SINK) {
+					SinkReportMessage msg = new SinkReportMessage();
+					msg.setEventType(EventType.PROGRESS_REPORT);
+					msg.setFlowId(NodeRunnable.this.flowId);
+					msg.setDestinationNodeId(getUpStreamId());
+					msg.setAverageRate("" + averageRate);
+					msg.setCurrentRate("" + instantRate);
+					try {
+						AbstractNode.this.msgBusClient.sendToMaster("/", "/sink_report", "POST", msg);
+					} catch (MessageBusException e) {
+						e.printStackTrace();
+					} 
+				} else if (nodeType == NodeType.PROC) {
+					ProcReportMessage msg = new ProcReportMessage();
+					msg.setEventType(EventType.PROGRESS_REPORT);
+					msg.setFlowId(NodeRunnable.this.flowId);
+					msg.setDestinationNodeId(getUpStreamId());
+					msg.setAverageRate("" + averageRate);
+					msg.setCurrentRate("" + instantRate);
+					try {
+						AbstractNode.this.msgBusClient.sendToMaster("/", "/processing_report", "POST", msg);
+					} catch (MessageBusException e) {
+						e.printStackTrace();
+					} 
+				}
+				
+			}
+			
+			//TODO: Add Node Type instead of using the parser
+			private NodeType getNodeType() {
+				String nodeTypeStr = AbstractNode.this.nodeName.split(":")[1];
+				nodeTypeStr = nodeTypeStr.substring(0, nodeTypeStr.length() - 1);
+				if (nodeTypeStr.toLowerCase().equals("sink")) {
+					return NodeType.SINK;
+				} else if (nodeTypeStr.toLowerCase().equals("processing")) {
+					return NodeType.PROC;
+				} else if (nodeTypeStr.toLowerCase().equals("source")) {
+					return NodeType.SOURCE;
+				} else {
+					return NodeType.UNDEF;
+				}
+				
+			}
+			
+			private String getUpStreamId() {
+				String nodeIdStr = AbstractNode.this.nodeName;
+				String[] nodeIds = NodeRunnable.this.flowId.split("-");
+				for (int i = 1; i < nodeIds.length; i++) {
+					if (nodeIdStr.equals(nodeIds[i])) {
+						if (i < nodeIds.length - 1) {
+							return nodeIds[i + 1];
+						}
+					}
+				}
+				throw new RuntimeException("Cannot find the upstream ID");
 			}
 		} 
 	}

@@ -556,6 +556,8 @@ public class Master {
 		if (ClusterConfig.DEBUG) {
 			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
 		}
+		
+		System.out.println("[DELETE]JEREMY-Master.sinkReport(): Received a report with EventType = " + sinkMsg.getEventType());
 		String nodeId = getNodeId(request);
 
 		if(sinkMsg.getEventType() == EventType.RECEIVE_END){
@@ -581,6 +583,9 @@ public class Master {
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
 		}
 		
+		System.out.println("[DELETE]Master.sinkReport(): DestinationNodeId=" + sinkMsg.getDestinationNodeId());
+		System.out.println("[DELETE]Master.sinkReport(): Find an edge? " + (e != null));
+		
 		synchronized(e){
 			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
 				//TODO: What to do?
@@ -589,6 +594,9 @@ public class Master {
 			}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 				e.color = "rgb(255,0,0)";
 				e.tag = "Flow Id: " + sinkMsg.getFlowId();
+			} else if (sinkMsg.getEventType() == EventType.PROGRESS_REPORT) {
+				e.tag = "Flow Id: " + sinkMsg.getFlowId() + "avr = " + sinkMsg.getAverageRate();
+				
 			}
 		}
 
@@ -630,11 +638,13 @@ public class Master {
 				System.out.println(info);
 			}
 		}
+		
 		//Update Edge
 		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
 		}
+		
 		synchronized(e){
 			if(procReport.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
