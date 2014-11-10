@@ -32,12 +32,10 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
-import edu.cmu.mdnsim.server.WebClientGraph.NodeLocation;
 import edu.cmu.util.Utility;
 /**
  * It represents the Master Node of the Simulator.
@@ -346,7 +344,7 @@ public class Master {
 				}
 				
 				String flowId = flow.generateFlowId(streamId);
-				System.out.println("Flow Id: " + flowId);
+				
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
