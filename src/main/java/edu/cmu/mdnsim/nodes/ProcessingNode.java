@@ -272,7 +272,7 @@ public class ProcessingNode extends AbstractNode {
 				}
 				if (unitTest) {
 					System.out.println("[Processing]" + totalBytesTranfered + " " + currentTime());
-				}
+				}				
 			}	
 		
 			clean();
@@ -287,6 +287,7 @@ public class ProcessingNode extends AbstractNode {
 				} else{
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
 					System.out.println("[DEBUG]ProcessingNode total lost packet number:" + lostPacketCount);
+					
 				}
 			}
 			stop();

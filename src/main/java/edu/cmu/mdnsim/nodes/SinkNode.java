@@ -166,6 +166,9 @@ public class SinkNode extends AbstractNode {
 				
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
+					if(!unitTest){
+						report(startedTime, -1, totalBytesTranfered,EventType.RECEIVE_START);
+					}
 				}
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
@@ -190,20 +193,20 @@ public class SinkNode extends AbstractNode {
 			}
 
 			if(!unitTest){
-				report(startedTime, endTime, totalBytesTranfered);
+				report(startedTime, endTime, totalBytesTranfered, EventType.RECEIVE_END);
 			}
 			
 			stop();
 		}
 
-		private void report(long startTime, long endTime, int totalBytes){
+		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
 			System.out.println("[SINK] Reporting to master StreamId:" + flowId);
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
 			sinkReportMsg.setFlowId(flowId);
 			sinkReportMsg.setTotalBytes(totalBytes);
 			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
 			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(flowId));
-			sinkReportMsg.setEventType(EventType.RECEIVE_END);
+			sinkReportMsg.setEventType(eventType);
 
 			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
 

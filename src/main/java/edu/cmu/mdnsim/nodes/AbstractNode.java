@@ -87,6 +87,15 @@ public abstract class AbstractNode {
 		RegisterNodeRequest req = new RegisterNodeRequest();
 		req.setNodeName(getNodeName());
 		req.setURI(msgBusClient.getURI()+"/"+getNodeName());
+		//TODO: this is for testing graph update functionality. remove it
+		if (getNodeName().contains("rocess")){
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
 		try {
 			msgBusClient.sendToMaster("/", "/nodes", "PUT", req);
 		} catch (MessageBusException e) {
@@ -282,6 +291,7 @@ public abstract class AbstractNode {
 				System.out.println("[RATE]" + " " + averageRate + " " + instantRate);
 				NodeType nodeType = getNodeType();
 				System.out.println("NodeType:" + nodeType);
+				String fromPath = AbstractNode.this.getNodeName() + "/progress-report";
 				if (nodeType == NodeType.SINK) {
 					SinkReportMessage msg = new SinkReportMessage();
 					msg.setEventType(EventType.PROGRESS_REPORT);
@@ -290,7 +300,7 @@ public abstract class AbstractNode {
 					msg.setAverageRate("" + averageRate);
 					msg.setCurrentRate("" + instantRate);
 					try {
-						AbstractNode.this.msgBusClient.sendToMaster("/", "/sink_report", "POST", msg);
+						AbstractNode.this.msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", msg);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					} 
@@ -302,7 +312,7 @@ public abstract class AbstractNode {
 					msg.setAverageRate("" + averageRate);
 					msg.setCurrentRate("" + instantRate);
 					try {
-						AbstractNode.this.msgBusClient.sendToMaster("/", "/processing_report", "POST", msg);
+						AbstractNode.this.msgBusClient.sendToMaster(fromPath, "/processing_report", "POST", msg);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					} 

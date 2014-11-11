@@ -5,13 +5,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
@@ -33,9 +33,9 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.mdnsim.nodes.NodeType;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
+import edu.cmu.util.HtmlTags;
 import edu.cmu.util.Utility;
 /**
  * It represents the Master Node of the Simulator.
@@ -57,7 +57,7 @@ public class Master {
 	 * The Message Bus Server is part of the master node and is started 
 	 */
 	MessageBusServer msgBusSvr;
-
+	Logger logger = LoggerFactory.getLogger("cmu-sv.mdn-manager.master");
 	/**
 	 * Contains a mapping of the node container label to the URI
 	 */
@@ -519,7 +519,7 @@ public class Master {
 				e.color = "rgb(0,255,0)";
 				e.tag = "Flow Id: " + srcMsg.getFlowId();
 			}else if(srcMsg.getEventType() == EventType.SEND_END){
-				e.color = "rgb(255,0,0)";
+				e.color = "rgb(0,0,0)";
 				e.tag = "Flow Id: " + srcMsg.getFlowId();
 			}
 		}
@@ -551,16 +551,23 @@ public class Master {
 	 * @throws MessageBusException 
 	 */
 	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
-
 		long totalTime = 0;
-		if (ClusterConfig.DEBUG) {
-			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
-		}
+//		if (ClusterConfig.DEBUG) {
+//			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
+//		}
 		
-		System.out.println("[DELETE]JEREMY-Master.sinkReport(): Received a report with EventType = " + sinkMsg.getEventType());
+		
+		//System.out.println("[DELETE]JEREMY-Master.sinkReport(): Received a report with EventType = " + sinkMsg.getEventType());
 		String nodeId = getNodeId(request);
-
-		if(sinkMsg.getEventType() == EventType.RECEIVE_END){
+		if(sinkMsg.getEventType() == EventType.RECEIVE_START){
+			String sinkNodeMsg = "Started receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
+					sinkMsg.getTotalBytes() + " bytes." ;
+			//Update Node
+			Node n = webClientGraph.getNode(nodeId);
+			synchronized(n){
+				n.tag = sinkNodeMsg;
+			}
+		}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 			try {
 				totalTime = Utility.stringToMillisecondTime(sinkMsg.getTime()) 
 						- Utility.stringToMillisecondTime(this.getStartTimeForFlow(sinkMsg.getFlowId()));
@@ -583,20 +590,17 @@ public class Master {
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
 		}
 		
-		System.out.println("[DELETE]Master.sinkReport(): DestinationNodeId=" + sinkMsg.getDestinationNodeId());
-		System.out.println("[DELETE]Master.sinkReport(): Find an edge? " + (e != null));
-		
 		synchronized(e){
 			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
-				//TODO: What to do?
-				/*e.color = "rgb(0,100,0)";
-				e.tag = "Stream Id: " + sinkMsg.getStreamId();*/
+				e.color = "rgb(0,255,0)";
+				e.tag = "Stream Id: " + sinkMsg.getFlowId();
 			}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
-				e.color = "rgb(255,0,0)";
+				e.color = "rgb(0,0,0)";
 				e.tag = "Flow Id: " + sinkMsg.getFlowId();
 			} else if (sinkMsg.getEventType() == EventType.PROGRESS_REPORT) {
-				e.tag = "Flow Id: " + sinkMsg.getFlowId() + "avr = " + sinkMsg.getAverageRate();
-				
+				e.tag = "Flow Id: " + sinkMsg.getFlowId() + HtmlTags.BR + 
+						"Average Rate = " + sinkMsg.getAverageRate() + HtmlTags.BR + 
+						"Current Rate = " + sinkMsg.getCurrentRate();
 			}
 		}
 
@@ -648,11 +652,16 @@ public class Master {
 		synchronized(e){
 			if(procReport.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
-				e.tag = "Stream Id: " + procReport.getFlowId();
+				e.tag = "Flow Id: " + procReport.getFlowId();
+				
 			}else if(procReport.getEventType() == EventType.SEND_END){
 				//TODO: What to do?
 				/*e.color = "rgb(100,0,0)";
 						e.tag = "Stream Id: " + procReport.getStreamId();*/
+			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
+				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
+							"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
+							"Current Rate = " + procReport.getCurrentRate();
 			}
 		}
 		if (webClientURI != null) {

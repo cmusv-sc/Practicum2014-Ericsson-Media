@@ -92,7 +92,7 @@ function attachNodeEvents(){
 		var y = e.pageY - this.offsetTop;
 		if(s.graph.nodes(nodeId).tag){
 			$("<p id=p"+nodeId+" class='tooltip'></p>")
-			.text(s.graph.nodes(nodeId).tag)
+			.html(s.graph.nodes(nodeId).tag)
 			.appendTo('body')
 			.fadeIn('slow');
 			$('#p' + jq(nodeId)).css({ top: y, left: x });
@@ -118,7 +118,7 @@ function attachEdgeEvents(){
 		if(s.graph.edges(lineId).tag){
 			//$('#'+jq(lineId)).css({stroke-width: 5});
 			$("<p id=p"+lineId+" class='tooltip'></p>")
-			.text(s.graph.edges(lineId).tag)
+			.html(s.graph.edges(lineId).tag)
 			.appendTo('body')
 			.fadeIn('slow');
 			$('#p' + jq(lineId)).css({ top: y, left: x });
@@ -142,11 +142,8 @@ function refreshGraph(updated_data){
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
 	updated_data = {"nodes":nodes,"edges":edges};
-	//console.log(updated_data);
-	//TODO: Find out way to update the graph without refreshing the entire graph
-	
-	if(s != null){
-		
+	//console.log(updated_data);	
+	if(s != null){		
 		s.graph.clear();
 		for(var i=0; i<nodes.length; i++){			
 			s.graph.addNode(nodes[i]);

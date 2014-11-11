@@ -28,7 +28,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
  */
 public class WebClientGraph {
 
-	public int canvasWidth = 1100;
+	public int canvasWidth = 1000;
 	public int canvasHeight = 500;
 
 	/**
@@ -117,9 +117,9 @@ public class WebClientGraph {
 		 */
 		public int size;
 		
-		public static final String EDGE_COLOR = "rgb(0,0,0)";
+		public static final String EDGE_COLOR = "rgb(84,84,84)";
 		
-		public static final int EDGE_SIZE_IN_GRAPH = 1;
+		public static final int EDGE_SIZE_IN_GRAPH = 2;
 		
 		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;
@@ -321,8 +321,8 @@ public class WebClientGraph {
 	public void createNodeZones(List<String> nodeLabels, List<String> nodeTypes){
 		int minX, maxX = 10;
 		int minY, maxY = 10;
-		int xRange = (this.canvasWidth-100) / nodeLabels.size();
-		int yRange = (this.canvasHeight-100) / nodeTypes.size();
+		int xRange = (this.canvasWidth-200) / nodeLabels.size();
+		int yRange = (this.canvasHeight-50) / nodeTypes.size();
 		for(String nodeLabel : nodeLabels){
 			minX = maxX; //previous zone's end is new zone's start
 			maxX = minX + xRange;
