@@ -4,9 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,7 +74,6 @@ public class Master {
 	 * Key: SimID, Value: WorkConfig
 	 */
 	private Map<String, Stream> streamMap = new ConcurrentHashMap<String, Stream>();
-	private Map<String, Stream> runningStreamMap = new ConcurrentHashMap<String, Stream>();
 	/**
 	 * Map of flow id's to a Flow. The flows in this map have not started yet
 	 */
@@ -113,7 +111,7 @@ public class Master {
 	public Master(String msgBusSvrClassName) throws MessageBusException {
 		msgBusSvr = instantiateMsgBusServer(msgBusSvrClassName);
 	}
-	
+
 	/**
 	 * 
 	 * Initialize the message bus server
@@ -159,23 +157,10 @@ public class Master {
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 
 		msgBusSvr.register();
-		
-
-		//TODO: Initialize the zones in better way. Currently it is hardcoded and the order is extremely imp. 
-		List<String> nodeLabels = new ArrayList<String>();
-		List<String> nodeTypes = new ArrayList<String>();
-		nodeLabels.add("orange");
-		nodeLabels.add("tomato");
-		nodeLabels.add("apple");
-		nodeTypes.add(WorkConfig.SOURCE_NODE_TYPE_INPUT);
-		nodeTypes.add(WorkConfig.PROC_NODE_TYPE_INPUT);
-		nodeTypes.add(WorkConfig.RELAY_NODE_TYPE_INPUT);
-		nodeTypes.add(WorkConfig.SINK_NODE_TYPE_INPUT);
-		webClientGraph.createNodeZones(nodeLabels, nodeTypes);
 
 	}
-	
-	
+
+
 	/**
 	 * Takes in the MessageBus class name used for communicating among the nodes and 
 	 * initializes the MessageBusServer interface with object of that class
@@ -238,7 +223,7 @@ public class Master {
 		}
 
 		return server;
-	
+
 	}
 
 	/**
@@ -292,16 +277,20 @@ public class Master {
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
-		
+
 		if (webClientURI != null) {
-			try {
-				WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
-				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
+			//Synchronization is required to ensure that we get latest values of the nodeNameToURITbl map 
+			//as it will be updated independently by the nodes as they come up
+			synchronized(System.in){
+				try {
+					WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
+					msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
+				} catch (MessageBusException e) {
+					e.printStackTrace();
+				}
 			}
 		}
-		
+
 		// remove the node from nodesToInstantiate Map
 		this.nodesToInstantiate.remove(nodeName);
 	}
@@ -335,32 +324,32 @@ public class Master {
 	 * @param Message
 	 * @param WorkConfig
 	 */
-	public void uploadWorkConfig(Message mesg, WorkConfig wc) {
+	public synchronized void uploadWorkConfig(Message mesg, WorkConfig wc) {
 
 		for (Stream stream : wc.getStreamList()) {
-			
+
 			String streamId = stream.getStreamId();
 			String kiloBitRate = stream.getKiloBitRate();
 			String dataSize = stream.getDataSize();
-			
-			for (Flow flow : stream.getFlowList()) {
-				
-				for (Map<String, String> node : flow.getNodeList()) {
 
-					String nodeId = node.get("NodeId");
-					String nodeType = node.get("NodeType");
-					webClientGraph.addNode(node);
-					webClientGraph.addEdge(node);
-					
+			for (Flow flow : stream.getFlowList()) {
+				//We are adding the nodes in reverse order because nodes are created in reverse order 
+				//- first sink then others and finally Source node. If the work config order changes then following code needs to be changed				
+				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
+				while(nodesReverseIterator.hasPrevious()){
+					Map<String,String> nodeProperties = (Map<String,String>)nodesReverseIterator.previous();
+					String nodeId = nodeProperties.get("NodeId");
+					String nodeType = nodeProperties.get("NodeType");
+					System.out.println("Received: " + nodeId + " " + nodeType);
+					webClientGraph.addNode(nodeProperties);
+					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
 						// Node is not yet registered.
 						nodesToInstantiate.put(nodeId, nodeType);
 					}
-	
 				}
 				
 				String flowId = flow.generateFlowId(streamId);
-				
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
@@ -368,7 +357,7 @@ public class Master {
 					flowMap.put(flowId, flow);
 				}
 			}
-			
+
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {
@@ -376,6 +365,8 @@ public class Master {
 				//throw new RuntimeException("Duplicate stream ID");
 			}
 		}
+		//Generate locations for all the nodes
+		webClientGraph.setLocations();
 		
 		instantiateNodes();
 
@@ -397,10 +388,10 @@ public class Master {
 
 		for (String nodeId : nodesToInstantiate.keySet()) {
 			String nodeType = nodesToInstantiate.get(nodeId);
-				String nodeClass = "edu.cmu.mdnsim.nodes."+nodeType;
-				//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
-				CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
-				createNodeOnNodeContainer(req);
+			String nodeClass = "edu.cmu.mdnsim.nodes."+nodeType;
+			//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
+			CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
+			createNodeOnNodeContainer(req);
 		}
 	}
 
@@ -416,14 +407,14 @@ public class Master {
 	 */
 
 	public void startSimulation(Message msg) throws MessageBusException {
-		
-			for (Flow flow : flowMap.values()) {
-				System.out.println(flow.getFlowId());
-				String sinkUri = updateFlow(flow);
-				msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
-				runningFlowMap.put(flow.getFlowId(), flow);
-			}
-		
+
+		for (Flow flow : flowMap.values()) {
+			System.out.println(flow.getFlowId());
+			String sinkUri = updateFlow(flow);
+			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
+			runningFlowMap.put(flow.getFlowId(), flow);
+		}
+
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
 					+ "has started");
@@ -480,9 +471,9 @@ public class Master {
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws MessageBusException {
 		msgBusSvr.send("/", webClientURI.toString()+"/update", "POST", webClientUpdateMessage);
-//		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
+		//		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
 	}
-	
+
 	/**
 	 * Reports sent by the Source Nodes
 	 * @param request
@@ -497,7 +488,7 @@ public class Master {
 			System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
 			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
 			sourceNodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
-			
+
 		} else {
 			sourceNodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
 		}
@@ -507,10 +498,10 @@ public class Master {
 		synchronized(n){
 			n.tag = sourceNodeMsg;
 		}
-		
+
 		//Update Edge
 		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId , srcMsg.getDestinationNodeId()));
-		
+
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(srcMsg.getDestinationNodeId(),nodeId));
 		}
@@ -552,11 +543,11 @@ public class Master {
 	 */
 	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 		long totalTime = 0;
-//		if (ClusterConfig.DEBUG) {
-//			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
-//		}
-		
-		
+		//		if (ClusterConfig.DEBUG) {
+		//			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
+		//		}
+
+
 		//System.out.println("[DELETE]JEREMY-Master.sinkReport(): Received a report with EventType = " + sinkMsg.getEventType());
 		String nodeId = getNodeId(request);
 		if(sinkMsg.getEventType() == EventType.RECEIVE_START){
@@ -589,7 +580,7 @@ public class Master {
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
 		}
-		
+
 		synchronized(e){
 			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
 				e.color = "rgb(0,255,0)";
@@ -614,7 +605,7 @@ public class Master {
 		String nodeId = getNodeId(request);
 		//Update Node
 		if(procReport.getEventType() == EventType.RECEIVE_START){
-			
+
 			String info = String.format("[DEBUG]Master.precReport(): PROC node starts receiving (FLOW ID=%s)", procReport.getFlowId());
 			if (ClusterConfig.DEBUG) {
 				System.out.println(info);
@@ -629,7 +620,7 @@ public class Master {
 		} else if (procReport.getEventType() == EventType.RECEIVE_END) {
 			String info = String.format("[DEBUG]Master.procReport(): PROC node ends receiving");
 			if (ClusterConfig.DEBUG) {
-					System.out.println(info);
+				System.out.println(info);
 			}
 		} else if (procReport.getEventType() == EventType.SEND_END) {
 			String info = String.format("[DEBUG]Master.precReport(): PROC node ends sending");
@@ -642,26 +633,26 @@ public class Master {
 				System.out.println(info);
 			}
 		}
-		
+
 		//Update Edge
 		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
 		if(e == null){
 			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
 		}
-		
+
 		synchronized(e){
 			if(procReport.getEventType() == EventType.SEND_START){
 				e.color = "rgb(0,255,0)";
 				e.tag = "Flow Id: " + procReport.getFlowId();
-				
+
 			}else if(procReport.getEventType() == EventType.SEND_END){
 				//TODO: What to do?
 				/*e.color = "rgb(100,0,0)";
 						e.tag = "Stream Id: " + procReport.getStreamId();*/
 			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
 				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
-							"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
-							"Current Rate = " + procReport.getCurrentRate();
+						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
+						"Current Rate = " + procReport.getCurrentRate();
 			}
 		}
 		if (webClientURI != null) {
@@ -675,7 +666,7 @@ public class Master {
 	public String getStartTimeForFlow(String flowId) {
 		return this.startTimeMap.get(flowId);
 	}
-	
+
 	/**
 	 * Stop Simulation request
 	 * @throws MessageBusException
@@ -697,6 +688,6 @@ public class Master {
 		Master mdnDomain = new Master();
 		mdnDomain.init();
 	}
-	
-	
+
+
 }

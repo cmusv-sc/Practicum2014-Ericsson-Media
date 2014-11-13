@@ -2,12 +2,13 @@ package edu.cmu.mdnsim.server;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.WorkConfig;
@@ -28,24 +29,22 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
  */
 public class WebClientGraph {
 
-	public int canvasWidth = 1000;
-	public int canvasHeight = 500;
-
+	Logger logger = LoggerFactory.getLogger("cmu-sv.mdn-manager.webclientgraph");
 	/**
 	 * Represents the Node in the graph displayed in web client
 	 */
 	public class Node{
-		
+
 		public static final String SRC_RGB = "rgb(0,204,0)";
 		public static final String SINK_RGB = "rgb(0,204,204)";
 		public static final String PROC_RGB = "rgb(204,204,0)";
-		
+
 		public static final String SRC_MSG = "This is a Source Node";
 		public static final String SINK_MSG = "This is a Sink Node";
 		public static final String PROC_MSG = "This is a Processing Node";
-		
+
 		public static final int NODE_SIZE_IN_GRAPH = 6;
-		
+
 		/**
 		 * Unique value identifying the node
 		 */
@@ -55,11 +54,11 @@ public class WebClientGraph {
 		 */
 		public String label;
 		/**
-		 * X location of the node in graph - value should be between 0 and 1
+		 * X location of the node in graph 
 		 */
 		public double x;
 		/**
-		 * Y location of the node in graph - value should be between 0 and 1
+		 * Y location of the node in graph 
 		 */
 		public double y;
 		/**
@@ -74,8 +73,19 @@ public class WebClientGraph {
 		 * Used to display tooltip on hover event. It can have html tags.
 		 */
 		public String tag;
+		/**
+		 * List of downstream nodes
+		 */
+		private List<Node> children;
+		/**
+		 * The type of node - Source/Sink/Processing/Relay etc.
+		 */
+		public String nodeType;
+		public Node(String id, String label, String nodeType, String color,  int size, String tag){
+			this(id,label,nodeType, -1,-1,color,size,tag);
+		}
 
-		public Node(String id, String label, double x, double y, String color, int size, String tag){
+		public Node(String id, String label, String nodeType, double x, double y, String color, int size, String tag){
 			this.id = id;
 			this.label = label;
 			this.x = x;
@@ -83,7 +93,34 @@ public class WebClientGraph {
 			this.color = color;
 			this.size = size;
 			this.tag = tag;
+			this.nodeType = nodeType;
+			this.children = new ArrayList<Node>();
+		}
+
+		/**
+		 * Adds a new node to the children. 
+		 * No validations done => Duplicates will be added multiple times.
+		 * @param childNode
+		 */
+		public void addChild(Node childNode) {
+			//if(!this.children.contains(childNode))
+			this.children.add(childNode);
 		}		
+		@Override
+		public int hashCode(){
+			int res = 17;
+			res = res*31 + this.id.hashCode();
+			return res;
+		}
+		@Override
+		public boolean equals(Object other){
+			if(this == other)
+				return true;
+			if(!(other instanceof Node))
+				return false;
+			Node otherNode = (Node)other;
+			return this.id.equals(otherNode.id);
+		}
 	}
 
 	public class Edge{
@@ -116,11 +153,11 @@ public class WebClientGraph {
 		 * size of edge in numbers (it is relative size)
 		 */
 		public int size;
-		
-		public static final String EDGE_COLOR = "rgb(84,84,84)";
-		
+
+		public static final String EDGE_COLOR = "rgb(84,84,84)"; //Grey
+
 		public static final int EDGE_SIZE_IN_GRAPH = 2;
-		
+
 		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;
 			this.source = source;
@@ -129,6 +166,21 @@ public class WebClientGraph {
 			this.tag = tag;
 			this.color = edgeColor;
 			this.size = size;
+		}
+		@Override
+		public int hashCode(){
+			int res = 17;
+			res = res*31 + this.id.hashCode();
+			return res;
+		}
+		@Override
+		public boolean equals(Object other){
+			if(this == other)
+				return true;
+			if(!(other instanceof Edge))
+				return false;
+			Edge otherEdge = (Edge)other;
+			return this.id.equals(otherEdge.id);
 		}
 	}
 
@@ -161,41 +213,6 @@ public class WebClientGraph {
 	}
 
 	/**
-	 * Node Zone represents an area of the canvas which is identified by node label and node type 
-	 * Each Zone has a rectangular boundary which limits the locations of the nodes in that zone 
-	 */
-	private class NodeZone{
-		public String zoneId;
-		public int minX;
-		public int minY;
-		public int maxX;
-		public int maxY;
-		public Set<NodeLocation> nodeLocations;
-		public NodeZone(String nodeLabel, String nodeType, int minX, int minY, int maxX, int maxY){
-			this.zoneId = nodeLabel + nodeType;
-			this.nodeLocations = new HashSet<NodeLocation>();
-			this.minX = minX;
-			this.minY = minY;
-			this.maxX = maxX;
-			this.maxY = maxY;
-		}
-		@Override
-		public int hashCode(){
-			int res = 17;
-			res = res*31 + zoneId.hashCode();
-			return res;
-		}
-		@Override
-		public boolean equals(Object other){
-			if(this == other)
-				return true;
-			if(!(other instanceof NodeZone))
-				return false;
-			NodeZone otherZone = (NodeZone)other;
-			return this.zoneId.equals(otherZone.zoneId);
-		}
-	}
-	/**
 	 * Key = Node Id, Value = Node
 	 */
 	private ConcurrentHashMap<String,Node> nodesMap;
@@ -204,11 +221,13 @@ public class WebClientGraph {
 	 */
 	private ConcurrentHashMap<String,Edge> edgesMap;
 
+	private Node root;
+	private int lastUsedXLocation = 0;
+
 	/**
-	 * Used to store the zone wise node locations
-	 * Key = Zone Id (label+type), Value = NodeZone  
+	 * Key = NodeType, Value = default node class based on its type
 	 */
-	private Map<String, NodeZone> nodeZones;
+	private Map<String,Node> defaultNodeProperties;
 	/**
 	 * Private constructor to ensure that there is only one object of the Graph
 	 */
@@ -216,10 +235,31 @@ public class WebClientGraph {
 		//TODO: Specify appropriate load factor, concurrency level for the maps 
 		nodesMap = new ConcurrentHashMap<String,Node>();
 		edgesMap = new ConcurrentHashMap<String,Edge>();
-//		nodeLocations = new HashSet<NodeLocation>();	
-		nodeZones = new HashMap<String,NodeZone>();
+
+		//Create a virtual root node and add it to nodes Map.
+		//Required for calculating node locations
+		root = new Node("","Virtual Root Node","","",0,"");
+		nodesMap.put(root.id, root);
+		
+		defaultNodeProperties = new HashMap<String,Node>();
+		init();
 	};	
+	/**
+	 * Whenever a new Node Type is added, make changes here to set default color, Y location and other properties of that node type
+	 */
+	private void init() {
+		defaultNodeProperties.put(WorkConfig.SOURCE_NODE_TYPE_INPUT, 
+				new Node("","",WorkConfig.SOURCE_NODE_TYPE_INPUT,-1,10,Node.SRC_RGB,Node.NODE_SIZE_IN_GRAPH,Node.SRC_MSG));
+		defaultNodeProperties.put(WorkConfig.PROC_NODE_TYPE_INPUT, 
+				new Node("","",WorkConfig.PROC_NODE_TYPE_INPUT,-1,30,Node.PROC_RGB,Node.NODE_SIZE_IN_GRAPH,Node.PROC_MSG));
+		defaultNodeProperties.put(WorkConfig.SINK_NODE_TYPE_INPUT, 
+				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,-1,50,Node.SINK_RGB,Node.NODE_SIZE_IN_GRAPH,Node.SINK_MSG));
+
+	}
 	public final static WebClientGraph INSTANCE = new WebClientGraph();
+	//private static final int VERTICAL_DISTANCE_BETWEEN_NODES = 20;
+	private static final int HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES = 10;
+
 	/**
 	 * Gets the node from the graph. Returns null if not present.
 	 * @param nodeId
@@ -250,7 +290,7 @@ public class WebClientGraph {
 		edgesMap.remove(e.id);
 		//TODO: Check if we need to remove corresponding nodes or let the user of this class handle it?
 	}
-	
+
 	/**
 	 * Used to generate WebClient Update Message - 
 	 *  which can be easily converted JSON and parsed by the client code (javascript code)
@@ -264,7 +304,7 @@ public class WebClientGraph {
 		msg.setEdges(this.edgesMap.values());
 		return msg;
 	}
-	
+
 	/**
 	 * Used to generate WebClient Update Message - 
 	 *  which can be easily converted JSON and parsed by the client code (javascript code)
@@ -277,11 +317,11 @@ public class WebClientGraph {
 		WebClientUpdateMessage msg = new WebClientUpdateMessage();
 		List<Node> operationalNodeSet = new ArrayList<Node>();
 		List<Edge> operationalEdgeSet = new ArrayList<Edge>();
-		
+
 		for (String nodeId : operationalNodes)
 			operationalNodeSet.add(this.getNode(nodeId));
 		msg.setNodes(operationalNodeSet);
-		
+
 		/* Add the edge to be displayed in the graph only if both end points of 
 		 * the edge are up
 		 */
@@ -293,7 +333,7 @@ public class WebClientGraph {
 		msg.setEdges(operationalEdgeSet);
 		return msg;
 	}
-	
+
 	/**
 	 * Returns edge if available else null
 	 * @param edgeId
@@ -303,66 +343,6 @@ public class WebClientGraph {
 		return edgesMap.get(edgeId);
 	}
 
-	/*public NodeLocation getNewNodeLocation(){
-		NodeLocation nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));		
-		while(this.nodeLocations.contains(nl)){
-			nl = new NodeLocation((Math.random() * 100),(Math.random() * 100));
-		}
-		this.nodeLocations.add(nl);
-		return nl;
-	}*/
-	/**
-	 * Initializes all node zones based on number of labels and types.
-	 * Total number of zones = #Labels * #Types
-	 * This function assumes that the total canvas width and heigth are properly set.
-	 * @param nodeLabels - List of NodeContainer names
-	 * @param nodeTypes - List of node type - Source, Processing, Relay, Sink etc.
-	 */
-	public void createNodeZones(List<String> nodeLabels, List<String> nodeTypes){
-		int minX, maxX = 10;
-		int minY, maxY = 10;
-		int xRange = (this.canvasWidth-200) / nodeLabels.size();
-		int yRange = (this.canvasHeight-50) / nodeTypes.size();
-		for(String nodeLabel : nodeLabels){
-			minX = maxX; //previous zone's end is new zone's start
-			maxX = minX + xRange;
-			minY = maxY = 10;
-			for(String nodeType : nodeTypes){			
-				minY = maxY;
-				maxY = maxY + yRange;
-				NodeZone nodeZone = new NodeZone(nodeLabel ,nodeType,
-						minX,minY,maxX,maxY);
-				this.nodeZones.put(nodeLabel+nodeType, nodeZone);
-				System.out.println(String.format("%s %d-%d,%d-%d", nodeLabel+nodeType, minX,minY,maxX,maxY));
-			}
-		}
-	}
-	/**
-	 * Generates a new node location such that it is unique and follows the zone rules.
-	 * A Zone is defined by node type & node label
-	 * @param nodeType Used to define the Y range of the node location
-	 * @param nodeLabel Used to define the X range of the node location
-	 * @return
-	 */
-	public NodeLocation getNewNodeLocation(String nodeType, String nodeLabel) {
-		NodeLocation nl = null;
-		//Identify the Zone and generate a unique location within that zone
-		NodeZone nz = this.nodeZones.get(nodeLabel+nodeType);
-		if(nz != null){
-			do{
-				nl = new NodeLocation(nz.minX + (Math.random() * (nz.maxX - nz.minX)),
-						nz.minY + (Math.random() * (nz.maxY - nz.minY)));		
-			}while(nz.nodeLocations.contains(nl));
-			nz.nodeLocations.add(nl);
-		}else{
-			//Generate some random location
-			nl = new NodeLocation((Math.random() * this.canvasWidth/2),
-					(Math.random() * this.canvasHeight/2));
-		}
-		System.out.println(String.format("%s, %s, %s",nodeType, nodeLabel,nl));
-		return nl;
-	}
-	
 	/**
 	 * Check whether the node is contained in the graph.
 	 * 
@@ -372,71 +352,104 @@ public class WebClientGraph {
 	public boolean containsNode(String nodeId) {
 		return nodesMap.containsKey(nodeId);
 	}
-	
+
 	/**
 	 * If the node already exists it doesn't add the node to the graph
 	 * @param n
 	 */
-	public void addNode(Map<String, String> nodeMap) {
-		
-		if (this.containsNode(nodeMap.get(Flow.NODE_ID))) {
+	public void addNode(Map<String, String> nodePropertiesMap) {
+		String nodeId = nodePropertiesMap.get(Flow.NODE_ID);
+		if (this.containsNode(nodeId)) {
 			return;
 		}
-		
-		String nodeMsg;
-		String nodeRGB;
-		String nodeType = nodeMap.get(Flow.NODE_TYPE);
-		
-		NodeLocation nl = this.getNewNodeLocation(nodeType, nodeMap.get(Flow.NODE_ID).split(":")[0]);
-		
-		if (nodeType.equals(WorkConfig.SOURCE_NODE_TYPE_INPUT)) {
-			nodeMsg = Node.SRC_MSG;
-			nodeRGB = Node.SRC_RGB;
-		} else if (nodeType.equals(WorkConfig.SINK_NODE_TYPE_INPUT)) {
-			nodeMsg = Node.SINK_MSG;
-			nodeRGB = Node.SINK_RGB;
-		} else if (nodeType.equals(WorkConfig.PROC_NODE_TYPE_INPUT)) {
-			nodeMsg = Node.PROC_MSG;
-			nodeRGB = Node.PROC_RGB;
-		} else {
-			//TODO: throw a checked exception, and show invalid message in the web browser.
-			throw new RuntimeException("Undefined node type (" + nodeType + ")");
-		}
-		
-		
-		Node newNode = new Node(nodeMap.get(Flow.NODE_ID), 
-				nodeMap.get(Flow.NODE_ID),
-				nl.x, nl.y, nodeRGB, Node.NODE_SIZE_IN_GRAPH,  nodeMsg);
-		
-		nodesMap.put(newNode.id, newNode);
-		
+		String nodeType = nodePropertiesMap.get(Flow.NODE_TYPE);
+
+		Node newNode = new Node(nodeId, nodeId, nodeType,
+				this.defaultNodeProperties.get(nodeType).color, 
+				this.defaultNodeProperties.get(nodeType).size, 
+				this.defaultNodeProperties.get(nodeType).tag);
+		newNode.y = this.defaultNodeProperties.get(nodeType).y;
+		nodesMap.put(newNode.id, newNode);		
+
 	}
 	/**
-	 * If the edge already exists it doesn't add it to the graph
+	 * If the edge already exists it doesn't add it to the graph.
+	 * Both the nodes should be added to the web client graph other wise it will behave abnormally
+	 * This function will also set the children property of the nodes involved.
 	 * @param e
 	 */
 	public void addEdge(Map<String, String> nodeMap) {
-		
-		String edgeId = getEdgeId(nodeMap.get("UpstreamId"), nodeMap.get(Flow.NODE_ID));
-		
-		if (nodeMap.get("UpstreamId").equals("NULL") ||
-				containsEdge(edgeId)) {
+		String nodeId = nodeMap.get(Flow.NODE_ID);
+		String upStreamNodeId = nodeMap.get(Flow.UPSTREAM_ID);
+		String edgeId = getEdgeId(upStreamNodeId, nodeId);
+
+		if (containsEdge(edgeId)) {
 			return;
 		}
-		
-		Edge newEdge = new Edge(edgeId, nodeMap.get("UpstreamId"), 
-				nodeMap.get(Flow.NODE_ID), "", edgeId, Edge.EDGE_COLOR, 
-				Edge.EDGE_SIZE_IN_GRAPH);
-		
-		edgesMap.put(newEdge.id, newEdge);
+		//Consider Source Node when setting children property as Source nodes will be child of Virtual root 
+		addChild(nodeId, upStreamNodeId);
+		//Ignore Source nodes when adding edges to be displayed in graph
+		if(!upStreamNodeId.equals("NULL")){
+			Edge newEdge = new Edge(edgeId, upStreamNodeId, 
+					nodeId, "", edgeId, Edge.EDGE_COLOR, 
+					Edge.EDGE_SIZE_IN_GRAPH);
+
+			edgesMap.put(newEdge.id, newEdge);
+		}
 	}
 
 	public boolean containsEdge(String edgeId) {
 		return edgesMap.containsKey(edgeId);
 	}
-	
+
 	public static String getEdgeId(String srcId, String dstId) {
 		return srcId + "-" + dstId;
 	}
+	/**
+	 * Adds the node with id = nodeId as child of node with id = parentNodeId
+	 * If the nodes are not present in the graph, does nothing
+	 * @param nodeId
+	 * @param parentNodeId
+	 */
+	private void addChild(String nodeId, String parentNodeId) {
+		if(this.getNode(nodeId) != null){
+			if(parentNodeId.equals("NULL")){
+				root.addChild(this.getNode(nodeId));
+			}else{
+				if(this.getNode(parentNodeId) != null)
+					this.getNode(parentNodeId).addChild(this.getNode(nodeId));
+			}
+		}
+	}
+	/**
+	 * Sets the X location for all the nodes in graph based on tree concept with virtual node as root
+	 * Y location is fixed based on Node Type 
+	 * Ensure that all nodes are part of the graph and their children property is set before calling this method  
+	 * It will reset positions for all nodes and start fresh
+	 */
+	public void setLocations(){
+		lastUsedXLocation =  0;
+		setLocations(root);		
+	}
+	private void setLocations(Node n) {
+		if(n == null) return;
+		if(n.children.size() > 0){
+			for(Node child : n.children)
+				setLocations(child);
+			if(n.children.size() == 1){
+				//Place it just above the child
+				n.x = n.children.get(0).x;
+			}else{
+				//Place the node in middle of leftmost and rightmost children
+				n.x = n.children.get(0).x + ((n.children.get(n.children.size()-1).x - n.children.get(0).x)/2); 
+			}			
+		}else{
+			//For leaf nodes, just add fixed value to last X value
+			n.x = this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;	
+			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
+		}
 
+		logger.debug(String.format("%s,%s,%s",n.nodeType,n.x,n.y));
+		System.out.println(String.format("%s,%s,%s",n.id,n.x,n.y));
+	}
 }
