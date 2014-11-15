@@ -24,7 +24,7 @@ public enum EventType {
 	 */
 	RECEIVE_END,
 	/**
-	 * Used for intermediate reports
+	 * Used for intermediate reports - sent by receiving node only
 	 */
 	PROGRESS_REPORT
 	

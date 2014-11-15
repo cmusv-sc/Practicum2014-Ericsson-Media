@@ -36,8 +36,9 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	
 	@Override
 	public void config() throws MessageBusException {
-		
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "cmu-sv", "warp", "com.ericsson");
+
+		JDKLoggerConfig.initForPrefixes(Level.FINE, "embedded");
+		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
 		configDomain();
 		
 		// Load the WebClient

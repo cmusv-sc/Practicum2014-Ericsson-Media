@@ -28,7 +28,8 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	@Override
 	public void config() throws MessageBusException {
 		/* Initialize the message bus */
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
+		//JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
+		JDKLoggerConfig.initForPrefixes(Level.ALL, "cmu-sv");
 
 		String trapCfg = "trap.transport.websocket.wsuri=ws://127.0.0.1:8889\n"
 				+ "trap.transport.http.enabled=false\n"

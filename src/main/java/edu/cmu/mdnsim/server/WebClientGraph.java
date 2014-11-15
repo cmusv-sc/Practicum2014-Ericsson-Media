@@ -29,7 +29,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
  */
 public class WebClientGraph {
 
-	Logger logger = LoggerFactory.getLogger("cmu-sv.mdn-manager.webclientgraph");
+	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.webclientgraph");
 	/**
 	 * Represents the Node in the graph displayed in web client
 	 */
@@ -82,10 +82,11 @@ public class WebClientGraph {
 		 */
 		public String nodeType;
 		public Node(String id, String label, String nodeType, String color,  int size, String tag){
-			this(id,label,nodeType, -1,-1,color,size,tag);
+			this(id,label,nodeType, color,size,tag,-1,-1);
 		}
 
-		public Node(String id, String label, String nodeType, double x, double y, String color, int size, String tag){
+		public Node(String id, String label, String nodeType, String color, int size, String tag,
+				double x, double y){
 			this.id = id;
 			this.label = label;
 			this.x = x;
@@ -184,34 +185,6 @@ public class WebClientGraph {
 		}
 	}
 
-	public class NodeLocation{
-		public Double x;
-		public Double y;
-		public NodeLocation(Double x, Double y){
-			this.x = x; this.y = y;
-		}
-		@Override
-		public String toString(){
-			return "x = " + this.x + ", y = " + this.y;
-		}
-		@Override
-		public int hashCode(){
-			int res = 17;
-			res = res*31 + new Double(x).hashCode();
-			res = res*31 + new Double(y).hashCode();
-			return res;
-		}
-		@Override
-		public boolean equals(Object other){
-			if(this == other)
-				return true;
-			if(!(other instanceof NodeLocation))
-				return false;
-			NodeLocation nl = (NodeLocation)other;
-			return this.x.equals(nl.x) && this.y.equals(nl.y);
-		}
-	}
-
 	/**
 	 * Key = Node Id, Value = Node
 	 */
@@ -220,10 +193,11 @@ public class WebClientGraph {
 	 * Key = Edge Id, Value = Edge
 	 */
 	private ConcurrentHashMap<String,Edge> edgesMap;
-
+	/**
+	 * Virtual Root Node used for calculating node locations
+	 */
 	private Node root;
 	private int lastUsedXLocation = 0;
-
 	/**
 	 * Key = NodeType, Value = default node class based on its type
 	 */
@@ -240,25 +214,35 @@ public class WebClientGraph {
 		//Required for calculating node locations
 		root = new Node("","Virtual Root Node","","",0,"");
 		nodesMap.put(root.id, root);
-		
+
 		defaultNodeProperties = new HashMap<String,Node>();
 		init();
 	};	
 	/**
-	 * Whenever a new Node Type is added, make changes here to set default color, Y location and other properties of that node type
+	 * Whenever a new Node Type is added, make changes here to set 
+	 * 	default color,size other properties of that node type
 	 */
 	private void init() {
 		defaultNodeProperties.put(WorkConfig.SOURCE_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.SOURCE_NODE_TYPE_INPUT,-1,10,Node.SRC_RGB,Node.NODE_SIZE_IN_GRAPH,Node.SRC_MSG));
+				new Node("","",WorkConfig.SOURCE_NODE_TYPE_INPUT,Node.SRC_RGB,
+						Node.NODE_SIZE_IN_GRAPH,Node.SRC_MSG));
 		defaultNodeProperties.put(WorkConfig.PROC_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.PROC_NODE_TYPE_INPUT,-1,30,Node.PROC_RGB,Node.NODE_SIZE_IN_GRAPH,Node.PROC_MSG));
+				new Node("","",WorkConfig.PROC_NODE_TYPE_INPUT,Node.PROC_RGB,
+						Node.NODE_SIZE_IN_GRAPH,Node.PROC_MSG));
 		defaultNodeProperties.put(WorkConfig.SINK_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,-1,50,Node.SINK_RGB,Node.NODE_SIZE_IN_GRAPH,Node.SINK_MSG));
+				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,Node.SINK_RGB,
+						Node.NODE_SIZE_IN_GRAPH,Node.SINK_MSG));
 
 	}
 	public final static WebClientGraph INSTANCE = new WebClientGraph();
-	//private static final int VERTICAL_DISTANCE_BETWEEN_NODES = 20;
-	private static final int HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES = 10;
+	/**
+	 * Used for setting X location of each node
+	 */
+	private static final double HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES = 10;
+	/**
+	 * Used for setting Y location of each node
+	 */
+	private static final double VERTICAL_DISTANCE_BETWEEN_NODES = 10;
 
 	/**
 	 * Gets the node from the graph. Returns null if not present.
@@ -386,9 +370,13 @@ public class WebClientGraph {
 		if (containsEdge(edgeId)) {
 			return;
 		}
-		//Consider Source Node when setting children property as Source nodes will be child of Virtual root 
-		addChild(nodeId, upStreamNodeId);
+		//Consider Source Node when setting children property as Source nodes will be child of Virtual root
+		//But do a duplicate check for source nodes as the edge 
+		// between virtual root and source nodes is not part of edgesMap
+		if(!upStreamNodeId.equals("NULL") || !isChildOf(nodeId, upStreamNodeId))
+			addChild(nodeId, upStreamNodeId);
 		//Ignore Source nodes when adding edges to be displayed in graph
+		// because it is creating issues in displaying the graph
 		if(!upStreamNodeId.equals("NULL")){
 			Edge newEdge = new Edge(edgeId, upStreamNodeId, 
 					nodeId, "", edgeId, Edge.EDGE_COLOR, 
@@ -406,39 +394,66 @@ public class WebClientGraph {
 		return srcId + "-" + dstId;
 	}
 	/**
-	 * Adds the node with id = nodeId as child of node with id = parentNodeId
-	 * If the nodes are not present in the graph, does nothing
+	 * Adds the node with id = nodeId as child of node with id = parentNodeId.
+	 * If the nodes are not present in the graph, does nothing.
+	 * it does not check for duplicates
 	 * @param nodeId
 	 * @param parentNodeId
 	 */
 	private void addChild(String nodeId, String parentNodeId) {
 		if(this.getNode(nodeId) != null){
-			if(parentNodeId.equals("NULL")){
+			if(parentNodeId.equals("NULL")){				
 				root.addChild(this.getNode(nodeId));
 			}else{
 				if(this.getNode(parentNodeId) != null)
 					this.getNode(parentNodeId).addChild(this.getNode(nodeId));
 			}
 		}
+		logger.debug(String.format("%s,%s",nodeId,parentNodeId));
 	}
 	/**
-	 * Sets the X location for all the nodes in graph based on tree concept with virtual node as root
-	 * Y location is fixed based on Node Type 
-	 * Ensure that all nodes are part of the graph and their children property is set before calling this method  
+	 * Returns true if Node with id=nodeId is child of Node with id = parentNodeId 	
+	 * @param nodeId
+	 * @param parentNodeId
+	 * @return
+	 */
+	private boolean isChildOf(String nodeId, String parentNodeId) {
+		for(Node c : root.children){
+			if(c.equals(this.getNode(nodeId)))
+				return true;
+		}
+		return false;
+	}
+	/**
+	 * Sets the X & Y location for all the nodes in graph based on tree concept with virtual node as root
+	 * Ensure that all nodes are part of the graph 
+	 * 	and their children property is set before calling this method  
 	 * It will reset positions for all nodes and start fresh
 	 */
 	public void setLocations(){
-		lastUsedXLocation =  0;
-		setLocations(root);		
+		this.lastUsedXLocation = 0;
+		setLocations(root, 0);		
 	}
-	private void setLocations(Node n) {
+	/**
+	 * Helper function which traverses the tree in DFS way setting x and y locations
+	 * For Y Location, it just adds a constant to the parent's y location
+	 * For X Location, uses following rules:
+	 * 	1. If the node is a leaf node then set x = last Used X Location + some constant value
+	 * 	2. If the node has only 1 child then place it just above that child
+	 * 	3. If the node has multiple children then place it in middle of leftmost and rightmost children 
+	 * @param n Node
+	 * @param yLocation of the parent node
+	 */
+	private void setLocations(Node n, double yLocation) {
 		if(n == null) return;
+		n.y = yLocation + VERTICAL_DISTANCE_BETWEEN_NODES;
+
 		if(n.children.size() > 0){
 			for(Node child : n.children)
-				setLocations(child);
+				setLocations(child, n.y);
 			if(n.children.size() == 1){
 				//Place it just above the child
-				n.x = n.children.get(0).x;
+				n.x = n.children.get(0).x;				
 			}else{
 				//Place the node in middle of leftmost and rightmost children
 				n.x = n.children.get(0).x + ((n.children.get(n.children.size()-1).x - n.children.get(0).x)/2); 
@@ -449,7 +464,23 @@ public class WebClientGraph {
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
 
-		logger.debug(String.format("%s,%s,%s",n.nodeType,n.x,n.y));
-		System.out.println(String.format("%s,%s,%s",n.id,n.x,n.y));
+		logger.debug(String.format("%s,%s,%s",n.id,n.x,n.y));
+	}
+	public void updateNode(String nodeId, String nodeMsg) {
+		Node n = this.getNode(nodeId);
+		if(n != null)
+			n.tag = nodeMsg;		
+	}
+	public void updateEdge(String nodeId, String destinationNodeId,
+			String edgeMsg, String edgeColor) {
+		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
+		if(edgeColor != null)
+			e.color = edgeColor;
+		if(edgeMsg != null)
+			e.tag = edgeMsg;
+	}
+	public void updateEdge(String nodeId, String destinationNodeId,
+			String edgeMsg) {
+		this.updateEdge(nodeId,destinationNodeId,edgeMsg,null);
 	}
 }

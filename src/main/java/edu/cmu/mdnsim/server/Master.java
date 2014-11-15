@@ -242,7 +242,7 @@ public class Master {
 		String ncURI = nodeContainerTbl.get(containerLabel);
 
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
+			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
 		}
 
 		try {
@@ -269,7 +269,7 @@ public class Master {
 		nodeNameToURITbl.put(nodeName, registMsg.getURI());
 		nodeURIToNameTbl.put(registMsg.getURI(), nodeName);
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] MDNManager.registerNode(): Register new "
+			logger.debug("[DEBUG] MDNManager.registerNode(): Register new "
 					+ "node:" + nodeName + " from " + registMsg.getURI());
 		}
 		try {
@@ -304,14 +304,14 @@ public class Master {
 	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
 		if (nodeContainerTbl.containsKey(req.getLabel())) {
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): "
+				logger.debug("[DEBUG] MDNManager.registerNodeContainer(): "
 						+ "NodeContainer with label " + req.getLabel() 
 						+ " already exists");
 			}
 		} else {
 			nodeContainerTbl.put(req.getLabel(), req.getNcURI());
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] MDNManager.registerNodeContainer(): "
+				logger.debug("[DEBUG] MDNManager.registerNodeContainer(): "
 						+ "Register new node container label:" 
 						+ req.getLabel() + " from " + req.getNcURI());
 			}
@@ -340,7 +340,6 @@ public class Master {
 					Map<String,String> nodeProperties = (Map<String,String>)nodesReverseIterator.previous();
 					String nodeId = nodeProperties.get("NodeId");
 					String nodeType = nodeProperties.get("NodeType");
-					System.out.println("Received: " + nodeId + " " + nodeType);
 					webClientGraph.addNode(nodeProperties);
 					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
@@ -348,7 +347,7 @@ public class Master {
 						nodesToInstantiate.put(nodeId, nodeType);
 					}
 				}
-				
+
 				String flowId = flow.generateFlowId(streamId);
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
@@ -367,7 +366,7 @@ public class Master {
 		}
 		//Generate locations for all the nodes
 		webClientGraph.setLocations();
-		
+
 		instantiateNodes();
 
 	}
@@ -378,7 +377,7 @@ public class Master {
 	 */
 	public void registerWebClient(Message request, String webClientUri) {
 		webClientURI = webClientUri;
-		System.out.println("Web client URI is "+webClientURI.toString());
+		logger.debug("Web client URI is "+webClientURI.toString());
 	}
 
 	/**
@@ -389,7 +388,6 @@ public class Master {
 		for (String nodeId : nodesToInstantiate.keySet()) {
 			String nodeType = nodesToInstantiate.get(nodeId);
 			String nodeClass = "edu.cmu.mdnsim.nodes."+nodeType;
-			//System.out.println("NodeID: "+ nodeId + ". Node Class: " + nodeClass);
 			CreateNodeRequest req = new CreateNodeRequest(nodeType, nodeId, nodeClass);
 			createNodeOnNodeContainer(req);
 		}
@@ -409,14 +407,13 @@ public class Master {
 	public void startSimulation(Message msg) throws MessageBusException {
 
 		for (Flow flow : flowMap.values()) {
-			System.out.println(flow.getFlowId());
 			String sinkUri = updateFlow(flow);
 			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
 			runningFlowMap.put(flow.getFlowId(), flow);
 		}
 
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.startSimulation(): The simulation "
+			logger.debug("[DEBUG]Master.startSimulation(): The simulation "
 					+ "has started");
 
 		}
@@ -470,8 +467,8 @@ public class Master {
 	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws MessageBusException {
-		msgBusSvr.send("/", webClientURI.toString()+"/update", "POST", webClientUpdateMessage);
-		//		System.out.println("Sent update: " + JSON.toJSON(webClientGraph.getUpdateMessage()));
+		if(this.webClientURI != null)
+			msgBusSvr.send("/", webClientURI.toString()+"/update", "POST", webClientUpdateMessage);
 	}
 
 	/**
@@ -483,42 +480,25 @@ public class Master {
 	 */
 	public synchronized void sourceReport(Message request, SourceReportMessage srcMsg) throws MessageBusException {
 		String nodeId = getNodeId(request);
-		String sourceNodeMsg= null;
+		String nodeMsg = null;
+		String edgeColor = null;
+		String edgeMsg = null;
 		if(srcMsg.getEventType() == EventType.SEND_START){
-			System.out.println("Source started sending data: "+JSON.toJSON(srcMsg));
+			logger.info("Source started sending data: "+JSON.toJSON(srcMsg));
 			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
-			sourceNodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
-
+			nodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
+			edgeColor = "rgb(0,255,0)";
+			edgeMsg = "Started Flow Id: " + srcMsg.getFlowId();
 		} else {
-			sourceNodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
+			logger.info("Source finished sending data: "+JSON.toJSON(srcMsg));
+			nodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
+			edgeColor = "rgb(0,0,0)";
+			edgeMsg = "Ended Flow Id: " + srcMsg.getFlowId();
 		}
-		//Update Node
-		Node n = webClientGraph.getNode(nodeId);
-		//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
-		synchronized(n){
-			n.tag = sourceNodeMsg;
-		}
+		webClientGraph.updateNode(nodeId, nodeMsg);
+		webClientGraph.updateEdge(nodeId,srcMsg.getDestinationNodeId(), edgeMsg, edgeColor);
 
-		//Update Edge
-		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId , srcMsg.getDestinationNodeId()));
-
-		if(e == null){
-			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(srcMsg.getDestinationNodeId(),nodeId));
-		}
-		synchronized(e){
-			if(srcMsg.getEventType() == EventType.SEND_START){
-				e.color = "rgb(0,255,0)";
-				e.tag = "Flow Id: " + srcMsg.getFlowId();
-			}else if(srcMsg.getEventType() == EventType.SEND_END){
-				e.color = "rgb(0,0,0)";
-				e.tag = "Flow Id: " + srcMsg.getFlowId();
-			}
-		}
-
-		if (webClientURI != null) {
-			updateWebClient(webClientGraph.getUpdateMessage());
-		}
-
+		updateWebClient(webClientGraph.getUpdateMessage());
 	}
 
 
@@ -543,12 +523,6 @@ public class Master {
 	 */
 	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 		long totalTime = 0;
-		//		if (ClusterConfig.DEBUG) {
-		//			System.out.format("[DEBUG]Master.sinkReport(): Sink finished receiving data (FLOW ID = %s).\n", sinkMsg.getFlowId());
-		//		}
-
-
-		//System.out.println("[DELETE]JEREMY-Master.sinkReport(): Received a report with EventType = " + sinkMsg.getEventType());
 		String nodeId = getNodeId(request);
 		if(sinkMsg.getEventType() == EventType.RECEIVE_START){
 			String sinkNodeMsg = "Started receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
@@ -595,69 +569,63 @@ public class Master {
 			}
 		}
 
-		if (webClientURI != null) {
-			updateWebClient(webClientGraph.getUpdateMessage());
-		}
+		updateWebClient(webClientGraph.getUpdateMessage());
 	}
 
 	public synchronized void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
 
+		String logMsg = null;
 		String nodeId = getNodeId(request);
+		String nodeMsg = null;
+		String edgeMsg = null;
+		String edgeColor = null;
 		//Update Node
 		if(procReport.getEventType() == EventType.RECEIVE_START){
-
-			String info = String.format("[DEBUG]Master.precReport(): PROC node starts receiving (FLOW ID=%s)", procReport.getFlowId());
-			if (ClusterConfig.DEBUG) {
-				System.out.println(info);
-			}
-			String procNodeMsg = "Processing Node started processing data for flow " + procReport.getFlowId() ;
-			//Update Node
-			Node n = webClientGraph.getNode(nodeId);
-			//TODO: Check if the following synchronization is required (now that we have concurrent hash map in graph)
-			synchronized(n){
-				n.tag = procNodeMsg;
-			}
+			logMsg = String.format("Master.precReport(): PROC node starts receiving (FLOW ID=%s)", procReport.getFlowId());
+			nodeMsg = "Processing Node started processing data for flow " + procReport.getFlowId() ;
+			webClientGraph.updateNode(nodeId,nodeMsg);
+			updateWebClient(webClientGraph.getUpdateMessage());
 		} else if (procReport.getEventType() == EventType.RECEIVE_END) {
-			String info = String.format("[DEBUG]Master.procReport(): PROC node ends receiving");
-			if (ClusterConfig.DEBUG) {
-				System.out.println(info);
-			}
+			logMsg = String.format("Master.procReport(): PROC node ends receiving");
 		} else if (procReport.getEventType() == EventType.SEND_END) {
-			String info = String.format("[DEBUG]Master.precReport(): PROC node ends sending");
-			if (ClusterConfig.DEBUG) {
-				System.out.println(info);
-			}
+			logMsg = String.format("Master.precReport(): PROC node ends sending");
 		} else if (procReport.getEventType() == EventType.SEND_START) {
-			String info = String.format("[DEBUG]Master.precReport(): PROC node starts sending");
-			if (ClusterConfig.DEBUG) {
-				System.out.println(info);
-			}
-		}
-
-		//Update Edge
-		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
-		if(e == null){
-			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
-		}
-
-		synchronized(e){
-			if(procReport.getEventType() == EventType.SEND_START){
-				e.color = "rgb(0,255,0)";
-				e.tag = "Flow Id: " + procReport.getFlowId();
-
-			}else if(procReport.getEventType() == EventType.SEND_END){
-				//TODO: What to do?
-				/*e.color = "rgb(100,0,0)";
-						e.tag = "Stream Id: " + procReport.getStreamId();*/
-			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
-				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
-						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
+			logMsg = String.format("Master.precReport(): PROC node starts sending");
+			edgeMsg = "Started Flow Id: " + procReport.getFlowId();
+			edgeColor = "rgb(0,255,0)";
+			webClientGraph.updateEdge(nodeId, procReport.getDestinationNodeId(), edgeMsg, edgeColor);
+			updateWebClient(webClientGraph.getUpdateMessage());
+		} else{
+			logMsg = String.format("Master.precReport(): PROC node starts receiving");
+			//if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
+			edgeMsg = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
+						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR +	 
 						"Current Rate = " + procReport.getCurrentRate();
-			}
-		}
-		if (webClientURI != null) {
+			webClientGraph.updateEdge(procReport.getDestinationNodeId(),nodeId, edgeMsg);
 			updateWebClient(webClientGraph.getUpdateMessage());
 		}
+		logger.info(logMsg);
+//		//Update Edge
+//		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
+//		if(e == null){
+//			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
+//		}
+//
+//		synchronized(e){
+//			if(procReport.getEventType() == EventType.SEND_START){
+//				e.color = "rgb(0,255,0)";
+//				e.tag = "Flow Id: " + procReport.getFlowId();
+//			}else if(procReport.getEventType() == EventType.SEND_END){
+//				//TODO: What to do?
+//				/*e.color = "rgb(100,0,0)";
+//						e.tag = "Stream Id: " + procReport.getStreamId();*/
+//			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
+//				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
+//						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
+//						"Current Rate = " + procReport.getCurrentRate();
+//			}
+//		}
+		
 	}
 
 	public void putStartTime(String flowId, String startTime) {
@@ -674,7 +642,7 @@ public class Master {
 	public void stopSimulation() throws MessageBusException {
 
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]Master.stopSimulation(): Received stop "
+			logger.debug("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");
 		}
 		for(String flowId : runningFlowMap.keySet()) {
