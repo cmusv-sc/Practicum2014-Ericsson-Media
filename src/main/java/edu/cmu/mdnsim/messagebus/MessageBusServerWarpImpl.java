@@ -37,7 +37,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	@Override
 	public void config() throws MessageBusException {
 
-		JDKLoggerConfig.initForPrefixes(Level.FINE, "embedded");
+		JDKLoggerConfig.initForPrefixes(Level.WARNING, "embedded");
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
 		configDomain();
 		
@@ -57,17 +57,6 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		}
 		
 		configService();
-	}
-
-	@Override
-	public void register() throws MessageBusException {
-		
-		try {
-			_svc.register();
-		} catch (WarpException e) {
-			throw new MessageBusException(e);
-		}
-		
 	}
 
 	@Override

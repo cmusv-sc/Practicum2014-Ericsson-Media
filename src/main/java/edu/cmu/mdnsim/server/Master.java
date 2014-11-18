@@ -165,8 +165,6 @@ public class Master {
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 
-		msgBusSvr.register();
-
 	}
 
 
