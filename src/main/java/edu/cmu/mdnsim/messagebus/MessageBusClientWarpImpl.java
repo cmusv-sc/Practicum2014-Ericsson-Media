@@ -29,7 +29,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	public void config() throws MessageBusException {
 		/* Initialize the message bus */
 		//JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
-		JDKLoggerConfig.initForPrefixes(Level.ALL, "cmu-sv");
+		JDKLoggerConfig.initForPrefixes(Level.ALL, "embedded");
 
 		String trapCfg = "trap.transport.websocket.wsuri=ws://127.0.0.1:8889\n"
 				+ "trap.transport.http.enabled=false\n"
@@ -118,7 +118,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 			throws MessageBusException {
 		
 		try {
-			Warp.send(fromPath, WarpURI.create("warp://cmu-sv:mdn-manager" + dstPath), method, JSON.toJSON(msg).getBytes());
+			Warp.send(fromPath, WarpURI.create("warp://embedded:mdn-manager" + dstPath), method, JSON.toJSON(msg).getBytes());
 		} catch (WarpException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		

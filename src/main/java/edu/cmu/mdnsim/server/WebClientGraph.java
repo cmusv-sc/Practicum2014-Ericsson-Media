@@ -157,7 +157,7 @@ public class WebClientGraph {
 
 		public static final String EDGE_COLOR = "rgb(84,84,84)"; //Grey
 
-		public static final int EDGE_SIZE_IN_GRAPH = 2;
+		public static final int EDGE_SIZE_IN_GRAPH = 5;
 
 		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;

@@ -115,8 +115,7 @@ function attachEdgeEvents(){
 		var lineId = $(this)[0].attributes["data-edge-id"].value;
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
-		if(s.graph.edges(lineId).tag){
-			//$('#'+jq(lineId)).css({stroke-width: 5});
+		if(s.graph.edges(lineId).tag){			
 			$("<p id=p"+lineId+" class='tooltip'></p>")
 			.html(s.graph.edges(lineId).tag)
 			.appendTo('body')
@@ -153,6 +152,7 @@ function refreshGraph(updated_data){
 			s.graph.addEdge(edges[i]);
 			//console.log($( "line[data-edge-id='"+edges[i].id+"']" ));
 			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
+			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
 		}
 		//s.graph.read(updated_data);		
 		//s.refresh();   
@@ -168,14 +168,14 @@ function refreshGraph(updated_data){
  */
 function startSimulation(){
 	console.log("startSimulation");
-	Warp.send({to: "warp://cmu-sv:mdn-manager/start_simulation",data: "start"});
+	Warp.send({to: "warp://embedded:mdn-manager/start_simulation",data: "start"});
 }
 /**
  * Called on click of stop button
  */
 function stopSimulation(){
 	console.log("stopSimulation");
-	Warp.send({to: "warp://cmu-sv:mdn-manager/simulations",data: "stop"});
+	Warp.send({to: "warp://embedded:mdn-manager/simulations",data: "stop"});
 }
 /**
  * Whenever new input file is selected, it asks Master to create/update the simulation parameters
@@ -189,7 +189,7 @@ function handleWsFileSelect(evt) {
 		// Closure to capture the file information.
 		reader.onload = (function(theFile) {
 			return function(e) {
-				Warp.send({to: "warp://cmu-sv:mdn-manager/work_config", data: e.target.result});
+				Warp.send({to: "warp://embedded:mdn-manager/work_config", data: e.target.result});
 				console.log("Hello from handleWsFileSelect");
 			};
 		})(f);
@@ -207,7 +207,7 @@ function initWarp(){
 	 */
 	Warp.on("connect", function() {
 		console.log("Now registered at " + Warp.uri);
-		Warp.send({to: "warp://cmu-sv:mdn-manager/register_webclient", data: Warp.uri});
+		Warp.send({to: "warp://embedded:mdn-manager/register_webclient", data: Warp.uri});
 	});
 	/**
 	 * Generic Post and Message Handlers
@@ -237,6 +237,20 @@ function initWarp(){
 		refreshGraph(m.object);
 		//createGraph(m.object);
 	});
+	/**
+	 * Log Resource Handler - used to display log messages
+	 */
+	loggerResource.onmessage = function(m){
+		console.log(m);
+		var entries = JSON.parse(m.dataAsString);
+		console.log(entries);
+		for(var i=0; i<entries.length; i++){			
+			if(entries[i].logger === "webclientgraph" || entries[i].logger === "master")
+				$("#messages").prepend(entries[i].message + "<br/>");
+		}		
+	}
+	//Subscribe to logger plugin
+	loggerResource.sendTo("warp://embedded:mdn-manager/_warp/plugins/logger", "POST");
 }
 /**
  * Init function

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.ListIterator;
 import java.util.Map;
@@ -56,7 +57,7 @@ public class Master {
 	 * The Message Bus Server is part of the master node and is started 
 	 */
 	MessageBusServer msgBusSvr;
-	Logger logger = LoggerFactory.getLogger("cmu-sv.mdn-manager.master");
+	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 	/**
 	 * Contains a mapping of the node container label to the URI
 	 */
@@ -79,6 +80,14 @@ public class Master {
 	 */
 	private Map<String, Flow> flowMap = new ConcurrentHashMap<String, Flow>();
 	private Map<String, Flow> runningFlowMap = new ConcurrentHashMap<String, Flow>();
+
+	/**
+	 * Map of flows that are flowing through a node (NodeId). Used to update the NodeUri in
+	 * the flow when the node registers itself.
+	 * The flow is removed from this map once a node is registered and the flow is 
+	 * updated
+	 */
+	private Map<String, ArrayList<Flow>> flowsInNodeMap = new ConcurrentHashMap<String, ArrayList<Flow>>();
 
 	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
 
@@ -293,6 +302,53 @@ public class Master {
 
 		// remove the node from nodesToInstantiate Map
 		this.nodesToInstantiate.remove(nodeName);
+
+		synchronized(this.flowsInNodeMap) {
+			/*
+			 *  For every flow in the flowList of a nodeId (the list of flows that are waiting for a node to
+			 *  register itself), update the flow with the nodeUri.
+			 *  If all the nodes in a flow are up, start the flow
+			 */
+			if (flowsInNodeMap.containsKey(nodeName)) {
+				ArrayList<Flow> flowList = new ArrayList<Flow>();
+				for (Flow flow : flowsInNodeMap.get(nodeName)) {
+					flow.updateFlowWithNodeUri(nodeName, registMsg.getURI());
+					if (flow.canRun()) {
+						//					System.out.println("Can run is true for flow "+flow.getFlowId());
+						/*
+						 * After updating the flow with the Uri of the node that has come up,
+						 * if the flow can run, meaning if all the nodes from sink to source
+						 * are up and registered with the master, then start the flow.
+						 */
+						this.runFlow(flow);
+					} else {
+						// add this flow to a list of flows that cannot run yet
+						flowList.add(flow);
+					}
+				}
+				// update the flowList with flows that cannot run yet
+				flowsInNodeMap.put(nodeName, flowList);
+			}
+		}
+	}
+
+	/**
+	 * Run the flow by sending a message to the sink to initiate the 
+	 * request for the flow from the source
+	 * Remove the flow from the flowMap and add it to the runningFlowMap
+	 * @param flow
+	 */
+	private void runFlow(Flow flow) {
+		String sinkUri;
+		try {
+			sinkUri = flow.getSinkNodeURI();
+			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", flow);
+			flowMap.remove(flow.getFlowId());
+			runningFlowMap.put(flow.getFlowId(), flow);
+		} catch (MessageBusException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -333,6 +389,11 @@ public class Master {
 			String dataSize = stream.getDataSize();
 
 			for (Flow flow : stream.getFlowList()) {
+				String flowId = flow.generateFlowId(streamId);
+				flow.setStreamId(streamId);
+				flow.setDataSize(dataSize);
+				flow.setKiloBitRate(kiloBitRate);
+				flow.updateFlowWithDownstreamIds();
 				//We are adding the nodes in reverse order because nodes are created in reverse order 
 				//- first sink then others and finally Source node. If the work config order changes then following code needs to be changed				
 				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
@@ -343,18 +404,40 @@ public class Master {
 					webClientGraph.addNode(nodeProperties);
 					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
-						// Node is not yet registered.
+						/*  If a node in the flow is not registered yet,
+						 *  add it to a list of nodes to be instantiated
+						 *  and add it a list of pending flows waiting 
+						 *  for a node to register itself
+						 */
 						nodesToInstantiate.put(nodeId, nodeType);
+						
+						synchronized(this.flowsInNodeMap) {
+							ArrayList<Flow> flowList;
+							if (this.flowsInNodeMap.containsKey(nodeId)) {
+								// update existing flowList
+								flowList = this.flowsInNodeMap.get(nodeId);
+							} else {
+								// create a new flowList and add it to the map
+								flowList = new ArrayList<Flow>();
+							}
+							flowList.add(flow);
+							this.flowsInNodeMap.put(nodeId, flowList);
+						}
+					} else {
+						/* update the flow with the nodeUri */
+						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
 					}
 				}
 
-				String flowId = flow.generateFlowId(streamId);
-				flow.setStreamId(streamId);
-				flow.setDataSize(dataSize);
-				flow.setKiloBitRate(kiloBitRate);
 				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);
 				}
+				
+				/* If the flow is ready to run, i.e. all the nodes in the flow
+				 * are registered with the master, then start the flow
+				 */
+				if (flow.canRun())
+					this.runFlow(flow);
 			}
 
 			if (!streamMap.containsKey(streamId)) {
@@ -368,7 +451,6 @@ public class Master {
 		webClientGraph.setLocations();
 
 		instantiateNodes();
-
 	}
 
 	/**
@@ -599,33 +681,33 @@ public class Master {
 			logMsg = String.format("Master.precReport(): PROC node starts receiving");
 			//if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
 			edgeMsg = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
-						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR +	 
-						"Current Rate = " + procReport.getCurrentRate();
+					"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR +	 
+					"Current Rate = " + procReport.getCurrentRate();
 			webClientGraph.updateEdge(procReport.getDestinationNodeId(),nodeId, edgeMsg);
 			updateWebClient(webClientGraph.getUpdateMessage());
 		}
 		logger.info(logMsg);
-//		//Update Edge
-//		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
-//		if(e == null){
-//			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
-//		}
-//
-//		synchronized(e){
-//			if(procReport.getEventType() == EventType.SEND_START){
-//				e.color = "rgb(0,255,0)";
-//				e.tag = "Flow Id: " + procReport.getFlowId();
-//			}else if(procReport.getEventType() == EventType.SEND_END){
-//				//TODO: What to do?
-//				/*e.color = "rgb(100,0,0)";
-//						e.tag = "Stream Id: " + procReport.getStreamId();*/
-//			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
-//				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
-//						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
-//						"Current Rate = " + procReport.getCurrentRate();
-//			}
-//		}
-		
+		//		//Update Edge
+		//		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
+		//		if(e == null){
+		//			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
+		//		}
+		//
+		//		synchronized(e){
+		//			if(procReport.getEventType() == EventType.SEND_START){
+		//				e.color = "rgb(0,255,0)";
+		//				e.tag = "Flow Id: " + procReport.getFlowId();
+		//			}else if(procReport.getEventType() == EventType.SEND_END){
+		//				//TODO: What to do?
+		//				/*e.color = "rgb(100,0,0)";
+		//						e.tag = "Stream Id: " + procReport.getStreamId();*/
+		//			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
+		//				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
+		//						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
+		//						"Current Rate = " + procReport.getCurrentRate();
+		//			}
+		//		}
+
 	}
 
 	public void putStartTime(String flowId, String startTime) {
@@ -647,7 +729,7 @@ public class Master {
 		}
 		for(String flowId : runningFlowMap.keySet()) {
 			Flow flow = runningFlowMap.get(flowId);
-			msgBusSvr.send("/", flow.findSinkNodeURI() + "/tasks", "POST", flow);
+			msgBusSvr.send("/", flow.getSinkNodeURI() + "/tasks", "POST", flow);
 		}
 
 	}

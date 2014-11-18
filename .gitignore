@@ -3,3 +3,5 @@
 #Ignore the target
 target/
 .metadata/
+pom.xml
+RemoteSystemsTempFiles/
