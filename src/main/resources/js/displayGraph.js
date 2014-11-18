@@ -45,7 +45,7 @@ sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	// );
 	context.stroke();
 };
-
+var loggerResource = Warp.rootResource.createResource("/logger");
 //Represents Sigma object
 var s = null;
 //Represents the camera object used by sigma library
