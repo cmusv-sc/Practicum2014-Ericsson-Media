@@ -8,18 +8,15 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.ericsson.research.trap.utils.Future;
+import com.ericsson.research.trap.utils.ThreadPool;
 
 import com.ericsson.research.warp.util.WarpThreadPool;
 
+import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
@@ -28,14 +25,50 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.util.Utility;
 
-public class ProcessingNode extends AbstractNode {
+public class ProcessingNode extends AbstractNode implements PortBindable{
+
+	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 
 	private Map<String, ReceiveProcessAndSendRunnable> runningMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
 
-	public ProcessingNode() throws UnknownHostException {
+	public ProcessingNode() throws UnknownHostException {	
 		super();
 	}
 
+	@Override
+	public int bindAvailablePortToFlow(String flowId) {
+
+		if (flowIdToSocketMap.containsKey(flowId)) {
+			// TODO handle potential error condition. We may consider throw this exception
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
+			}
+			return flowIdToSocketMap.get(flowId).getPort();
+		} else {
+			
+			DatagramSocket udpSocket = null;
+			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
+				try {
+					udpSocket = new DatagramSocket(0, getHostAddr());
+				} catch (SocketException e) {
+					if (ClusterConfig.DEBUG) {
+						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
+					}
+					e.printStackTrace();
+					continue;
+				}
+				break;
+			}
+			
+			if(udpSocket == null){
+				return -1;
+			}
+			
+			flowIdToSocketMap.put(flowId, udpSocket);
+			return udpSocket.getLocalPort();
+		}
+	}
+	
 	@Override
 	public void executeTask(Flow flow) {
 
@@ -63,14 +96,15 @@ public class ProcessingNode extends AbstractNode {
 
 				/* Get the IP:port */
 				String[] addressAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
+				
+				/* Get the expected rate */
+				int rate = Integer.parseInt(flow.getKiloBitRate());
 
 				InetAddress targetAddress = null;
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					ReceiveProcessAndSendRunnable thread = new ReceiveProcessAndSendRunnable(flow.getFlowId(), Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, processingLoop, processingMemory);
-					runningMap.put(flow.getFlowId(), thread);
-					WarpThreadPool.executeCached(thread);
+					createAndLaunchReceiveProcessAndSendRunnable(flow.getFlowId(), Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, processingLoop, processingMemory, rate);
 				} catch (UnknownHostException e1) {
 					e1.printStackTrace();
 				}
@@ -90,11 +124,26 @@ public class ProcessingNode extends AbstractNode {
 	}
 
 	/**
-	 * For Unit Test
+	 * Create a ReceiveProcessAndSendRunnable and launch it & record it in the map
+	 * @param streamId
+	 * @param totalData
+	 * @param destAddress
+	 * @param destPort
+	 * @param processingLoop
+	 * @param processingMemory
+	 * @param rate
 	 */
-	public void receiveProcessAndSendTest(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory){
-		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, dstPort, processingLoop, processingMemory));
+	public void createAndLaunchReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
+		
+		ReceiveProcessAndSendRunnable receiveProcessAndSendRunnable = new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
+		runningMap.put(streamId, receiveProcessAndSendRunnable);
+		if(integratedTest){
+			ExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+			executorService.submit(new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, destPort, processingLoop, processingMemory, rate));
+			executorService.shutdown();
+		} else {
+			WarpThreadPool.executeCached(receiveProcessAndSendRunnable);
+		}
 	}
 
 	@Override
@@ -128,7 +177,7 @@ public class ProcessingNode extends AbstractNode {
 
 		ReceiveProcessAndSendRunnable thread = runningMap.get(flow.getFlowId());
 		while (!thread.isStopped());
-		thread.clean();
+		thread.closeSocket();
 
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
 		try {
@@ -146,6 +195,7 @@ public class ProcessingNode extends AbstractNode {
 	 * reports the total time and total number of bytes received by the 
 	 * sink node back to the master using the message bus.
 	 * 
+	 * As a private class, it can only be accessed within parent class
 	 * @param flowId The streamId is bind to a socket and stored in the map
 	 * @param msgBus The message bus used to report to the master
 	 * 
@@ -160,8 +210,19 @@ public class ProcessingNode extends AbstractNode {
 		private InetAddress dstAddress;
 		private int dstPort;
 		private DatagramSocket sendSocket;
+		private int rate;
+		private DatagramPacket packet;
+		
+		
+		/* For tracking packet lost */
+		int expectedMaxPacketId;
+		double packetNumPerSecond;
+		int packetNumInAWindow;
+		int lowPacketIdBoundry;
+		int highPacketIdBoundry;
+		int receivedPacketNumInAWindow;
 
-		public ReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory) {
+		public ReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
 
 			super(streamId);
 			
@@ -170,130 +231,194 @@ public class ProcessingNode extends AbstractNode {
 			this.dstPort = dstPort;
 			this.processingLoop = processingLoop;
 			this.processingMemory = processingMemory;
+			this.rate = rate;
+			
+			/* For tracking packet lost */
+			expectedMaxPacketId = (int) Math.ceil(this.totalData * 1.0 / NodePacket.PACKET_MAX_LENGTH) - 1;
+			packetNumPerSecond = this.rate * 1.0 / NodePacket.PACKET_MAX_LENGTH;
+			packetNumInAWindow = (int) Math.ceil(packetNumPerSecond * MAX_WAITING_TIME_IN_MILLISECOND / 1000);
+			lowPacketIdBoundry = 0;
+			highPacketIdBoundry = Math.min(packetNumInAWindow - 1, expectedMaxPacketId);
+			receivedPacketNumInAWindow = 0;
+			
 		}
 
-		/**
-		 * For packet lost statistical information:
-		 * When a new packet is received, there are three status:
-		 * - NEW, this packet is with the highest id among all the received packet
-		 * - WAITING, this packet is added into waiting to be lost map when some high id packet was received
-		 * - LOST, this packet is added to the lost set by the timer in the waiting map because of time out of waiting
-		 * 
-		 * Assumption: The last packet that contains termination information must not be lost in this implementation
-		 */
 		@Override
 		public void run() {
 
-			if ((receiveSocket = flowIdToSocketMap.get(flowId)) == null) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.run():" + "[Exception]Attempt to receive data for non existent stream");
-				}
+			if(!initializeSocketAndPacket()){
 				return;
 			}
 
-			try {
-				sendSocket = new DatagramSocket();
-			} catch (SocketException se) {
-				se.printStackTrace();
-			}
-
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
-			DatagramPacket packet = new DatagramPacket(buf, buf.length);
+			boolean isStarted = false;
+			Future reportFuture = null;
 			
-			/* These variables are for tracking packet lost */
-			int expectedMaxPacketId = (int) Math.ceil(totalData * 1.0 / NodePacket.PACKET_MAX_LENGTH) - 1;
-			AtomicInteger lostPacketCount = new AtomicInteger(0);
-			int receivedPackageCount = 0;
-			Map<Integer, Timer> packetIdToTimerMap = new ConcurrentHashMap<Integer, Timer>();
-			int highestPacketIdReceived = -1;
-			try {
-				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
-			} catch (SocketException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} 
-
 			while (!isKilled()) {
 				try {
 					receiveSocket.receive(packet);
-					receivedPackageCount++;
 				} catch(SocketTimeoutException ste){
-					lostPacketCount.addAndGet(expectedMaxPacketId - highestPacketIdReceived);
+					ste.printStackTrace();
+					setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 					break;
-				} catch (IOException e) {
-					e.printStackTrace();	
+				} catch (IOException e) {	
+					continue;
 				} 
 				
-				if(startedTime == 0) {
-					startedTime = System.currentTimeMillis();
-					//Report to Master that RECEIVE has Started
-					if(!unitTest){
-						report(startedTime,upStreamNodes.get(flowId),EventType.RECEIVE_START);
-					}
+				if(!isStarted) {
+					reportFuture = createAndLaunchReportTransportationRateRunnable();
+					if(!integratedTest){
+						report(System.currentTimeMillis(), upStreamNodes.get(getFlowId()),EventType.RECEIVE_START);
+					}				
+					isStarted = true;
 				}
 
-				byte[] rawData = packet.getData();
-				NodePacket nodePacket = new NodePacket(rawData);
-				
+				NodePacket nodePacket = new NodePacket(packet.getData());
+
 				int packetId = nodePacket.getMessageId();
-				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(packetIdToTimerMap, highestPacketIdReceived, packetId);
-				switch(newArrivedPacketStatus){
-					case LOST:
-						continue;
-					case WAIT:
-						Timer timer = packetIdToTimerMap.get(packetId);
-						timer.cancel();
-						packetIdToTimerMap.remove(packetId);
-						break;
-					case NEW:
-						for(int i = highestPacketIdReceived + 1; i < packetId; i++){
-							AddLostPacketCountByOneTask task = new AddLostPacketCountByOneTask(packetIdToTimerMap, i, lostPacketCount);
-							Timer newTimer = new Timer();
-							newTimer.schedule(task, MAX_WAITING_TIME_IN_MILLISECOND);
-							packetIdToTimerMap.put(i, newTimer);
-						}
-						highestPacketIdReceived = packetId;
-						break;
+				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
+				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
+					continue;
+				} else{
+					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
 				}
-
-				totalBytesTranfered += nodePacket.size();
 				
-				byte[] data = nodePacket.getData();
-				process(data);
-				nodePacket.setData(data);
+				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
+				
+				processNodePacket(nodePacket);
 
-				packet.setData(nodePacket.serialize());	
-				packet.setAddress(dstAddress);
-				packet.setPort(dstPort);					
-				try {
-					sendSocket.send(packet);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				if (unitTest) {
-					System.out.println("[Processing]" + totalBytesTranfered + " " + currentTime());
+				sendPacket(packet, nodePacket);
+				
+				if (integratedTest) {
+					System.out.println("[Processing]" + getTotalBytesTranfered() + " " + Utility.currentTime());
 				}				
 			}	
 		
-			clean();
-			finished = true;		
-			if(!unitTest){
-				report(System.currentTimeMillis(), downStreamNodes.get(flowId), EventType.SEND_END);
-			}
+			if(reportFuture != null){
+				System.out.println("Processing Node: Cancelling Future");
+				reportFuture.cancel(true);
+			}	
+			closeSocket();
+
+			if(!integratedTest){
+				report(System.currentTimeMillis(), downStreamNodes.get(getFlowId()), EventType.SEND_END);
+			} 
 			
 			if (ClusterConfig.DEBUG) {
 				if(isKilled()){
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
 				} else{
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
-					System.out.println("[DEBUG]ProcessingNode total lost packet number:" + lostPacketCount);
-					
 				}
 			}
 			stop();
 		}
+		
+		/**
+		 * Update the packet lost
+		 * @param status & packetId
+		 * @return 
+		 */
+		private void updatePacketLostBasedOnStatus(NewArrivedPacketStatus newArrivedPacketStatus, int packetId){
+			switch(newArrivedPacketStatus){
+				case BEHIND_WINDOW:
+					return;
+				case IN_WINDOW:
+					receivedPacketNumInAWindow++;
+					break;
+				case BEYOND_WINDOW:
+					setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
+					lowPacketIdBoundry = packetId;
+					highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
+					receivedPacketNumInAWindow = 1;
+					break;
+			}
+		}
+		
+		/**
+		 * Initialize the receive and send DatagramSockets
+		 * @return true if succeed
+		 * 	       false if acquiring an non-exist socket
+		 * 					setting receive socket timeout encounters some exception
+		 * 					initialize send socket encounters some exception 
+		 */
+		private boolean initializeSocketAndPacket(){
+			if ((receiveSocket = flowIdToSocketMap.get(getFlowId())) == null) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.initializeSockets():" + "[Exception]Attempt to receive data for non existent stream");
+				}
+				return false;
+			}
+			
+			try {
+				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			} catch (SocketException e1) {
+				e1.printStackTrace();
+				return false;
+			} 
 
-		private void process(byte[] data){
+			try {
+				sendSocket = new DatagramSocket();
+			} catch (SocketException se) {
+				se.printStackTrace();
+				return false;
+			}
+			
+			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+			packet = new DatagramPacket(buf, buf.length);
+			
+			return true;
+		}
+		
+		/**
+		 * Create and Launch a report thread
+		 * @return Future of the report thread
+		 */
+		private Future createAndLaunchReportTransportationRateRunnable(){
+		
+			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+			if(integratedTest){
+				ExecutorService executorService = Executors.newSingleThreadExecutor();
+				Future reportFuture = (Future) executorService.submit(reportTransportationRateRunnable);
+				executorService.shutdown();
+				return reportFuture;
+			} else {
+				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
+				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
+				return reportFuture;
+			}	
+		}
+
+		/**
+		 * Send the NodePacket embedded into DatagramPacket
+		 * @param packet
+		 * @param nodePacket
+		 */
+		private void sendPacket(DatagramPacket packet, NodePacket nodePacket){
+			packet.setData(nodePacket.serialize());	
+			packet.setAddress(dstAddress);
+			packet.setPort(dstPort);					
+			try {
+				sendSocket.send(packet);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		/**
+		 * Get raw data from NodePacket, process it and put the output data back into NodePacket
+		 * @param nodePacket
+		 */
+		private void processNodePacket(NodePacket nodePacket){
+			byte[] data = nodePacket.getData();
+			processByteArray(data);
+			nodePacket.setData(data);
+		}
+		
+		/**
+		 * Simulate the processing of a byte array with some memory and cpu loop
+		 * @param data
+		 */
+		private void processByteArray(byte[] data){
 			byte[] array = new byte[processingMemory];
 			double value = 0;
 			for ( int i = 0; i< processingLoop; i++) {
@@ -304,7 +429,7 @@ public class ProcessingNode extends AbstractNode {
 		private void report(long time, String destinationNodeId, EventType eventType) {
 
 			ProcReportMessage procReportMsg = new ProcReportMessage();
-			procReportMsg.setFlowId(flowId);
+			procReportMsg.setFlowId(getFlowId());
 			procReportMsg.setTime(Utility.millisecondTimeToString(time));
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
@@ -317,55 +442,43 @@ public class ProcessingNode extends AbstractNode {
 			}
 		}
 
-		public void clean() {
+		public void closeSocket() {
 			if (!receiveSocket.isClosed()) {
 				receiveSocket.close();
 			}
 			if (!sendSocket.isClosed()) {
 				sendSocket.close();
 			}
-			flowIdToSocketMap.remove(flowId);
-		}
-		
-		public NewArrivedPacketStatus getNewArrivedPacketStatus(Map<Integer, Timer> packetIdToTimerMap, int highestPacketIdReceived, int packetId){
-			
-			if(packetId > highestPacketIdReceived){
-				return NewArrivedPacketStatus.NEW;
-			} else{
-				if(packetIdToTimerMap.containsKey(packetId)){
-					return NewArrivedPacketStatus.WAIT;
-				} else{
-					return NewArrivedPacketStatus.LOST;
-				}
-			}
+			flowIdToSocketMap.remove(getFlowId());
 		}
 		
 		/**
-		 * This task is a process that will add the packetId to the lost set.
-		 * It can be called by the timer with a scheduled delay time for the execution
+		 * get packet status based on packetId
+		 * @param lowPacketIdBoundryInAWindow
+		 * @param highPacketIdBoundryInAWindow
+		 * @param packetId
+		 * @return status
 		 */
-		public class AddLostPacketCountByOneTask extends TimerTask{  
-			  
-			private AtomicInteger lostPacketCount;
-			private Map<Integer, Timer> packetIdToTimerMap;
-			private int packetId;
-			
-			public AddLostPacketCountByOneTask(Map<Integer, Timer> packetIdToTimerMap, int packetId, AtomicInteger lostPacketCount){
-				this.packetIdToTimerMap = packetIdToTimerMap;
-				this.packetId = packetId;
-				this.lostPacketCount = lostPacketCount;
+		public NewArrivedPacketStatus getNewArrivedPacketStatus(int lowPacketIdBoundryInAWindow, int highPacketIdBoundryInAWindow, int packetId){
+			if(packetId > highPacketIdBoundryInAWindow){
+				return NewArrivedPacketStatus.BEYOND_WINDOW;
+			} else if(packetId < lowPacketIdBoundryInAWindow){
+				return NewArrivedPacketStatus.BEHIND_WINDOW;
+			} else{
+				return NewArrivedPacketStatus.IN_WINDOW;
 			}
-			@Override  
-			public void run() {  
-				Timer timer = packetIdToTimerMap.get(packetId);
-				timer.cancel();
-				packetIdToTimerMap.remove(packetId);
-				lostPacketCount.getAndIncrement();
-			}  
-		} 
+		}
 	}
 	
+	
+	/**
+	 * For packet lost statistical information:
+	 * When a new packet is received, there are three status:
+	 * - BEYOND_WINDOW, this packet is with the highest id among all the received packet
+	 * - IN_WINDOW, this packet is in the current window
+	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
+	 */
 	private enum NewArrivedPacketStatus{
-		NEW, WAIT, LOST; 
+		BEYOND_WINDOW, IN_WINDOW, BEHIND_WINDOW; 
 	}
 }

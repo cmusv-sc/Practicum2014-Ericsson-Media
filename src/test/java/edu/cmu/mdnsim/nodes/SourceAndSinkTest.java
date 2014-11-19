@@ -23,7 +23,7 @@ public class SourceAndSinkTest {
 		int packageSize = 3000;
 		int rate = 1000;
 	
-		sinkNode.receiveAndReportTest(streamId);	
-		sourceNode.sendAndReportTest(streamId, sinkAddress, sinkPort, packageSize, rate);	
+		sinkNode.createAndLanchReceiveRunnable(streamId);	
+		sourceNode.createAndLaunchSendRunnable(streamId, sinkAddress, sinkPort, packageSize, rate);	
 	}
 }

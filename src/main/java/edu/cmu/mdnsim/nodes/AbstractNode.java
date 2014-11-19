@@ -1,20 +1,12 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.global.ClusterConfig;
@@ -29,36 +21,32 @@ public abstract class AbstractNode {
 	
 	protected MessageBusClient msgBusClient;
 	
-	protected String nodeName;
+	String nodeName;
 	
-	private InetAddress hostAddr;
+	InetAddress hostAddr;
 	
 	private boolean registered = false;
 	
 	
 	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
-	protected boolean unitTest = false;
-	
-	protected HashMap<String, DatagramSocket> flowIdToSocketMap;
+	public boolean integratedTest = false;
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
 	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 5000;
 	
-	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
-	
-	private static final int INTERVAL_IN_MILLISECOND = 1000;
+	public static final int INTERVAL_IN_MILLISECOND = 1000;
 	
 	/**
 	 * Used for reporting purposes. 
 	 * Key = FlowId, Value = UpStreamNodeId
 	 */
-	protected Map<String,String> upStreamNodes = new HashMap<String,String>();
+	Map<String,String> upStreamNodes = new HashMap<String,String>();
 	/**
 	 * Used for reporting purposes.
 	 * Key = FlowId, Value = DownStreamNodeId
 	 */
-	protected Map<String,String> downStreamNodes = new HashMap<String,String>();
+	Map<String,String> downStreamNodes = new HashMap<String,String>();
 	
 	public AbstractNode() throws UnknownHostException {
 		/* 
@@ -66,8 +54,6 @@ public abstract class AbstractNode {
 		 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
 		 */
 		hostAddr = java.net.InetAddress.getLocalHost();
-		
-		flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 	}
 	
 	public void config(MessageBusClient msgBusClient, String nType, String nName) throws MessageBusException {
@@ -92,7 +78,6 @@ public abstract class AbstractNode {
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
 		}
@@ -115,12 +100,6 @@ public abstract class AbstractNode {
 		this.nodeName = name;
 	}	
 
-	public String currentTime(){
-		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
-		Date date = new Date();
-		return dateFormat.format(date);
-	}
-
 	public synchronized void setRegistered(Message msg) {
 		registered = true;
 		if (ClusterConfig.DEBUG) {
@@ -133,7 +112,7 @@ public abstract class AbstractNode {
 	}
 	
 	public void setUnitTest(boolean unitTest){
-		this.unitTest = unitTest;
+		this.integratedTest = unitTest;
 	}
 
 	/**
@@ -166,69 +145,43 @@ public abstract class AbstractNode {
 	 */
 	public abstract void releaseResource(Flow flow);
 	
-	/**
-	 * Creates a DatagramSocket and binds it to any available port
-	 * The flowId and the DatagramSocket are added to a 
-	 * HashMap<flowId, DatagramSocket> in the MdnSinkNode object
-	 * 
-	 * @param flowId
-	 * @return port number to which the DatagramSocket is bound to
-	 * -1 if DatagramSocket creation failed
-	 * 0 if DatagramSocket is created but is not bound to any port
-	 */
-
-	public int bindAvailablePortToFlow(String flowId) {
-
-		if (flowIdToSocketMap.containsKey(flowId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return flowIdToSocketMap.get(flowId).getPort();
-		} else {
-			
-			DatagramSocket udpSocket = null;
-			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
-				try {
-					udpSocket = new DatagramSocket(0, getHostAddr());
-				} catch (SocketException e) {
-					if (ClusterConfig.DEBUG) {
-						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
-					}
-					e.printStackTrace();
-					continue;
-				}
-				break;
-			}
-			
-			if(udpSocket == null){
-				return -1;
-			}
-			
-			flowIdToSocketMap.put(flowId, udpSocket);
-			return udpSocket.getLocalPort();
-		}
-	}
-	
-	protected class NodeRunnable implements Runnable {
+	protected abstract class NodeRunnable implements Runnable {
 		
-		protected String flowId;
+		private String flowId;
+		private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
+		private AtomicInteger lostPacketNum = new AtomicInteger(0);
 		
-		protected long startedTime = 0;
-		protected int totalBytesTranfered = 0;
-		protected boolean finished = false;
-		
-		protected boolean killed = false;
-		protected boolean stopped = false;
+		private boolean killed = false;
+		private boolean stopped = false;
 		
 		public NodeRunnable(String flowId){
 			this.flowId = flowId;
-			
-			ReportTransportationRateRunnable reportTransportationRateRunnable = new ReportTransportationRateRunnable(INTERVAL_IN_MILLISECOND);
-			WarpThreadPool.executeCached(reportTransportationRateRunnable);
 		}
 		
-		public void run(){
+		public abstract void run();
+
+		public String getFlowId() {
+			return flowId;
+		}
+
+		public void setFlowId(String flowId) {
+			this.flowId = flowId;
+		}
+		
+		public int getTotalBytesTranfered() {
+			return totalBytesTransfered.get();
+		}
+		
+		public void setTotalBytesTranfered(int totalBytesTranfered) {
+			this.totalBytesTransfered.set(totalBytesTranfered);
+		}
+
+		public synchronized int getLostPacketNum() {
+			return lostPacketNum.get();
+		}
+
+		public synchronized void setLostPacketNum(int lostPacketNum) {
+			this.lostPacketNum.set(lostPacketNum);
 		}
 		
 		public synchronized void kill() {
@@ -247,45 +200,84 @@ public abstract class AbstractNode {
 			return stopped;
 		}
 		
-		protected class ReportTransportationRateRunnable implements Runnable{  
-
-			  
-			protected int lastRecordedTotalBytes = 0;
-			// -1 to avoid time difference to be 0 when used as a divider
-			protected long lastRecordedTime = System.currentTimeMillis() - 1;
+		/**
+		 * Package private class could not be accessed by outside subclasses
+		 * 
+		 *
+		 */
+		protected class ReportRateRunnable implements Runnable{  
+  
+			private int  lastRecordedTotalBytes = 0;
 			
+			private int lastRecordedPacketLost = 0;
+			
+			// -1 to avoid time difference to be 0 when used as a divider
+			private long lastRecordedTime = System.currentTimeMillis() - 1;
+			
+			private final long startedTime;
+
 			private int intervalInMillisecond;
 
-			public ReportTransportationRateRunnable(int intervalInMillisecond){
+			public ReportRateRunnable(int intervalInMillisecond){
 				this.intervalInMillisecond = intervalInMillisecond;
+				startedTime  = System.currentTimeMillis();
 			}
+			
+			/**
+			 * Make a while loop as long as the current thread is not interrupted
+			 * Call the calculateAndReport method after the while loop to report the status for the last moment
+			 * Note, the packet lost in the last moment(several millisecond could be very large, since time spent is short)
+			 */
 			@Override  
 			public void run() {  
-				while(!finished){
-					long currentTime = System.currentTimeMillis();
-					
-					int localTotalBytes = totalBytesTranfered;				
-					long timeDiffInMillisecond = currentTime - lastRecordedTime;
-					int bytesDiff = localTotalBytes - lastRecordedTotalBytes;
-					long instantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
-					
-					long totalTimeDiffInMillisecond = currentTime - startedTime;
-					long averageRate = (long)(localTotalBytes * 1.0 / totalTimeDiffInMillisecond * 1000) ;
-							
-					lastRecordedTotalBytes = localTotalBytes;
-					lastRecordedTime = currentTime;
-					
-					if(startedTime != 0){
-						reportTransportationRate(averageRate, instantRate);
-					}				
-						
+				
+				while(!Thread.currentThread().isInterrupted()){
+					calculateAndReport();
 					try {
 						Thread.sleep(intervalInMillisecond);
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						Thread.currentThread().interrupt();
 					}
 				}
+				System.out.println("I m interrupted :(");
+				calculateAndReport();
 			}  
+			
+			/**
+			 *  Calculate the transfer rate and packet lost rate。
+			 *  Call the report methods
+			 *  Update the last records
+			 */
+			private void calculateAndReport(){
+				long currentTime = System.currentTimeMillis();	
+				long timeDiffInMillisecond = currentTime - lastRecordedTime;
+				long totalTimeDiffInMillisecond = currentTime - startedTime;
+				
+				int localToTalBytesTransfered = getTotalBytesTranfered();
+				int bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
+				long transportationInstantRate = (long)(bytesDiff * 1.0 / timeDiffInMillisecond * 1000) ;
+				long transportationAverageRate = (long)(localToTalBytesTransfered * 1.0 / totalTimeDiffInMillisecond * 1000) ;
+						
+				int localPacketLostNum = getLostPacketNum();
+				int lostDiff = localPacketLostNum - lastRecordedPacketLost; 
+				long dataLostInstantRate = (long) (lostDiff * NodePacket.PACKET_MAX_LENGTH * 1.0 / timeDiffInMillisecond * 1000);
+				long dateLostAverageRate = (long) (localPacketLostNum * NodePacket.PACKET_MAX_LENGTH * 1.0 / totalTimeDiffInMillisecond * 1000);
+				
+				lastRecordedTotalBytes = localToTalBytesTransfered;
+				lastRecordedPacketLost = localPacketLostNum;
+				lastRecordedTime = currentTime;
+				
+				if(startedTime != 0){
+					if(!integratedTest){
+						reportTransportationRate(transportationAverageRate, transportationInstantRate);
+					}
+					reportPacketLost(dateLostAverageRate, dataLostInstantRate);
+				}
+			}
+			
+			private void reportPacketLost(long packetLostAverageRate, long dataLostInstantRate){
+				System.out.println("[Packet Lost] " + packetLostAverageRate + " " + dataLostInstantRate);
+			}
 			
 			private void reportTransportationRate(long averageRate, long instantRate){
 				System.out.println("[RATE]" + " " + averageRate + " " + instantRate);
@@ -317,7 +309,6 @@ public abstract class AbstractNode {
 						e.printStackTrace();
 					} 
 				}
-				
 			}
 			
 			//TODO: Add Node Type instead of using the parser
@@ -333,7 +324,6 @@ public abstract class AbstractNode {
 				} else {
 					return NodeType.UNDEF;
 				}
-				
 			}
 			
 			private String getUpStreamId() {

@@ -6,14 +6,18 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.ericsson.research.trap.utils.Future;
 
+import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
+import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
@@ -22,17 +26,52 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.util.Utility;
 
-public class SinkNode extends AbstractNode {
+public class SinkNode extends AbstractNode implements PortBindable{
 
+	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
-	private Map<String, ReceiveRunnable> runningThreadMap = new ConcurrentHashMap<String, ReceiveRunnable>();
+	private Map<String, ReceiveRunnable> streamIdToRunnableMap = new ConcurrentHashMap<String, ReceiveRunnable>();
 
 	public SinkNode() throws UnknownHostException {
 		super();
 	}
 
+
+	@Override
+	public int bindAvailablePortToFlow(String flowId) {
+
+		if (flowIdToSocketMap.containsKey(flowId)) {
+			// TODO handle potential error condition. We may consider throw this exception
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
+			}
+			return flowIdToSocketMap.get(flowId).getPort();
+		} else {
+			
+			DatagramSocket udpSocket = null;
+			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
+				try {
+					udpSocket = new DatagramSocket(0, getHostAddr());
+				} catch (SocketException e) {
+					if (ClusterConfig.DEBUG) {
+						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
+					}
+					e.printStackTrace();
+					continue;
+				}
+				break;
+			}
+			
+			if(udpSocket == null){
+				return -1;
+			}
+			
+			flowIdToSocketMap.put(flowId, udpSocket);
+			return udpSocket.getLocalPort();
+		}
+	}
 
 	@Override
 	public void executeTask(Flow flow) {
@@ -47,14 +86,13 @@ public class SinkNode extends AbstractNode {
 			flowIndex++;
 			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
 				Integer port = bindAvailablePortToFlow(flow.getFlowId());
-				ReceiveRunnable rcvThread = new ReceiveRunnable(flow.getFlowId());
-				runningThreadMap.put(flow.getFlowId(), rcvThread);
+				createAndLanchReceiveRunnable(flow.getFlowId());
 				//Get up stream and down stream node ids
 				//As of now Sink Node does not have downstream id
 				upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
 				//downStreamNodes.put(streamSpec.StreamId, nodeProperties.get("DownstreamId"));
 
-				WarpThreadPool.executeCached(rcvThread);
+				
 
 				if (flowIndex+1 < flow.getNodeList().size()) {
 					Map<String, String> upstreamFlow = flow.getNodeList().get(flowIndex+1);
@@ -72,10 +110,21 @@ public class SinkNode extends AbstractNode {
 
 	}
 
+	/**
+	 * Create and Launch a ReceiveRunnable thread & record it in the map
+	 * @param streamId
+	 */
+	public void createAndLanchReceiveRunnable(String streamId){
 
-	public void receiveAndReportTest(String streamId){
-		ExecutorService executorService = Executors.newCachedThreadPool();
-		executorService.execute(new ReceiveRunnable(streamId));
+		ReceiveRunnable rcvRunnable = new ReceiveRunnable(streamId);
+		streamIdToRunnableMap.put(streamId, rcvRunnable);
+		if(integratedTest){
+			ExecutorService executorService = Executors.newSingleThreadExecutor();
+			executorService.execute(new ReceiveRunnable(streamId));
+			executorService.shutdown();
+		} else{
+			WarpThreadPool.executeCached(rcvRunnable);			
+		}
 	}
 
 	@Override
@@ -85,7 +134,7 @@ public class SinkNode extends AbstractNode {
 			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(flow));
 		}
 
-		ReceiveRunnable thread = runningThreadMap.get(flow.getFlowId());
+		ReceiveRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
 		if(thread == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -94,7 +143,7 @@ public class SinkNode extends AbstractNode {
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
 
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", flow);
+			msgBusClient.send("/tasks", nodeMap.get(Flow.UPSTREAM_URI) + "/tasks", "POST", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -107,10 +156,10 @@ public class SinkNode extends AbstractNode {
 			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
 		}
 
-		ReceiveRunnable rcvThread = runningThreadMap.get(flow.getFlowId());
+		ReceiveRunnable rcvThread = streamIdToRunnableMap.get(flow.getFlowId());
 		while (!rcvThread.isStopped());
 		rcvThread.clean();
-		runningThreadMap.remove(flow.getFlowId());
+		streamIdToRunnableMap.remove(flow.getFlowId());
 	}
 
 	/**
@@ -124,9 +173,11 @@ public class SinkNode extends AbstractNode {
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveRunnable extends NodeRunnable {
+	 private class ReceiveRunnable extends NodeRunnable {
 
-		private DatagramSocket receiveSocket = null;
+		private DatagramSocket receiveSocket;
+		
+		private DatagramPacket packet;
 
 		public ReceiveRunnable(String flowId) {
 			super(flowId);
@@ -134,78 +185,108 @@ public class SinkNode extends AbstractNode {
 
 		@Override
 
-		public void run() {				
+		public void run() {						
 
-			receiveSocket = flowIdToSocketMap.get(flowId);
-			if (receiveSocket == null) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
-				}
+			if(!initializeSocketAndPacket()){
 				return;
 			}
-
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
-			DatagramPacket packet = new DatagramPacket(buf, buf.length);
 			
-			try {
-				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
-			} catch (SocketException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			} 
-		
+			long startedTime = 0;
+			Future reportFuture = null;
+			
 			while (!isKilled()) {
 				try{
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
 					break;
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					continue;
 				} 
-				
+
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					if(!unitTest){
-						report(startedTime, -1, totalBytesTranfered,EventType.RECEIVE_START);
+					reportFuture = createAndLaunchReportTransportationRateRunnable();					
+					if(!integratedTest){
+						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
 					}
 				}
-				NodePacket nodePacket = new NodePacket(packet.getData());
-
-				totalBytesTranfered += packet.getLength();	
+				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 				
-				if (unitTest) {
-					System.out.println("[Sink] " + totalBytesTranfered + " " + currentTime());		
+				if (integratedTest) {
+					System.out.println("[Sink] " + getTotalBytesTranfered() + " " + Utility.currentTime());		
 				}
 			}	
-		
-			clean();
-			finished = true;
 			long endTime= System.currentTimeMillis();
+			if(!integratedTest){
+				report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
+			} 
+						
 			if (ClusterConfig.DEBUG) {
-				if (finished) {
-					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
-				} else if (killed) {
+				if (isKilled()) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Killed.");
 				} else {
-					System.err.println("[DEBUG]SinkNode.ReceiveThread.run(): Unexpected.");
+					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
 				}
 			}
-
-			if(!unitTest){
-				report(startedTime, endTime, totalBytesTranfered, EventType.RECEIVE_END);
+			if(reportFuture != null){
+				System.out.println("Cancelling Future!!!!");
+				reportFuture.cancel(true);
 			}
-			
+			clean();
 			stop();
+		}
+		
+		/**
+		 * Initialize the receive socket and the DatagramPacket 
+		 * @return true, successfully done
+		 * 		   false, failed in some part
+		 */
+		private boolean initializeSocketAndPacket(){
+			receiveSocket = flowIdToSocketMap.get(getFlowId());
+			if (receiveSocket == null) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
+				}
+				return false;
+			}			
+			try {
+				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			} catch (SocketException e1) {
+				return false;
+			}
+
+			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+			packet = new DatagramPacket(buf, buf.length);
+
+			return true;
+		}
+
+		
+		/**
+		 * Create and Launch a report thread
+		 * @return Future of the report thread
+		 */
+		private Future createAndLaunchReportTransportationRateRunnable(){	
+			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+			if(integratedTest){
+				ExecutorService executorService = Executors.newSingleThreadExecutor();
+				Future reportFuture =  (Future) executorService.submit(reportTransportationRateRunnable);
+				executorService.shutdown();
+				return reportFuture;
+			} else {
+				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
+				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
+				return reportFuture;
+			}	
 		}
 
 		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
-			System.out.println("[SINK] Reporting to master StreamId:" + flowId);
+			System.out.println("[SINK] Reporting to master StreamId:" + getFlowId());
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
-			sinkReportMsg.setFlowId(flowId);
+			sinkReportMsg.setFlowId(getFlowId());
 			sinkReportMsg.setTotalBytes(totalBytes);
 			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
-			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(flowId));
+			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(getFlowId()));
 			sinkReportMsg.setEventType(eventType);
 
 			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
@@ -232,12 +313,12 @@ public class SinkNode extends AbstractNode {
 		}
 
 		private void clean() {
-
-			System.out.println("[Sink Node] Cleaning up resources");
-
-			receiveSocket.close();
-			flowIdToSocketMap.remove(flowId);
-
+			if(receiveSocket != null && !receiveSocket.isClosed()){
+				receiveSocket.close();
+			}
+			if(flowIdToSocketMap.containsKey(getFlowId())){
+				flowIdToSocketMap.remove(getFlowId());
+			}
 		}
 	}	
 }
