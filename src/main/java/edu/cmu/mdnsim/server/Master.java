@@ -164,7 +164,6 @@ public class Master {
 
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
-
 	}
 
 
@@ -408,7 +407,7 @@ public class Master {
 						 *  for a node to register itself
 						 */
 						nodesToInstantiate.put(nodeId, nodeType);
-						
+
 						synchronized(this.flowsInNodeMap) {
 							ArrayList<Flow> flowList;
 							if (this.flowsInNodeMap.containsKey(nodeId)) {
@@ -430,7 +429,7 @@ public class Master {
 				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);
 				}
-				
+
 				/* If the flow is ready to run, i.e. all the nodes in the flow
 				 * are registered with the master, then start the flow
 				 */
