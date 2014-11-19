@@ -11,7 +11,7 @@
   <parent>
     <groupId>com.ericsson.research.warp</groupId>
     <artifactId>WarpSettings</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.0.3</version>
   </parent>  
 
   <properties>
@@ -99,7 +99,6 @@
     <dependency>
       <groupId>com.ericsson.research.warp</groupId>
       <artifactId>API-Server-Embedded</artifactId>
-      <version>2.1.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
