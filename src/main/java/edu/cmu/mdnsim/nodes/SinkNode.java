@@ -24,7 +24,6 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
-import edu.cmu.mdnsim.nodes.AbstractNode.NodeRunnable.ReportRateRunnable;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode implements PortBindable{
@@ -181,7 +180,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		private DatagramPacket packet;
 
 		public ReceiveRunnable(Flow flow) {
-			super(flow);
+			super(flow, msgBusClient, getNodeId());
 		}
 
 		@Override

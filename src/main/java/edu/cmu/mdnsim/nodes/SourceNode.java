@@ -23,7 +23,6 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.nodes.AbstractNode.NodeRunnable.ReportRateRunnable;
 import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
@@ -133,7 +132,7 @@ public class SourceNode extends AbstractNode {
 		
 		public SendRunnable(Flow flow, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
 			
-			super(flow);
+			super(flow, msgBusClient, getNodeId());
 			this.dstAddrStr = dstAddrStr;
 			this.dstPort = dstPort;
 			this.bytesToTransfer = bytesToTransfer;

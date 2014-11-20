@@ -39,8 +39,12 @@ public class NodeContainer {
 	}
 	
 	public void config() throws MessageBusException {
+		
 		msgBusClient.config();
+		
 		msgBusClient.addMethodListener("/create_node", "PUT", this, "createNode");
+		
+		msgBusClient.addMethodListener("/nodes", "DELETE", this, "cleanUpNodes");
 	}
 	
 	public void connect() throws MessageBusException {
@@ -63,8 +67,6 @@ public class NodeContainer {
 			ClassNotFoundException {
 		
 		if (nodeMap.containsKey(req.getNodeId())) {
-			// Nothing to be done. Node already exists
-			System.out.println("Nothing to be done. Node already exists");
 			return;
 		}
 		
@@ -107,6 +109,17 @@ public class NodeContainer {
 					+ " a new node " + objectiveNodeClass.getCanonicalName());
 		}
 		
+	}
+	
+	
+	public void cleanUpNodes() {
+		
+	}
+	
+	public void stopNode(String nodeId) {
+		AbstractNode node = nodeMap.get(nodeId);
+		/* Remove the listeners */
+		/* Kill all threads */
 	}
 	
 	

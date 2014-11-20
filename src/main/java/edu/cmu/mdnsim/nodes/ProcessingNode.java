@@ -29,7 +29,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 
-	private Map<String, ReceiveProcessAndSendRunnable> runningMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
+	private Map<String, ReceiveProcessAndSendRunnable> streamIdToRunnableMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
 
 	public ProcessingNode() throws UnknownHostException {	
 		super();
@@ -139,7 +139,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		
 		ReceiveProcessAndSendRunnable receiveProcessAndSendRunnable = 
 				new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
-		runningMap.put(flow.getFlowId(), receiveProcessAndSendRunnable);
+		streamIdToRunnableMap.put(flow.getFlowId(), receiveProcessAndSendRunnable);
 		if(integratedTest){
 			ExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 			executorService.submit(new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate));
@@ -156,7 +156,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = runningMap.get(flow.getFlowId());
+		ReceiveProcessAndSendRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
 		if(thread == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -178,7 +178,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = runningMap.get(flow.getFlowId());
+		ReceiveProcessAndSendRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
 		while (!thread.isStopped());
 		thread.closeSocket();
 
@@ -227,7 +227,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 		public ReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
 
-			super(flow);
+			super(flow, msgBusClient, getNodeId());
 			
 			this.totalData = totalData;
 			this.dstAddress = destAddress;
