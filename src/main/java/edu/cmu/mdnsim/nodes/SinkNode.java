@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import com.ericsson.research.trap.utils.Future;
 
+import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
@@ -24,6 +24,7 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
+import edu.cmu.mdnsim.nodes.AbstractNode.NodeRunnable.ReportRateRunnable;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode implements PortBindable{
@@ -192,7 +193,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			}
 			
 			long startedTime = 0;
-			Future reportFuture = null;
+			TaskHandler reportTaksHandler = null;
 			
 			while (!isKilled()) {
 				try{
@@ -205,7 +206,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					reportFuture = createAndLaunchReportTransportationRateRunnable();					
+					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
 					if(!integratedTest){
 						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
 					}
@@ -228,9 +229,8 @@ public class SinkNode extends AbstractNode implements PortBindable{
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
 				}
 			}
-			if(reportFuture != null){
-				System.out.println("Cancelling Future!!!!");
-				reportFuture.cancel(true);
+			if(reportTaksHandler != null){
+				reportTaksHandler.kill();
 			}
 			clean();
 			stop();
@@ -266,17 +266,17 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private Future createAndLaunchReportTransportationRateRunnable(){	
+		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 			if(integratedTest){
 				ExecutorService executorService = Executors.newSingleThreadExecutor();
 				Future reportFuture =  (Future) executorService.submit(reportTransportationRateRunnable);
 				executorService.shutdown();
-				return reportFuture;
+				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 			} else {
 				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-				return reportFuture;
+				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 			}	
 		}
 
@@ -320,5 +320,26 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				flowIdToSocketMap.remove(getFlowId());
 			}
 		}
-	}	
+		
+		private class TaskHandler {
+			
+			Future reportFuture;
+			ReportRateRunnable reportRunnable;
+			
+			public TaskHandler(Future future, ReportRateRunnable runnable) {
+				this.reportFuture = future;
+				reportRunnable = runnable;
+			}
+			
+			public void kill() {
+				reportRunnable.kill();
+			}
+			
+			public boolean isDone() {
+				return reportFuture.isDone();
+			}
+			
+		}
+
+	}
 }

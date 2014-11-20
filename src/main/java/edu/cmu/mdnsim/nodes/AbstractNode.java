@@ -210,6 +210,8 @@ public abstract class AbstractNode {
 			private final long startedTime;
 
 			private int intervalInMillisecond;
+			
+			private volatile boolean killed = false;
 
 			public ReportRateRunnable(int intervalInMillisecond){
 				this.intervalInMillisecond = intervalInMillisecond;
@@ -224,19 +226,22 @@ public abstract class AbstractNode {
 			@Override  
 			public void run() {  
 				
-				while(!Thread.currentThread().isInterrupted()){
+				while(!killed){
 					calculateAndReport();
 					try {
 						Thread.sleep(intervalInMillisecond);
 					} catch (InterruptedException e) {
-						
-						Thread.currentThread().interrupt();
+						continue;
 					}
 				}
 				
 				System.out.println("I m interrupted :(");
 				calculateAndReport();
 			}  
+			
+			public void kill() {
+				this.killed = true;
+			}
 			
 			/**
 			 *  Calculate the transfer rate and packet lost rate。

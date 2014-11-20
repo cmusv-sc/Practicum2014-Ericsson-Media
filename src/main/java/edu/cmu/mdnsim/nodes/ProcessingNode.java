@@ -251,7 +251,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			}
 
 			boolean isStarted = false;
-			Future reportFuture = null;
+			TaskHandler reportTask = null;
 			
 			while (!isKilled()) {
 				try {
@@ -265,7 +265,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				} 
 				
 				if(!isStarted) {
-					reportFuture = createAndLaunchReportTransportationRateRunnable();
+					reportTask = createAndLaunchReportTransportationRateRunnable();
 					if(!integratedTest){
 						report(System.currentTimeMillis(), upStreamNodes.get(getFlowId()),EventType.RECEIVE_START);
 					}				
@@ -293,9 +293,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				}				
 			}	
 		
-			if(reportFuture != null){
+			if(reportTask != null){
 				System.out.println("Processing Node: Cancelling Future");				
-				reportFuture.cancel(true);
+				reportTask.kill();
 			}	
 			closeSocket();
 
@@ -373,18 +373,18 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private Future createAndLaunchReportTransportationRateRunnable(){
+		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
 		
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 			if(integratedTest){
 				ExecutorService executorService = Executors.newSingleThreadExecutor();
 				Future reportFuture = (Future) executorService.submit(reportTransportationRateRunnable);
 				executorService.shutdown();
-				return reportFuture;
+				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 			} else {
 				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-				return reportFuture;
+				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 			}	
 		}
 
@@ -467,6 +467,26 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			} else{
 				return NewArrivedPacketStatus.IN_WINDOW;
 			}
+		}
+		
+		private class TaskHandler {
+			
+			Future reportFuture;
+			ReportRateRunnable reportRunnable;
+			
+			public TaskHandler(Future future, ReportRateRunnable runnable) {
+				this.reportFuture = future;
+				reportRunnable = runnable;
+			}
+			
+			public void kill() {
+				reportRunnable.kill();
+			}
+			
+			public boolean isDone() {
+				return reportFuture.isDone();
+			}
+			
 		}
 	}
 	
