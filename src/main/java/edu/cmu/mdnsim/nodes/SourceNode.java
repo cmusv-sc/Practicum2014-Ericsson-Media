@@ -45,13 +45,14 @@ public class SourceNode extends AbstractNode {
 				int destPort = Integer.parseInt(ipAndPort[1]);
 				int dataSize = Integer.parseInt(flow.getDataSize());
 				int rate = Integer.parseInt(flow.getKiloBitRate());
+				
 				//Get up stream and down stream node ids
 				//As of now Source Node does not have upstream id
 				//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
 				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
 				
 				try {
-					createAndLaunchSendRunnable(flow.getFlowId(), InetAddress.getByName(destAddrStr), destPort, dataSize, rate);					
+					createAndLaunchSendRunnable(flow, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);					
 				} catch (UnknownHostException e) {
 					e.printStackTrace();
 				}
@@ -68,10 +69,10 @@ public class SourceNode extends AbstractNode {
 	 * @param bytesToTransfer
 	 * @param rate
 	 */
-	public void createAndLaunchSendRunnable(String streamId, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate){
+	public void createAndLaunchSendRunnable(Flow flow, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate){
 		
-		SendRunnable sendRunnable = new SendRunnable(streamId, destAddrStr, destPort, bytesToTransfer, rate);
-		streamIdToRunnableMap.put(streamId, sendRunnable);
+		SendRunnable sendRunnable = new SendRunnable(flow, destAddrStr, destPort, bytesToTransfer, rate);
+		streamIdToRunnableMap.put(flow.getFlowId(), sendRunnable);
 
 		if(integratedTest){
 			ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -129,9 +130,9 @@ public class SourceNode extends AbstractNode {
 		
 		private DatagramPacket packet;
 		
-		public SendRunnable(String streamId, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
+		public SendRunnable(Flow flow, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
 			
-			super(streamId);
+			super(flow);
 			this.dstAddrStr = dstAddrStr;
 			this.dstPort = dstPort;
 			this.bytesToTransfer = bytesToTransfer;
@@ -201,6 +202,7 @@ public class SourceNode extends AbstractNode {
 			
 			if(!integratedTest){
 				report(EventType.SEND_END);
+				this.sendEndMessageToDownstream();
 			} 
 			
 			if (ClusterConfig.DEBUG) {
@@ -219,6 +221,8 @@ public class SourceNode extends AbstractNode {
 		}
 		
 		
+		
+
 		/**
 		 * Initialize the send socket and the DatagramPacket 
 		 * @return true, successfully done

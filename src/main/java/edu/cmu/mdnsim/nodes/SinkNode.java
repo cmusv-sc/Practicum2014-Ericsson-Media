@@ -86,7 +86,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			flowIndex++;
 			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 				Integer port = bindAvailablePortToFlow(flow.getFlowId());
-				createAndLanchReceiveRunnable(flow.getFlowId());
+				createAndLanchReceiveRunnable(flow);
 				//Get up stream and down stream node ids
 				//As of now Sink Node does not have downstream id
 				upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
@@ -114,13 +114,13 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	 * Create and Launch a ReceiveRunnable thread & record it in the map
 	 * @param streamId
 	 */
-	public void createAndLanchReceiveRunnable(String streamId){
+	public void createAndLanchReceiveRunnable(Flow flow){
 
-		ReceiveRunnable rcvRunnable = new ReceiveRunnable(streamId);
-		streamIdToRunnableMap.put(streamId, rcvRunnable);
+		ReceiveRunnable rcvRunnable = new ReceiveRunnable(flow);
+		streamIdToRunnableMap.put(flow.getFlowId(), rcvRunnable);
 		if(integratedTest){
 			ExecutorService executorService = Executors.newSingleThreadExecutor();
-			executorService.execute(new ReceiveRunnable(streamId));
+			executorService.execute(new ReceiveRunnable(flow));
 			executorService.shutdown();
 		} else{
 			WarpThreadPool.executeCached(rcvRunnable);			
@@ -164,12 +164,12 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 	/**
 	 * 
-	 * Each stream is received in a separate WarpPoolThread.
+	 * Each flow is received in a separate WarpPoolThread.
 	 * After receiving all packets from the source, this thread 
 	 * reports the total time and total number of bytes received by the 
 	 * sink node back to the master using the message bus.
 	 * 
-	 * @param flowId The streamId is bind to a socket and stored in the map
+	 * @param flowId The flowId is bind to a socket and stored in the map
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
@@ -179,12 +179,11 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		
 		private DatagramPacket packet;
 
-		public ReceiveRunnable(String flowId) {
-			super(flowId);
+		public ReceiveRunnable(Flow flow) {
+			super(flow);
 		}
 
 		@Override
-
 		public void run() {						
 
 			if(!initializeSocketAndPacket()){
@@ -192,16 +191,27 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			}
 			
 			long startedTime = 0;
+			boolean isFinalWait = false;
 			Future reportFuture = null;
 			
 			while (!isKilled()) {
 				try{
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
-					break;
+					//ste.printStackTrace();
+					if(this.isUpStreamDone()){
+						if(!isFinalWait){
+							isFinalWait = true;
+							continue;
+						}else{
+							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
+							break;		
+						}
+					}					
 				} catch (IOException e) {
-					continue;
-				} 
+					e.printStackTrace();
+					break;
+				}
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
@@ -281,7 +291,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		}
 
 		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
-			System.out.println("[SINK] Reporting to master StreamId:" + getFlowId());
+			System.out.println("[SINK] Reporting to master FlowId:" + getFlowId());
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
 			sinkReportMsg.setFlowId(getFlowId());
 			sinkReportMsg.setTotalBytes(totalBytes);

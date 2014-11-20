@@ -37,8 +37,8 @@ public class SourceProcessAndSinkTest {
 		processingNode.setUnitTest(true);
 		sourceNode.setUnitTest(true);
 
-		sinkNode.createAndLanchReceiveRunnable(streamId);
-		processingNode.createAndLaunchReceiveProcessAndSendRunnable(streamId, totalDataSize, sinkAddress, sinkPort,processingLoop, processingSpaceInByte, rate);
-		sourceNode.createAndLaunchSendRunnable(streamId, processingAddress, processingPort, totalDataSize, rate);
+		//sinkNode.createAndLanchReceiveRunnable(streamId);
+		//processingNode.createAndLaunchReceiveProcessAndSendRunnable(streamId, totalDataSize, sinkAddress, sinkPort,processingLoop, processingSpaceInByte, rate);
+		//sourceNode.createAndLaunchSendRunnable(streamId, processingAddress, processingPort, totalDataSize, rate);
 	}
 }

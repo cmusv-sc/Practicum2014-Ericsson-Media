@@ -68,6 +68,7 @@ public abstract class AbstractNode {
 		msgBusClient.addMethodListener("/" + getNodeId() + "/tasks", "DELETE", this, "releaseResource");
 		
 		msgBusClient.addMethodListener("/" + getNodeId() + "/confirm_node", "PUT", this, "setRegistered");
+		
 	}
 	
 	public void register() {
@@ -137,29 +138,54 @@ public abstract class AbstractNode {
 	 * @param flow
 	 */
 	public abstract void releaseResource(Flow flow);
-	
+	/**
+	 * Each NodeRunnable represents an individual Stream 
+	 * It will run in a separate thread and will have dedicated reporting thread attached to it.
+	 *
+	 */
 	protected abstract class NodeRunnable implements Runnable {
 		
-		private String flowId;
+		private Flow flow;
 		private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
 		private AtomicInteger lostPacketNum = new AtomicInteger(0);
-		
+		/**
+		 * Used to indicate NodeRunnable Thread to stop processing.
+		 * Will be set to true when Master sends Terminate message for the flow
+		 * 	attached to this NodeRunnable
+		 */
 		private boolean killed = false;
+		/**
+		 * Used to release resources like socket after the flow is terminated. 
+		 */
 		private boolean stopped = false;
 		
-		public NodeRunnable(String flowId){
-			this.flowId = flowId;
+		private volatile boolean upStreamDone = false; 
+		
+		public NodeRunnable(Flow flow){
+			this.flow = flow;
+			try {
+				System.err.println("Resource Name " + this.getResourceName());
+				AbstractNode.this.msgBusClient.addMethodListener(
+						getResourceName(), "DELETE", this, "upStreamDoneSending");
+			} catch (MessageBusException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		
+		private String getResourceName() {
+			return "/" + getNodeId() + "/" + this.getFlowId();
+		}
+		public void upStreamDoneSending(Flow flow){
+			System.err.println(AbstractNode.this.nodeId +  " - Upstream Done");
+			this.upStreamDone = true;
+		}
 		public abstract void run();
 
 		public String getFlowId() {
-			return flowId;
+			return flow.getFlowId();
 		}
 
-		public void setFlowId(String flowId) {
-			this.flowId = flowId;
-		}
 		
 		public int getTotalBytesTranfered() {
 			return totalBytesTransfered.get();
@@ -193,6 +219,31 @@ public abstract class AbstractNode {
 			return stopped;
 		}
 		
+		public Flow getFlow() {
+			return flow;
+		}
+
+		public void setFlow(Flow flow) {
+			this.flow = flow;
+		}
+		protected void sendEndMessageToDownstream(){
+			try {
+				System.err.println("Sending end message to " + this.getFlow().findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI) + "/" + this.getFlowId() );
+				AbstractNode.this.msgBusClient.send(getFromPath(), 
+						this.getFlow().findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI) + "/" + this.getFlowId(),
+						"DELETE", this.getFlow());
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
+		}
+		private String getFromPath() {
+			return  "/" + AbstractNode.this.getNodeId() + "/" +  getFlowId();			
+			
+		}
+		public boolean isUpStreamDone() {
+			return upStreamDone;
+		}
+
 		/**
 		 * Package private class could not be accessed by outside subclasses
 		 * 
@@ -282,7 +333,7 @@ public abstract class AbstractNode {
 				if (nodeType == NodeType.SINK) {
 					SinkReportMessage msg = new SinkReportMessage();
 					msg.setEventType(EventType.PROGRESS_REPORT);
-					msg.setFlowId(NodeRunnable.this.flowId);
+					msg.setFlowId(NodeRunnable.this.getFlowId());
 					msg.setDestinationNodeId(getUpStreamId());
 					msg.setAverageRate("" + averageRate);
 					msg.setCurrentRate("" + instantRate);
@@ -294,7 +345,7 @@ public abstract class AbstractNode {
 				} else if (nodeType == NodeType.PROC) {
 					ProcReportMessage msg = new ProcReportMessage();
 					msg.setEventType(EventType.PROGRESS_REPORT);
-					msg.setFlowId(NodeRunnable.this.flowId);
+					msg.setFlowId(NodeRunnable.this.getFlowId());
 					msg.setDestinationNodeId(getUpStreamId());
 					msg.setAverageRate("" + averageRate);
 					msg.setCurrentRate("" + instantRate);
@@ -323,7 +374,7 @@ public abstract class AbstractNode {
 			
 			private String getUpStreamId() {
 				String nodeIdStr = AbstractNode.this.nodeId;
-				String[] nodeIds = NodeRunnable.this.flowId.split("-");
+				String[] nodeIds = NodeRunnable.this.getFlowId().split("-");
 				for (int i = 1; i < nodeIds.length; i++) {
 					if (nodeIdStr.equals(nodeIds[i])) {
 						if (i < nodeIds.length - 1) {

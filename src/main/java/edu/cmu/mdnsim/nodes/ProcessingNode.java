@@ -104,7 +104,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				try {
 					targetAddress = InetAddress.getByName(addressAndPort[0]);
 					int targetPort = Integer.valueOf(addressAndPort[1]);
-					createAndLaunchReceiveProcessAndSendRunnable(flow.getFlowId(), Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, processingLoop, processingMemory, rate);
+					createAndLaunchReceiveProcessAndSendRunnable(flow, 
+							Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, 
+							processingLoop, processingMemory, rate);
 				} catch (UnknownHostException e1) {
 					e1.printStackTrace();
 				}
@@ -133,13 +135,14 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 * @param processingMemory
 	 * @param rate
 	 */
-	public void createAndLaunchReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
+	public void createAndLaunchReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
 		
-		ReceiveProcessAndSendRunnable receiveProcessAndSendRunnable = new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
-		runningMap.put(streamId, receiveProcessAndSendRunnable);
+		ReceiveProcessAndSendRunnable receiveProcessAndSendRunnable = 
+				new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
+		runningMap.put(flow.getFlowId(), receiveProcessAndSendRunnable);
 		if(integratedTest){
 			ExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-			executorService.submit(new ReceiveProcessAndSendRunnable(streamId, totalData, destAddress, destPort, processingLoop, processingMemory, rate));
+			executorService.submit(new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate));
 			executorService.shutdown();
 		} else {
 			WarpThreadPool.executeCached(receiveProcessAndSendRunnable);
@@ -222,9 +225,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		int highPacketIdBoundry;
 		int receivedPacketNumInAWindow;
 
-		public ReceiveProcessAndSendRunnable(String streamId, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
+		public ReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
 
-			super(streamId);
+			super(flow);
 			
 			this.totalData = totalData;
 			this.dstAddress = destAddress;
@@ -251,17 +254,26 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			}
 
 			boolean isStarted = false;
+			boolean isFinalWait = false;
 			Future reportFuture = null;
 			
 			while (!isKilled()) {
 				try {
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
-					ste.printStackTrace();
-					setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
+					//ste.printStackTrace();
+					if(this.isUpStreamDone()){
+						if(!isFinalWait){
+							isFinalWait = true;
+							continue;
+						}else{
+							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
+							break;		
+						}
+					}					
+				} catch (IOException e) {
+					e.printStackTrace();
 					break;
-				} catch (IOException e) {	
-					continue;
 				} 
 				
 				if(!isStarted) {
@@ -301,6 +313,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 			if(!integratedTest){
 				report(System.currentTimeMillis(), downStreamNodes.get(getFlowId()), EventType.SEND_END);
+				this.sendEndMessageToDownstream();
 			} 
 			
 			if (ClusterConfig.DEBUG) {
