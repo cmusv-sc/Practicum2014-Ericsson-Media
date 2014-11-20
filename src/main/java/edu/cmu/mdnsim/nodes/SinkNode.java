@@ -84,7 +84,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
 			flowIndex++;
-			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
+			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 				Integer port = bindAvailablePortToFlow(flow.getFlowId());
 				createAndLanchReceiveRunnable(flow.getFlowId());
 				//Get up stream and down stream node ids
@@ -140,7 +140,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		}
 		thread.kill();
 
-		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 
 		try {
 			msgBusClient.send("/tasks", nodeMap.get(Flow.UPSTREAM_URI) + "/tasks", "POST", flow);
@@ -289,7 +289,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(getFlowId()));
 			sinkReportMsg.setEventType(eventType);
 
-			String fromPath = SinkNode.super.getNodeName() + "/finish-rcv";
+			String fromPath = SinkNode.super.getNodeId() + "/finish-rcv";
 
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG]SinkNode.ReceiveThread.report(): Sink sends report to master.");

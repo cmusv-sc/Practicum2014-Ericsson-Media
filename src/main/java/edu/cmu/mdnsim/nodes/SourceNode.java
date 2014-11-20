@@ -39,7 +39,7 @@ public class SourceNode extends AbstractNode {
 			System.out.println("[DEBUG]SourceNode.executeTask(): Source received a work specification.");
 		}
 		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
-			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
+			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 				String[] ipAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
 				String destAddrStr = ipAndPort[0];
 				int destPort = Integer.parseInt(ipAndPort[1]);
@@ -110,7 +110,7 @@ public class SourceNode extends AbstractNode {
 		sndThread.clean();
 		streamIdToRunnableMap.remove(flow.getFlowId());
 		
-		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		
 		try {
 			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
@@ -278,7 +278,7 @@ public class SourceNode extends AbstractNode {
 			srcReportMsg.setDestinationNodeId(downStreamNodes.get(getFlowId()));
 			srcReportMsg.setEventType(eventType);
 			
-			String fromPath = "/" + SourceNode.this.getNodeName() + "/ready-send";
+			String fromPath = "/" + SourceNode.this.getNodeId() + "/ready-send";
 			try {
 				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
 			} catch (MessageBusException e) {

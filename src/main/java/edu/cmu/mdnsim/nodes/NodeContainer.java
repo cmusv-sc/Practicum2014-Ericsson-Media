@@ -100,7 +100,7 @@ public class NodeContainer {
 			e.printStackTrace();
 		}
 		
-		nodeMap.put(newNode.getNodeName(), newNode);
+		nodeMap.put(newNode.getNodeId(), newNode);
 		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG] NodeContainer.createNode(): Instantiate"

@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -21,7 +22,7 @@ public abstract class AbstractNode {
 	
 	protected MessageBusClient msgBusClient;
 	
-	String nodeName;
+	String nodeId;
 	
 	InetAddress hostAddr;
 	
@@ -56,31 +57,23 @@ public abstract class AbstractNode {
 		hostAddr = java.net.InetAddress.getLocalHost();
 	}
 	
-	public void config(MessageBusClient msgBusClient, String nType, String nName) throws MessageBusException {
+	public void config(MessageBusClient msgBusClient, String nType, String nodeId) throws MessageBusException {
 		this.msgBusClient = msgBusClient;
-		nodeName = nName;
+		this.nodeId = nodeId;
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "PUT", this, "executeTask");
+		msgBusClient.addMethodListener("/" + getNodeId() + "/tasks", "PUT", this, "executeTask");
 		//TODO: The resource names and method need to be properly named 
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "POST", this, "terminateTask");
+		msgBusClient.addMethodListener("/" + getNodeId() + "/tasks", "POST", this, "terminateTask");
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/tasks", "DELETE", this, "releaseResource");
+		msgBusClient.addMethodListener("/" + getNodeId() + "/tasks", "DELETE", this, "releaseResource");
 		
-		msgBusClient.addMethodListener("/" + getNodeName() + "/confirm_node", "PUT", this, "setRegistered");
+		msgBusClient.addMethodListener("/" + getNodeId() + "/confirm_node", "PUT", this, "setRegistered");
 	}
 	
 	public void register() {
 		RegisterNodeRequest req = new RegisterNodeRequest();
-		req.setNodeName(getNodeName());
-		req.setURI(msgBusClient.getURI()+"/"+getNodeName());
-		//TODO: this is for testing graph update functionality. remove it
-		if (getNodeName().contains("rocess")){
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
-		}
+		req.setNodeName(getNodeId());
+		req.setURI(msgBusClient.getURI()+"/"+getNodeId());
 		try {
 			msgBusClient.sendToMaster("/", "/nodes", "PUT", req);
 		} catch (MessageBusException e) {
@@ -92,18 +85,18 @@ public abstract class AbstractNode {
 		return hostAddr;
 	}
 	
-	public String getNodeName() {
-		return nodeName;
+	public String getNodeId() {
+		return nodeId;
 	}
 	
-	public void setNodeName(String name) {
-		this.nodeName = name;
+	public void setNodeId(String nodeId) {
+		this.nodeId = nodeId;
 	}	
 
 	public synchronized void setRegistered(Message msg) {
 		registered = true;
 		if (ClusterConfig.DEBUG) {
-			System.out.println("AbstractNode.setRegistered(): " + getNodeName() + " successfully registered");
+			System.out.println("AbstractNode.setRegistered(): " + getNodeId() + " successfully registered");
 		}
 	}
 	
@@ -236,9 +229,11 @@ public abstract class AbstractNode {
 					try {
 						Thread.sleep(intervalInMillisecond);
 					} catch (InterruptedException e) {
+						
 						Thread.currentThread().interrupt();
 					}
 				}
+				
 				System.out.println("I m interrupted :(");
 				calculateAndReport();
 			}  
@@ -283,7 +278,7 @@ public abstract class AbstractNode {
 				System.out.println("[RATE]" + " " + averageRate + " " + instantRate);
 				NodeType nodeType = getNodeType();
 				System.out.println("NodeType:" + nodeType);
-				String fromPath = AbstractNode.this.getNodeName() + "/progress-report";
+				String fromPath = AbstractNode.this.getNodeId() + "/progress-report";
 				if (nodeType == NodeType.SINK) {
 					SinkReportMessage msg = new SinkReportMessage();
 					msg.setEventType(EventType.PROGRESS_REPORT);
@@ -313,7 +308,7 @@ public abstract class AbstractNode {
 			
 			//TODO: Add Node Type instead of using the parser
 			private NodeType getNodeType() {
-				String nodeTypeStr = AbstractNode.this.nodeName.split(":")[1];
+				String nodeTypeStr = AbstractNode.this.nodeId.split(":")[1];
 				nodeTypeStr = nodeTypeStr.substring(0, nodeTypeStr.length() - 1);
 				if (nodeTypeStr.toLowerCase().equals("sink")) {
 					return NodeType.SINK;
@@ -327,7 +322,7 @@ public abstract class AbstractNode {
 			}
 			
 			private String getUpStreamId() {
-				String nodeIdStr = AbstractNode.this.nodeName;
+				String nodeIdStr = AbstractNode.this.nodeId;
 				String[] nodeIds = NodeRunnable.this.flowId.split("-");
 				for (int i = 1; i < nodeIds.length; i++) {
 					if (nodeIdStr.equals(nodeIds[i])) {

@@ -78,7 +78,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 			flowIndex++;
 
-			if (nodePropertiesMap.get("NodeId").equals(getNodeName())) {
+			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 
 				/* Open a socket for receiving data from upstream node */
 				int port = bindAvailablePortToFlow(flow.getFlowId());
@@ -159,7 +159,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		}
 		thread.kill();
 
-		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 
 		try {
 			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", flow);
@@ -179,7 +179,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		while (!thread.isStopped());
 		thread.closeSocket();
 
-		Map<String, String> nodeMap = flow.findNodeMap(getNodeName());
+		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		try {
 			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
@@ -294,7 +294,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			}	
 		
 			if(reportFuture != null){
-				System.out.println("Processing Node: Cancelling Future");
+				System.out.println("Processing Node: Cancelling Future");				
 				reportFuture.cancel(true);
 			}	
 			closeSocket();
@@ -434,7 +434,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
 
-			String fromPath = ProcessingNode.super.getNodeName() + "/finish-rcv";
+			String fromPath = ProcessingNode.super.getNodeId() + "/finish-rcv";
 			try {
 				msgBusClient.sendToMaster(fromPath, "/processing_report", "POST", procReportMsg);
 			} catch (MessageBusException e) {
