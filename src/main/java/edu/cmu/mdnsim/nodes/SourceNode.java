@@ -23,12 +23,11 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.mdnsim.nodes.AbstractNode.NodeRunnable.ReportRateRunnable;
 import edu.cmu.util.Utility;
 
 public class SourceNode extends AbstractNode {
 	
-	private Map<String, SendRunnable> streamIdToRunnableMap = new HashMap<String, SendRunnable>();
+	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
 	
 	public SourceNode() throws UnknownHostException {
 		super();
@@ -50,7 +49,7 @@ public class SourceNode extends AbstractNode {
 				//Get up stream and down stream node ids
 				//As of now Source Node does not have upstream id
 				//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
-				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
+				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get(Flow.DOWNSTREAM_ID));
 				
 				try {
 					createAndLaunchSendRunnable(flow, InetAddress.getByName(destAddrStr), destPort, dataSize, rate);					
@@ -73,15 +72,10 @@ public class SourceNode extends AbstractNode {
 	public void createAndLaunchSendRunnable(Flow flow, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate){
 		
 		SendRunnable sendRunnable = new SendRunnable(flow, destAddrStr, destPort, bytesToTransfer, rate);
-		streamIdToRunnableMap.put(flow.getFlowId(), sendRunnable);
-
-		if(integratedTest){
-			ExecutorService executorService = Executors.newSingleThreadExecutor();
-			executorService.submit(sendRunnable);
-			executorService.shutdown();	
-		} else{
-			WarpThreadPool.executeCached(sendRunnable);			
-		}
+		Future sendFuture = ThreadPool.executeAfter(new MDNTask(sendRunnable), 0);
+		streamIdToRunnableMap.put(flow.getFlowId(), new StreamTaskHandler(sendFuture, sendRunnable));
+		
+		
 	}
 	
 	@Override
@@ -91,20 +85,25 @@ public class SourceNode extends AbstractNode {
 			System.out.println("[DEBUG]SourceNode.terminateTask(): Source received terminate task.\n" + JSON.toJSON(flow));
 		}
 		
-		SendRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
-		if(thread == null){
+		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getFlowId());
+		
+		if(sendTaskHanlder == null){
+		
 			throw new TerminateTaskBeforeExecutingException();
+		
 		}
-		thread.kill();
+		
+		sendTaskHanlder.kill();
 		
 		releaseResource(flow);
+		
 	}
 	
 	@Override
 	public void releaseResource(Flow flow) {
 		
-		SendRunnable sndThread = streamIdToRunnableMap.get(flow.getFlowId());
-		while (!sndThread.isStopped());
+		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getFlowId());
+		while (!sndThread.isDone());
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.releaseResource(): Source starts to clean-up resource.");
 		}
@@ -115,12 +114,27 @@ public class SourceNode extends AbstractNode {
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
+			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
 	}
 
+	@Override
+	public void cleanUp() {
+		
+		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+			streamTask.kill();
+			while(!streamTask.isDone());
+			streamTask.clean();
+			streamIdToRunnableMap.remove(streamTask.getFlowId());
+			System.out.println("[DEBUG]SourceNode.cleanUp(): Stops streamRunnable:" + streamTask.getFlowId());
+		}
+		
+		msgBusClient.removeResource("/" + getNodeId());
+		
+	}
+	
 	private class SendRunnable extends NodeRunnable {
 		
 		private DatagramSocket sendSocket = null;
@@ -133,7 +147,7 @@ public class SourceNode extends AbstractNode {
 		
 		public SendRunnable(Flow flow, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
 			
-			super(flow);
+			super(flow, msgBusClient, getNodeId());
 			this.dstAddrStr = dstAddrStr;
 			this.dstPort = dstPort;
 			this.bytesToTransfer = bytesToTransfer;
@@ -310,5 +324,35 @@ public class SourceNode extends AbstractNode {
 			}
 			
 		}
-	}	
+	}
+
+
+
+
+
+	private class StreamTaskHandler {
+		private Future streamFuture;
+		private SendRunnable streamTask;
+		
+		public StreamTaskHandler(Future streamFuture, SendRunnable streamTask) {
+			this.streamFuture = streamFuture;
+			this.streamTask = streamTask;
+		}
+		
+		public void kill() {
+			streamTask.kill();
+		}
+		
+		public boolean isDone() {
+			return streamFuture.isDone();
+		}
+		
+		public void clean() {
+			streamTask.clean();
+		}
+		
+		public String getFlowId() {
+			return streamTask.getFlowId();
+		}
+	}
 }

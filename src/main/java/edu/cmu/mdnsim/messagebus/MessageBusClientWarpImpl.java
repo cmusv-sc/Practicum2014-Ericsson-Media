@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.messagebus;
 
+import java.util.HashMap;
 import java.util.logging.Level;
 
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
@@ -12,6 +13,8 @@ import com.ericsson.research.warp.api.client.Client;
 import com.ericsson.research.warp.api.client.Client.ConnectionPolicy;
 import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
 import com.ericsson.research.warp.api.logging.WarpLogger;
+import com.ericsson.research.warp.api.resources.Resource;
+import com.ericsson.research.warp.spi.resources.ResourceInternal;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -152,6 +155,25 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 		
 	}
 	
+	@Override
+	public void removeResource(String path) {
+		Resource resource = _client.resources().getResource(path);
+		Resource parent = resource.getParent();
+		resource.remove();
+		
+		//TODO: This is to check 
+		HashMap<String, Resource> children = ((ResourceInternal)parent).getChildren();
+		if (children.keySet().isEmpty()) {
+			System.out.println("[DELETE]MessageBusClientWarpImpl.removeResource(): After removal, no nodes attached to current MessageBusClient.");
+		} else {
+			String tmp = "";
+			for (String subPath : children.keySet()) {
+				tmp += subPath + ";";
+			}
+			System.out.println("[DELETE]MessageBusClientWarpImpl.removeResource(): After removal, rest resources:" + tmp);
+		}
+	}
+	
 	
 	public synchronized boolean isConnected() {
 		return connected;
@@ -160,6 +182,8 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	private synchronized void connectToDomain() {
 		connected = true;
 	}
+
+	
 
 
 }

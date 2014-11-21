@@ -15,7 +15,6 @@ import java.util.concurrent.Executors;
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.util.JSON;
-import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
@@ -24,7 +23,6 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
-import edu.cmu.mdnsim.nodes.AbstractNode.NodeRunnable.ReportRateRunnable;
 import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode implements PortBindable{
@@ -33,7 +31,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
-	private Map<String, ReceiveRunnable> streamIdToRunnableMap = new ConcurrentHashMap<String, ReceiveRunnable>();
+	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
 
 	public SinkNode() throws UnknownHostException {
 		super();
@@ -118,14 +116,9 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	public void createAndLanchReceiveRunnable(Flow flow){
 
 		ReceiveRunnable rcvRunnable = new ReceiveRunnable(flow);
-		streamIdToRunnableMap.put(flow.getFlowId(), rcvRunnable);
-		if(integratedTest){
-			ExecutorService executorService = Executors.newSingleThreadExecutor();
-			executorService.execute(new ReceiveRunnable(flow));
-			executorService.shutdown();
-		} else{
-			WarpThreadPool.executeCached(rcvRunnable);			
-		}
+		Future rcvFuture = ThreadPool.executeAfter(new MDNTask(rcvRunnable), 0);
+		streamIdToRunnableMap.put(flow.getFlowId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
+		
 	}
 
 	@Override
@@ -135,11 +128,11 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(flow));
 		}
 
-		ReceiveRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
-		if(thread == null){
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
+		if(streamTaskHandler == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
-		thread.kill();
+		streamTaskHandler.kill();
 
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 
@@ -157,10 +150,27 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
 		}
 
-		ReceiveRunnable rcvThread = streamIdToRunnableMap.get(flow.getFlowId());
-		while (!rcvThread.isStopped());
+		StreamTaskHandler rcvThread = streamIdToRunnableMap.get(flow.getFlowId());
+		while (!rcvThread.isDone());
 		rcvThread.clean();
 		streamIdToRunnableMap.remove(flow.getFlowId());
+	}
+	
+	@Override
+	public void cleanUp() {
+		
+		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+			
+			streamTask.kill();
+			while(!streamTask.isDone());
+			streamTask.clean();
+			streamIdToRunnableMap.remove(streamTask.getFlowId());
+			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream(FlowID):" + streamTask.getFlowId());
+			
+		}
+		
+		msgBusClient.removeResource("/" + getNodeId());
+
 	}
 
 	/**
@@ -181,7 +191,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		private DatagramPacket packet;
 
 		public ReceiveRunnable(Flow flow) {
-			super(flow);
+			super(flow, msgBusClient, getNodeId());
 		}
 
 		@Override
@@ -352,4 +362,31 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		}
 
 	}
+
+	
+	 private class StreamTaskHandler {
+			private Future streamFuture;
+			private ReceiveRunnable streamTask;
+			
+			public StreamTaskHandler(Future streamFuture, ReceiveRunnable streamTask) {
+				this.streamFuture = streamFuture;
+				this.streamTask = streamTask;
+			}
+			
+			public void kill() {
+				streamTask.kill();
+			}
+			
+			public boolean isDone() {
+				return streamFuture.isDone();
+			}
+			
+			public void clean() {
+				streamTask.clean();
+			}
+			
+			public String getFlowId() {
+				return streamTask.getFlowId();
+			}
+		}
 }
