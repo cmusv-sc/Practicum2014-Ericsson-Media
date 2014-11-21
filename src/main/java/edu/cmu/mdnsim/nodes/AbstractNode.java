@@ -164,7 +164,6 @@ public abstract class AbstractNode {
 		public NodeRunnable(Flow flow){
 			this.flow = flow;
 			try {
-				System.err.println("Resource Name " + this.getResourceName());
 				AbstractNode.this.msgBusClient.addMethodListener(
 						getResourceName(), "DELETE", this, "upStreamDoneSending");
 			} catch (MessageBusException e) {
@@ -172,7 +171,10 @@ public abstract class AbstractNode {
 				e.printStackTrace();
 			}
 		}
-		
+		/**
+		 * Gets resource name for this node and flow combination 
+		 * @return
+		 */
 		private String getResourceName() {
 			return "/" + getNodeId() + "/" + this.getFlowId();
 		}
@@ -286,7 +288,6 @@ public abstract class AbstractNode {
 					}
 				}
 				
-				System.out.println("I m interrupted :(");
 				calculateAndReport();
 			}  
 			

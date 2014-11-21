@@ -24,4 +24,13 @@ public class Utility {
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		return dateFormat.parse(time).getTime();
 	}
+	
+	public static String getFormattedLogMessage(String message, String nodeId){
+		Date date = new Date();
+		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
+		StringBuilder sb = new StringBuilder();
+		sb.append("["); sb.append(dateFormat.format(date));sb.append("]["); sb.append(nodeId); 
+		sb.append("]["); sb.append(message); sb.append("]");
+		return sb.toString();
+	}
 }

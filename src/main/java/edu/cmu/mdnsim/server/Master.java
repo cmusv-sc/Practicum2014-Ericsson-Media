@@ -562,18 +562,20 @@ public class Master {
 		String nodeMsg = null;
 		String edgeColor = null;
 		String edgeMsg = null;
+		String logMsg = null;
+		//TODO: Change node and edge messages to have a table with different streams and their status
 		if(srcMsg.getEventType() == EventType.SEND_START){
-			logger.info("Source started sending data: "+JSON.toJSON(srcMsg));
 			putStartTime(srcMsg.getFlowId(), srcMsg.getTime());
-			nodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
+			logMsg = nodeMsg = "Started sending data for flow " + srcMsg.getFlowId() ;
 			edgeColor = "rgb(0,255,0)";
 			edgeMsg = "Started Flow Id: " + srcMsg.getFlowId();
-		} else {
-			logger.info("Source finished sending data: "+JSON.toJSON(srcMsg));
-			nodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
+		} else { //SEND_END event
+			logMsg  = nodeMsg = "Done sending data for flow " + srcMsg.getFlowId() ;
 			edgeColor = "rgb(0,0,0)";
 			edgeMsg = "Ended Flow Id: " + srcMsg.getFlowId();
 		}
+		logger.info(Utility.getFormattedLogMessage(logMsg, nodeId));
+		
 		webClientGraph.updateNode(nodeId, nodeMsg);
 		webClientGraph.updateEdge(nodeId,srcMsg.getDestinationNodeId(), edgeMsg, edgeColor);
 
@@ -603,14 +605,15 @@ public class Master {
 	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
 		long totalTime = 0;
 		String nodeId = getNodeId(request);
+		String nodeMsg = null;
+		String edgeColor = null;
+		String edgeMsg = null;
+		String logMsg = null;
 		if(sinkMsg.getEventType() == EventType.RECEIVE_START){
-			String sinkNodeMsg = "Started receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
+			logMsg = nodeMsg = "Started receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
 					sinkMsg.getTotalBytes() + " bytes." ;
-			//Update Node
-			Node n = webClientGraph.getNode(nodeId);
-			synchronized(n){
-				n.tag = sinkNodeMsg;
-			}
+			edgeColor = "rgb(0,255,0)";
+			edgeMsg =  "Flow Id: " + sinkMsg.getFlowId();
 		}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
 			try {
 				totalTime = Utility.stringToMillisecondTime(sinkMsg.getTime()) 
@@ -619,57 +622,40 @@ public class Master {
 				e.printStackTrace();
 				totalTime = -1;
 			}
-			String sinkNodeMsg = "Done receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
+			logMsg = nodeMsg  = "Done receiving data for flow " + sinkMsg.getFlowId() + " . Got " + 
 					sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-			//Update Node
-			Node n = webClientGraph.getNode(nodeId);
-			synchronized(n){
-				n.tag = sinkNodeMsg;
-			}
+			edgeColor = "rgb(0,0,0)";
+			edgeMsg = "Flow Id: " + sinkMsg.getFlowId();
+		}else if (sinkMsg.getEventType() == EventType.PROGRESS_REPORT) {
+			logMsg = edgeMsg = "Flow Id: " + sinkMsg.getFlowId() + HtmlTags.BR + 
+					"Average Rate = " + sinkMsg.getAverageRate() + HtmlTags.BR + 
+					"Current Rate = " + sinkMsg.getCurrentRate();
 		}
-
-		//Update Edge
-		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,sinkMsg.getDestinationNodeId()));
-		if(e == null){
-			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(sinkMsg.getDestinationNodeId(),nodeId));
-		}
-
-		synchronized(e){
-			if(sinkMsg.getEventType() == EventType.RECEIVE_START){
-				e.color = "rgb(0,255,0)";
-				e.tag = "Stream Id: " + sinkMsg.getFlowId();
-			}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
-				e.color = "rgb(0,0,0)";
-				e.tag = "Flow Id: " + sinkMsg.getFlowId();
-			} else if (sinkMsg.getEventType() == EventType.PROGRESS_REPORT) {
-				e.tag = "Flow Id: " + sinkMsg.getFlowId() + HtmlTags.BR + 
-						"Average Rate = " + sinkMsg.getAverageRate() + HtmlTags.BR + 
-						"Current Rate = " + sinkMsg.getCurrentRate();
-			}
-		}
+		logger.info(Utility.getFormattedLogMessage(logMsg, nodeId));
+		
+		webClientGraph.updateNode(nodeId, nodeMsg);
+		webClientGraph.updateEdge(sinkMsg.getDestinationNodeId(), nodeId, edgeMsg, edgeColor);
 
 		updateWebClient(webClientGraph.getUpdateMessage());
 	}
 
 	public synchronized void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
-
-		String logMsg = null;
 		String nodeId = getNodeId(request);
+		String logMsg = null;
 		String nodeMsg = null;
 		String edgeMsg = null;
 		String edgeColor = null;
-		//Update Node
 		if(procReport.getEventType() == EventType.RECEIVE_START){
 			logMsg = String.format("Master.precReport(): PROC node starts receiving (FLOW ID=%s)", procReport.getFlowId());
 			nodeMsg = "Processing Node started processing data for flow " + procReport.getFlowId() ;
 			webClientGraph.updateNode(nodeId,nodeMsg);
 			updateWebClient(webClientGraph.getUpdateMessage());
 		} else if (procReport.getEventType() == EventType.RECEIVE_END) {
-			logMsg = String.format("Master.procReport(): PROC node ends receiving");
+			logMsg = String.format("Master.procReport(): PROC node ends receiving for flow: " + procReport.getFlowId());
 		} else if (procReport.getEventType() == EventType.SEND_END) {
-			logMsg = String.format("Master.precReport(): PROC node ends sending");
+			logMsg = String.format("Master.precReport(): PROC node ends sending for flow: " + procReport.getFlowId());;
 		} else if (procReport.getEventType() == EventType.SEND_START) {
-			logMsg = String.format("Master.precReport(): PROC node starts sending");
+			logMsg = String.format("Processing node starts sending for flow: " + procReport.getFlowId());
 			edgeMsg = "Started Flow Id: " + procReport.getFlowId();
 			edgeColor = "rgb(0,255,0)";
 			webClientGraph.updateEdge(nodeId, procReport.getDestinationNodeId(), edgeMsg, edgeColor);
@@ -684,27 +670,6 @@ public class Master {
 			updateWebClient(webClientGraph.getUpdateMessage());
 		}
 		logger.info(logMsg);
-		//		//Update Edge
-		//		Edge e = webClientGraph.getEdge(WebClientGraph.getEdgeId(nodeId,procReport.getDestinationNodeId()));
-		//		if(e == null){
-		//			e = webClientGraph.getEdge(WebClientGraph.getEdgeId(procReport.getDestinationNodeId(),nodeId));
-		//		}
-		//
-		//		synchronized(e){
-		//			if(procReport.getEventType() == EventType.SEND_START){
-		//				e.color = "rgb(0,255,0)";
-		//				e.tag = "Flow Id: " + procReport.getFlowId();
-		//			}else if(procReport.getEventType() == EventType.SEND_END){
-		//				//TODO: What to do?
-		//				/*e.color = "rgb(100,0,0)";
-		//						e.tag = "Stream Id: " + procReport.getStreamId();*/
-		//			} else if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
-		//				e.tag = "Flow Id: " + procReport.getFlowId() + HtmlTags.BR + 
-		//						"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR + 
-		//						"Current Rate = " + procReport.getCurrentRate();
-		//			}
-		//		}
-
 	}
 
 	public void putStartTime(String flowId, String startTime) {
