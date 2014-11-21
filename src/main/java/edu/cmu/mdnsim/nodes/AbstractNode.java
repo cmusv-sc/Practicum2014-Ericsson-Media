@@ -33,8 +33,6 @@ public abstract class AbstractNode {
 	
 	public static final int INTERVAL_IN_MILLISECOND = 1000;
 	
-	protected Map<String, ? extends NodeRunnable> streamIdToRunnableMap = new HashMap<String, NodeRunnable>();
-	
 	/**
 	 * Used for reporting purposes. 
 	 * Key = FlowId, Value = UpStreamNodeId
