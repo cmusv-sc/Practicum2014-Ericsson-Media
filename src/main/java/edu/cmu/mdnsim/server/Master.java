@@ -140,6 +140,8 @@ public class Master {
 
 		/* Register a new node. This is called from a real Node */
 		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
+		
+		msgBusSvr.addMethodListener("/nodes", "DELETE", this, "removeAllNodes");
 
 		/* Register a new node container. This is called from a node container */
 		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
@@ -164,6 +166,8 @@ public class Master {
 
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
+		
+		
 	}
 
 
@@ -369,6 +373,23 @@ public class Master {
 						+ req.getLabel() + " from " + req.getNcURI());
 			}
 		}
+	}
+	
+	/**
+	 * This method is the listener for RESET functionality
+	 */
+	public void removeAllNodes() {
+		
+		System.err.println("RECEIVED RESET");
+		for (String key : nodeContainerTbl.keySet()) {
+			String nodeURI = nodeContainerTbl.get(key);
+			try {
+				msgBusSvr.send("/", nodeURI + "/nodes", "DELETE", null);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
+		}
+		
 	}
 
 	/**

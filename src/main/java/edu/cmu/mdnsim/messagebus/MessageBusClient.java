@@ -1,8 +1,9 @@
 package edu.cmu.mdnsim.messagebus;
 
+import com.ericsson.research.warp.api.resources.Resource;
+
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
-import edu.cmu.mdnsim.nodes.NodeType;
 
 
 public interface MessageBusClient {
@@ -91,5 +92,15 @@ public interface MessageBusClient {
 	 * @return
 	 */
 	public boolean isConnected();
+	
+	/**
+	 * 
+	 * Remove all method listeners associated with the resource and its 
+	 * sub-resources from the client.
+	 * 
+	 * 
+	 * @param path
+	 */
+	public void removeResource(String path);
 	
 }

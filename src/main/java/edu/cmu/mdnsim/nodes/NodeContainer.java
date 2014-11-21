@@ -113,13 +113,15 @@ public class NodeContainer {
 	
 	
 	public void cleanUpNodes() {
-		
+		for (String nodeId : nodeMap.keySet()) {
+			System.out.println("[DEBUG]NodeContainer.cleanUpNodes(): Clean the " + nodeId);
+			stopNode(nodeId);
+		}
 	}
 	
 	public void stopNode(String nodeId) {
 		AbstractNode node = nodeMap.get(nodeId);
-		/* Remove the listeners */
-		/* Kill all threads */
+		node.cleanUp();
 	}
 	
 	

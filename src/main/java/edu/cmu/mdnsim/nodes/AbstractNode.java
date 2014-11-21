@@ -33,6 +33,7 @@ public abstract class AbstractNode {
 	
 	public static final int INTERVAL_IN_MILLISECOND = 1000;
 	
+	
 	/**
 	 * Used for reporting purposes. 
 	 * Key = FlowId, Value = UpStreamNodeId
@@ -139,6 +140,14 @@ public abstract class AbstractNode {
 	 * It will run in a separate thread and will have dedicated reporting thread attached to it.
 	 *
 	 */
+	
+	/**
+	 * 
+	 * This method is used kill all threads that run NodeRunnable, clean up 
+	 * resources(MethodListners as well!).
+	 * 
+	 */
+	public abstract void cleanUp();
 
 
 }

@@ -71,21 +71,19 @@ public class Stimulus extends AbstractNode {
 		MessageBusTestCase testCase = new SingleFlowTestCase(stimulus.msgBusClient, simuID);
 		stimulus.addTestCase(testCase);
 		
-		/* Add start simulation test case */
-		testCase = new StartSimulationTestCase(stimulus.msgBusClient);
+		/* Add RESET test case */
+		testCase = new ResetTestCase(stimulus.msgBusClient);
 		stimulus.addTestCase(testCase);
-		
-		/* Add stop simulation test case */
-		testCase = new StopSimulationTestCase(stimulus.msgBusClient, simuID);
-		stimulus.addTestCase(testCase);
+//		/* Add stop simulation test case */
+//		testCase = new StopSimulationTestCase(stimulus.msgBusClient, simuID);
+//		stimulus.addTestCase(testCase);
 		
 		/* Create topology specified by WorkConfig */
 		stimulus.runTestCase(0, "Start to send the WorkConfig");
 		Thread.sleep(1000 * 2);
 		
-		/* Start the simulation */
-		stimulus.runTestCase(1, "Start the simulation");
-		Thread.sleep(1000 * 2);
+//		stimulus.runTestCase(1, "Reset");
+		
 		
 //		/* Stop the simulation */
 //		stimulus.runTestCase(2, "Stop the simulation");
@@ -128,6 +126,12 @@ public class Stimulus extends AbstractNode {
 		 * task 
 		 *
 		 */
+		
+	}
+
+	@Override
+	public void cleanUp() {
+		// TODO Auto-generated method stub
 		
 	}
 

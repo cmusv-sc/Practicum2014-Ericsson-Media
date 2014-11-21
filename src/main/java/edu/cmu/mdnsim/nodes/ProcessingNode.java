@@ -11,10 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
-
-import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
@@ -29,7 +28,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
 
-	private Map<String, ReceiveProcessAndSendRunnable> streamIdToRunnableMap = new HashMap<String, ReceiveProcessAndSendRunnable>();
+	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
 
 	public ProcessingNode() throws UnknownHostException {	
 		super();
@@ -137,16 +136,11 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 */
 	public void createAndLaunchReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
 		
-		ReceiveProcessAndSendRunnable receiveProcessAndSendRunnable = 
+		ReceiveProcessAndSendRunnable procRunnable = 
 				new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
-		streamIdToRunnableMap.put(flow.getFlowId(), receiveProcessAndSendRunnable);
-		if(integratedTest){
-			ExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-			executorService.submit(new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate));
-			executorService.shutdown();
-		} else {
-			WarpThreadPool.executeCached(receiveProcessAndSendRunnable);
-		}
+		Future procFuture = ThreadPool.executeAfter(new MDNTask(procRunnable), 0);
+		streamIdToRunnableMap.put(flow.getFlowId(), new StreamTaskHandler(procFuture, procRunnable));
+		
 	}
 
 	@Override
@@ -156,14 +150,14 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
-		if(thread == null){
+		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getFlowId());
+		if(streamTask == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
-		thread.kill();
+		streamTask.kill();
 
+		/* Notify the Upstream node */
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
-
 		try {
 			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", flow);
 		} catch (MessageBusException e) {
@@ -178,9 +172,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		ReceiveProcessAndSendRunnable thread = streamIdToRunnableMap.get(flow.getFlowId());
-		while (!thread.isStopped());
-		thread.closeSocket();
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
+		while (!streamTaskHandler.isDone());
+		streamTaskHandler.clean();
 
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		try {
@@ -191,6 +185,21 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 	}
 
+	@Override
+	public void cleanUp() {
+		
+		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+			streamTask.kill();
+			while(!streamTask.isDone());
+			streamTask.clean();
+			streamIdToRunnableMap.remove(streamTask.getFlowId());
+			System.out.println("[DEBUG]ProcNode.cleanUp(): Stops streamRunnable:" + streamTask.getFlowId());
+		}
+		
+		msgBusClient.removeResource("/" + getNodeId());
+		
+		
+	}
 	/**
 	 * 
 	 * Each stream is received in a separate WarpPoolThread.
@@ -311,7 +320,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				System.out.println("Processing Node: Cancelling Future");				
 				reportTask.kill();
 			}	
-			closeSocket();
+			clean();
 
 			if(!integratedTest){
 				report(System.currentTimeMillis(), downStreamNodes.get(getFlowId()), EventType.SEND_END);
@@ -457,7 +466,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			}
 		}
 
-		public void closeSocket() {
+		public void clean() {
 			if (!receiveSocket.isClosed()) {
 				receiveSocket.close();
 			}
@@ -513,7 +522,35 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 * - IN_WINDOW, this packet is in the current window
 	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
 	 */
+	
+	private class StreamTaskHandler {
+		private Future streamFuture;
+		private ReceiveProcessAndSendRunnable streamTask;
+		
+		public StreamTaskHandler(Future streamFuture, ReceiveProcessAndSendRunnable streamTask) {
+			this.streamFuture = streamFuture;
+			this.streamTask = streamTask;
+		}
+		
+		public void kill() {
+			streamTask.kill();
+		}
+		
+		public boolean isDone() {
+			return streamFuture.isDone();
+		}
+		
+		public void clean() {
+			streamTask.clean();
+		}
+		
+		public String getFlowId() {
+			return streamTask.getFlowId();
+		}
+	}
+	
 	private enum NewArrivedPacketStatus{
 		BEYOND_WINDOW, IN_WINDOW, BEHIND_WINDOW; 
 	}
+	
 }
