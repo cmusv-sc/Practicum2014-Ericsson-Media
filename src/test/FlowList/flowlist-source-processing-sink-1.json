@@ -3,8 +3,8 @@
 "StreamList":
   [
 	{
-	  "StreamId":"stream12345",
-	  "DataSize":"200000",
+	  "StreamId":"stream123456",
+	  "DataSize":"20000",
 	  "KiloBitRate":"6250",	  
 	  "FlowList":
 	  [
@@ -13,12 +13,12 @@
 			  [
 				{
 				  "NodeType":"SinkNode",
-				  "NodeId":"apple:sink1",
-				  "UpstreamId":"apple:processing1"
+				  "NodeId":"apple:sink6",
+				  "UpstreamId":"tomato:processing2"
 				},
 				{
 				  "NodeType":"ProcessingNode",
-				  "NodeId":"apple:processing1",
+				  "NodeId":"tomato:processing2",
 				  "UpstreamId":"orange:source1",
 				  "ProcessingLoop":"100000",
 				  "ProcessingMemory":"1000"
