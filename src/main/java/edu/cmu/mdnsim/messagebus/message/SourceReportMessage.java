@@ -2,7 +2,7 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class SourceReportMessage extends MbMessage {
 
-	String flowId;
+	String streamId;
 	int totalBytesTransferred;
 	/**
 	 * Indicates time when the event occurred.
@@ -23,15 +23,15 @@ public class SourceReportMessage extends MbMessage {
 	
 	public SourceReportMessage() {
 		super();
-		flowId = "";
+		streamId = "";
 		totalBytesTransferred = 0;
 	}
 	
-	public String getFlowId() {
-		return flowId;
+	public String getStreamId() {
+		return streamId;
 	}
-	public void setFlowId(String flowId) {
-		this.flowId = flowId;
+	public void setStreamId(String streamId) {
+		this.streamId = streamId;
 	}
 	
 	public int getTotalBytesTransferred() {

@@ -8,6 +8,7 @@ import java.util.Map;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -23,13 +24,9 @@ public abstract class AbstractNode {
 	
 	private boolean registered = false;
 	
-	
-	/* This instance variable is used to control whether print out info and report to management layer which is used in unit test. */
-	public boolean integratedTest = false;
-	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	
-	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 5000;
+	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 1000;
 	
 	public static final int INTERVAL_IN_MILLISECOND = 1000;
 	
@@ -37,13 +34,13 @@ public abstract class AbstractNode {
 	/**
 	 * Used for reporting purposes. 
 	 * Key = FlowId, Value = UpStreamNodeId
-	 */
+	 *//*
 	Map<String,String> upStreamNodes = new HashMap<String,String>();
-	/**
+	*//**
 	 * Used for reporting purposes.
 	 * Key = FlowId, Value = DownStreamNodeId
-	 */
-	Map<String,String> downStreamNodes = new HashMap<String,String>();
+	 *//*
+	Map<String,String> downStreamNodes = new HashMap<String,String>();*/
 	
 	public AbstractNode() throws UnknownHostException {
 		/* 
@@ -100,21 +97,16 @@ public abstract class AbstractNode {
 	public synchronized boolean isRegistered() {
 		return registered;
 	}
-	
-	
-	public void setUnitTest(boolean unitTest){
-		this.integratedTest = unitTest;
-	}
 
 	/**
 	 * 
-	 * This methods is to start a stream.
+	 * This method is to start a stream.	 
 	 * It is supposed to receive/send data and also inform its upstream to 
 	 * start appropriate behaviors.
 	 * 
 	 * @param flow
 	 */
-	public abstract void executeTask(Flow flow);
+	public abstract void executeTask(Stream stream);
 	
 	/**
 	 * 

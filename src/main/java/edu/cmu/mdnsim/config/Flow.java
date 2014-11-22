@@ -16,6 +16,9 @@ public class Flow extends MbMessage {
 	public static final String UPSTREAM_URI = "UpstreamUri";
 	public static final String DOWNSTREAM_ID = "DownstreamId";
 	public static final String DOWNSTREAM_URI = "DownstreamUri";
+	public static final String RECEIVER_IP_PORT = "ReceiverIpPort";
+	public static final String PROCESSING_LOOP = "ProcessingLoop";
+	public static final String PROCESSING_MEMORY = "ProcessingMemory";
 	
 	/**
 	 * The FlowMemberList is ordered from sink -> middle nodes -> source (bottom-up)
@@ -152,8 +155,8 @@ public class Flow extends MbMessage {
 	 */
 	public void updateFlowWithNodeUri(String nodeId, String nodeUri) {		
 		for (Map<String, String>nodeMap : this.getNodeList()) {
-			System.out.println("Node Map before updating with "+nodeId+" "+nodeUri);
-			System.out.println(nodeMap.toString());
+//			System.out.println("Node Map before updating with "+nodeId+" "+nodeUri);
+//			System.out.println(nodeMap.toString());
 			if (nodeId.equals(nodeMap.get(Flow.NODE_ID))) {
 				nodeMap.put(Flow.NODE_URI, nodeUri);
 			}
@@ -163,8 +166,8 @@ public class Flow extends MbMessage {
 			if (nodeId.equals(nodeMap.get(Flow.UPSTREAM_ID))) {
 				nodeMap.put(Flow.UPSTREAM_URI, nodeUri);
 			}
-			System.out.println("Node Map after updating ");
-			System.out.println(nodeMap.toString());
+//			System.out.println("Node Map after updating ");
+//			System.out.println(nodeMap.toString());
 		}
 	}
 	
@@ -177,7 +180,7 @@ public class Flow extends MbMessage {
 		int i = 0;
 		String downStreamId = "";
 		for (Map<String, String>nodeMap : this.getNodeList()) {
-			System.out.println("Before Downstream update "+nodeMap.toString());
+//			System.out.println("Before Downstream update "+nodeMap.toString());
 			if (i == 0) {
 				downStreamId = nodeMap.get(Flow.NODE_ID);
 			} else {
@@ -185,7 +188,7 @@ public class Flow extends MbMessage {
 				downStreamId = nodeMap.get(Flow.NODE_ID);
 			}
 			i++;
-			System.out.println("After Downstream update "+nodeMap.toString());
+//			System.out.println("After Downstream update "+nodeMap.toString());
 		}
 	}
 	

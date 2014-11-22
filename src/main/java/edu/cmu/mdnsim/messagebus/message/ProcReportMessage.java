@@ -2,7 +2,7 @@ package edu.cmu.mdnsim.messagebus.message;
 
 public class ProcReportMessage extends MbMessage {
 
-	private String flowId;
+	private String streamId;
 	private int totalBytes;
 	private String endTime;
 	private String startTime;
@@ -32,8 +32,8 @@ public class ProcReportMessage extends MbMessage {
 	}
 	
 	/* Getters */
-	public String getFlowId() {
-		return flowId;
+	public String getStreamId() {
+		return streamId;
 	}
 	
 	public int getTotalBytes() {
@@ -49,8 +49,8 @@ public class ProcReportMessage extends MbMessage {
 	}
 	
 	/* Setters */
-	public void setFlowId(String flowId) {
-		this.flowId = flowId;
+	public void setStreamId(String streamId) {
+		this.streamId = streamId;
 	}
 	
 	public void setTotalBytes(int totalBytes) {
