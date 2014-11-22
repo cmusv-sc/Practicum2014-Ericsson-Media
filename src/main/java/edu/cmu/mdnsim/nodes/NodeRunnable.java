@@ -60,7 +60,9 @@ public abstract class NodeRunnable implements Runnable {
 	}
 
 	public void upStreamDoneSending(Stream stream) {
+
 		this.upStreamDone = true;
+		this.msgBusClient.removeResource(getResourceName());
 	}
 
 	public abstract void run();

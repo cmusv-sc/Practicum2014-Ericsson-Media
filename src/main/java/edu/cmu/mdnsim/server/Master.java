@@ -33,6 +33,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
 import edu.cmu.util.HtmlTags;
@@ -252,11 +253,11 @@ public class Master {
 		String ncURI = nodeContainerTbl.get(containerLabel);
 
 		if (ClusterConfig.DEBUG) {
-			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
+			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
 		}
 
 		try {
-			msgBusSvr.send("/", ncURI + "/create_node", "PUT", req);
+			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -384,7 +385,7 @@ public class Master {
 		for (String key : nodeContainerTbl.keySet()) {
 			String nodeURI = nodeContainerTbl.get(key);
 			try {
-				msgBusSvr.send("/", nodeURI + "/nodes", "DELETE", null);
+				msgBusSvr.send("/", nodeURI + NodeContainer.NODE_COLLECTION_PATH, "DELETE", null);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
