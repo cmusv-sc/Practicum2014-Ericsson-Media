@@ -193,7 +193,7 @@ public class SourceNode extends AbstractNode {
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					//reportTaskHandler = createAndLaunchReportTransportationRateRunnable();
+					reportTaskHandler = createAndLaunchReportTransportationRateRunnable();
 				}
 
 				bytesToTransfer -= packet.getLength();
@@ -254,11 +254,11 @@ public class SourceNode extends AbstractNode {
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-/*		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
+			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, null);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-		}*/
+		}
 
 		/**
 		 * Clean up all resources for this thread.

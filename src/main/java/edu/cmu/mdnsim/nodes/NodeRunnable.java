@@ -203,7 +203,11 @@ public abstract class NodeRunnable implements Runnable {
 		public void run() {
 
 			while (!killed) {
-				calculateAndReport();
+				calculateTransferRateAndReport();
+				if(packetLostTracker != null){
+					calculatePacketLostAndReport();
+				}
+				//calculateAndReport();
 				try {
 					Thread.sleep(intervalInMillisecond);
 				} catch (InterruptedException e) {
@@ -212,7 +216,11 @@ public abstract class NodeRunnable implements Runnable {
 			}
 
 			System.out.println("I m interrupted :(");
-			calculateAndReport();
+			//calculateAndReport();
+			calculateTransferRateAndReport();
+			if(packetLostTracker != null){
+				calculatePacketLostAndReport();
+			}
 		}
 
 		public void kill() {
@@ -254,6 +262,52 @@ public abstract class NodeRunnable implements Runnable {
 				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
 			}
 		}
+		
+		
+		private void calculateTransferRateAndReport() {
+			long currentTime = System.currentTimeMillis();
+			long timeDiffInMillisecond = currentTime - lastRecordedTime;
+			long totalTimeDiffInMillisecond = currentTime - startedTime;
+
+			int localToTalBytesTransfered = getTotalBytesTranfered();
+			int bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
+			long transportationInstantRate = (long) (bytesDiff * 1.0
+					/ timeDiffInMillisecond * 1000);
+			long transportationAverageRate = (long) (localToTalBytesTransfered
+					* 1.0 / totalTimeDiffInMillisecond * 1000);
+
+			lastRecordedTotalBytes = localToTalBytesTransfered;
+			lastRecordedTime = currentTime;
+
+			if (startedTime != 0) {
+				reportTransportationRate(transportationAverageRate, transportationInstantRate);
+			}
+		}
+		
+		
+		private void calculatePacketLostAndReport() {
+			long currentTime = System.currentTimeMillis();
+			long timeDiffInMillisecond = currentTime - lastRecordedTime;
+			long totalTimeDiffInMillisecond = currentTime - startedTime;
+
+			//int localPacketLostNum = getLostPacketNum();
+			int localPacketLostNum = packetLostTracker.getLostPacketNum();
+			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
+			long dataLostInstantRate = (long) (lostDiff
+					* NodePacket.PACKET_MAX_LENGTH * 1.0
+					/ timeDiffInMillisecond * 1000);
+			long dateLostAverageRate = (long) (localPacketLostNum
+					* NodePacket.PACKET_MAX_LENGTH * 1.0
+					/ totalTimeDiffInMillisecond * 1000);
+
+			lastRecordedPacketLost = localPacketLostNum;
+			lastRecordedTime = currentTime;
+
+			if (startedTime != 0) {
+				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
+			}
+		}
+		
 
 		private void reportPacketLost(long packetLostAverageRate,
 				long dataLostInstantRate) {

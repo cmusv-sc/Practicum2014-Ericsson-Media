@@ -84,7 +84,8 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
 				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 					Integer port = bindAvailablePortToFlow(flow.getStreamId());
-					lanchReceiveRunnable(stream);
+					
+					lanchReceiveRunnable(stream, Integer.valueOf(stream.getDataSize()), Integer.valueOf(flow.getKiloBitRate()));
 					System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
 					//Send the stream spec to upstream uri
 					Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
@@ -105,9 +106,9 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	 * Create and Launch a ReceiveRunnable thread & record it in the map
 	 * @param streamId
 	 */
-	public void lanchReceiveRunnable(Stream stream){
+	public void lanchReceiveRunnable(Stream stream, int totalData, int rate){
 
-		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream);
+		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream, totalData, rate);
 		Future rcvFuture = ThreadPool.executeAfter(new MDNTask(rcvRunnable), 0);
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
 
@@ -182,8 +183,13 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 		private DatagramPacket packet;
 
-		public ReceiveRunnable(Stream stream) {
+		private int totalData;
+		
+		private int rate;
+		public ReceiveRunnable(Stream stream, int totalData, int rate) {
 			super(stream, msgBusClient, getNodeId());
+			this.totalData = totalData;
+			this.rate = rate;
 		}
 
 		@Override
@@ -193,7 +199,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				return;
 			}
 			
-			//PacketLostTracker packetLostTracker = new PacketLostTracker();
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND);
 
 			long startedTime = 0;
 			boolean isFinalWait = false;			
@@ -209,6 +215,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
+							packetLostTracker.updatePacketLostForTimeout();
 							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
@@ -217,15 +224,18 @@ public class SinkNode extends AbstractNode implements PortBindable{
 					e.printStackTrace();
 					break;
 				}
-
-				if(startedTime == 0){
-					startedTime = System.currentTimeMillis();
-					//reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
-						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
-				}
+				
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+				
+				if(startedTime == 0){
+					startedTime = System.currentTimeMillis();
+					reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
+					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
+				}
+				
 				if(nodePacket.isLast()){
 					break;
 				}
