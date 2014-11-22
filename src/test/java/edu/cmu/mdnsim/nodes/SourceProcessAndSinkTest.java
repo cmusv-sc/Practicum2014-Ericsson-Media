@@ -33,9 +33,9 @@ public class SourceProcessAndSinkTest {
 		int totalDataSize = 7000;
 		int rate = 1000;
 	
-		sinkNode.setUnitTest(true);
-		processingNode.setUnitTest(true);
-		sourceNode.setUnitTest(true);
+//		sinkNode.setUnitTest(true);
+//		processingNode.setUnitTest(true);
+//		sourceNode.setUnitTest(true);
 
 		//sinkNode.createAndLanchReceiveRunnable(streamId);
 		//processingNode.createAndLaunchReceiveProcessAndSendRunnable(streamId, totalDataSize, sinkAddress, sinkPort,processingLoop, processingSpaceInByte, rate);

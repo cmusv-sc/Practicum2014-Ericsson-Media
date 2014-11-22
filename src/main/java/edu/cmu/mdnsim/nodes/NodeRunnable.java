@@ -1,8 +1,15 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -11,12 +18,11 @@ import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 
 public abstract class NodeRunnable implements Runnable {
 
-	private Flow flow;
+	private Stream stream;
 	private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
 	private AtomicInteger lostPacketNum = new AtomicInteger(0);
 	private MessageBusClient msgBusClient;
 	private String nodeId;
-	private boolean integratedTest;
 	
 	/**
 	 * Used to indicate NodeRunnable Thread to stop processing. Will be set to
@@ -31,8 +37,8 @@ public abstract class NodeRunnable implements Runnable {
 
 	private volatile boolean upStreamDone = false;
 
-	public NodeRunnable(Flow flow, MessageBusClient msgBusClient, String nodeId) {
-		this.flow = flow;
+	public NodeRunnable(Stream stream, MessageBusClient msgBusClient, String nodeId) {
+		this.stream = stream;
 		this.msgBusClient = msgBusClient;
 		this.nodeId = nodeId;
 		try {
@@ -50,18 +56,17 @@ public abstract class NodeRunnable implements Runnable {
 	}
 	
 	private String getResourceName() {
-		return "/" + getNodeId() + "/" + this.getFlowId();
+		return "/" + getNodeId() + "/" + this.getStreamId();
 	}
 
-	public void upStreamDoneSending(Flow flow) {
-		System.err.println(getNodeId() + " - Upstream Done");
+	public void upStreamDoneSending(Stream stream) {
 		this.upStreamDone = true;
 	}
 
 	public abstract void run();
 
-	public String getFlowId() {
-		return flow.getFlowId();
+	public String getStreamId() {
+		return this.stream.getStreamId();
 	}
 
 	public int getTotalBytesTranfered() {
@@ -96,29 +101,27 @@ public abstract class NodeRunnable implements Runnable {
 		return stopped;
 	}
 
-	public Flow getFlow() {
-		return flow;
+	public Stream getStream() {
+		return this.stream;
 	}
 
-	public void setFlow(Flow flow) {
-		this.flow = flow;
+	public void setStream(Stream flow) {
+		this.stream = stream;
 	}
 
-	protected void sendEndMessageToDownstream() {
-		try {
-			System.err.println("Sending end message to "
-					+ this.getFlow().findNodeMap(getNodeId())
-							.get(Flow.DOWNSTREAM_URI) + "/" + this.getFlowId());
-			msgBusClient.send(getFromPath(), this.getFlow()
-					.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI)
-					+ "/" + this.getFlowId(), "DELETE", this.getFlow());
-		} catch (MessageBusException e) {
-			e.printStackTrace();
-		}
-	}
+	abstract protected void sendEndMessageToDownstream();
+//	protected void sendEndMessageToDownstream() {
+//		try {
+//			msgBusClient.send(getFromPath(), this.getFlow()
+//					.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI)
+//					+ "/" + this.getFlowId(), "DELETE", this.getFlow());
+//		} catch (MessageBusException e) {
+//			e.printStackTrace();
+//		}
+//	}
 
-	private String getFromPath() {
-		return "/" + getNodeId() + "/" + getFlowId();
+	protected String getFromPath() {
+		return "/" + getNodeId() + "/" + this.getStreamId();
 
 	}
 
@@ -126,8 +129,42 @@ public abstract class NodeRunnable implements Runnable {
 		return upStreamDone;
 	}
 	
-	
-	
+	/**
+	 * Gets up stream node id for the current node
+	 * @return null if not found
+	 */
+	protected String getUpStreamId() {
+		Stream stream = NodeRunnable.this.getStream();
+		for(Flow flow : stream.getFlowList()){
+			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
+			if(nodeMap != null){
+				return nodeMap.get(Flow.UPSTREAM_ID);
+			}
+		}
+		return null;	
+	}
+	protected Set<String> getDownStreamIds() {
+		Set<String> downStreamIds = new HashSet<String>();
+		Stream stream = NodeRunnable.this.getStream();
+		for(Flow flow : stream.getFlowList()){
+			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
+			if(nodeMap != null){
+				downStreamIds.add(nodeMap.get(Flow.DOWNSTREAM_ID));
+			}
+		}
+		return downStreamIds;	
+	}
+	protected Set<String> getDownStreamURIs() {
+		Set<String> downStreamURIs = new HashSet<String>();
+		Stream stream = NodeRunnable.this.getStream();
+		for(Flow flow : stream.getFlowList()){
+			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
+			if(nodeMap != null){
+				downStreamURIs.add(nodeMap.get(Flow.DOWNSTREAM_URI));
+			}
+		}
+		return downStreamURIs;	
+	}
 	/**
 	 * Package private class could not be accessed by outside subclasses
 	 * 
@@ -210,10 +247,8 @@ public abstract class NodeRunnable implements Runnable {
 			lastRecordedTime = currentTime;
 
 			if (startedTime != 0) {
-				if (!integratedTest) {
 					reportTransportationRate(transportationAverageRate,
 							transportationInstantRate);
-				}
 				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
 			}
 		}
@@ -234,7 +269,7 @@ public abstract class NodeRunnable implements Runnable {
 			if (nodeType == NodeType.SINK) {
 				SinkReportMessage msg = new SinkReportMessage();
 				msg.setEventType(EventType.PROGRESS_REPORT);
-				msg.setFlowId(NodeRunnable.this.getFlowId());
+				msg.setStreamId(NodeRunnable.this.getStreamId());
 				msg.setDestinationNodeId(getUpStreamId());
 				msg.setAverageRate("" + averageRate);
 				msg.setCurrentRate("" + instantRate);
@@ -247,7 +282,7 @@ public abstract class NodeRunnable implements Runnable {
 			} else if (nodeType == NodeType.PROC) {
 				ProcReportMessage msg = new ProcReportMessage();
 				msg.setEventType(EventType.PROGRESS_REPORT);
-				msg.setFlowId(NodeRunnable.this.getFlowId());
+				msg.setStreamId(NodeRunnable.this.getStreamId());
 				msg.setDestinationNodeId(getUpStreamId());
 				msg.setAverageRate("" + averageRate);
 				msg.setCurrentRate("" + instantRate);
@@ -274,18 +309,6 @@ public abstract class NodeRunnable implements Runnable {
 				return NodeType.UNDEF;
 			}
 		}
-
-		private String getUpStreamId() {
-			String nodeIdStr = getNodeId();
-			String[] nodeIds = NodeRunnable.this.getFlowId().split("-");
-			for (int i = 1; i < nodeIds.length; i++) {
-				if (nodeIdStr.equals(nodeIds[i])) {
-					if (i < nodeIds.length - 1) {
-						return nodeIds[i + 1];
-					}
-				}
-			}
-			throw new RuntimeException("Cannot find the upstream ID");
-		}
+		
 	}
 }

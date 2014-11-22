@@ -17,6 +17,7 @@ import com.ericsson.research.trap.utils.ThreadPool;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -26,7 +27,7 @@ import edu.cmu.util.Utility;
 
 public class ProcessingNode extends AbstractNode implements PortBindable{
 
-	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
+	private Map<String, DatagramSocket> streamIdToRcvSocketMap = new HashMap<String, DatagramSocket>();
 
 	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
 
@@ -35,16 +36,16 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	}
 
 	@Override
-	public int bindAvailablePortToFlow(String flowId) {
+	public int bindAvailablePortToFlow(String streamId) {
 
-		if (flowIdToSocketMap.containsKey(flowId)) {
+		if (streamIdToRcvSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
-			return flowIdToSocketMap.get(flowId).getPort();
+			return streamIdToRcvSocketMap.get(streamId).getPort();
 		} else {
-			
+
 			DatagramSocket udpSocket = null;
 			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
 				try {
@@ -58,70 +59,69 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				}
 				break;
 			}
-			
+
 			if(udpSocket == null){
 				return -1;
 			}
-			
-			flowIdToSocketMap.put(flowId, udpSocket);
+
+			streamIdToRcvSocketMap.put(streamId, udpSocket);
 			return udpSocket.getLocalPort();
 		}
 	}
-	
+	/**
+	 * It is assumed that there will be only one downstream node for one stream
+	 * even if Processing node exists in multiple flows.
+	 */
 	@Override
-	public void executeTask(Flow flow) {
+	public void executeTask(Stream stream) {
 
-		int flowIndex = -1;
+		//int flowIndex = -1;
+		for(Flow flow : stream.getFlowList()){
+			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
+				//flowIndex++;
+				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
+					/* Open a socket for receiving data from upstream node */
+					int port = bindAvailablePortToFlow(flow.getStreamId());
+					if(port == 0){
+						//TODO, report to the management layer, we failed to bind a port to a socket
+					}
+					/* Get processing parameters */
+					long processingLoop = Long.valueOf(nodePropertiesMap.get(Flow.PROCESSING_LOOP));
+					int processingMemory = Integer.valueOf(nodePropertiesMap.get(Flow.PROCESSING_MEMORY));
+					//Get up stream and down stream node ids
+					//					upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
+					//					downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
 
-		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
+					/* Get the IP:port */
+					String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 
-			flowIndex++;
+					/* Get the expected rate */
+					int rate = Integer.parseInt(flow.getKiloBitRate());
 
-			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-
-				/* Open a socket for receiving data from upstream node */
-				int port = bindAvailablePortToFlow(flow.getFlowId());
-				if(port == 0){
-					//TODO, report to the management layer, we failed to bind a port to a socket
-				}
-
-				/* Get processing parameters */
-				long processingLoop = Long.valueOf(nodePropertiesMap.get("ProcessingLoop"));
-				int processingMemory = Integer.valueOf(nodePropertiesMap.get("ProcessingMemory"));
-
-				//Get up stream and down stream node ids
-				upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
-				downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
-
-				/* Get the IP:port */
-				String[] addressAndPort = nodePropertiesMap.get("ReceiverIpPort").split(":");
-				
-				/* Get the expected rate */
-				int rate = Integer.parseInt(flow.getKiloBitRate());
-
-				InetAddress targetAddress = null;
-				try {
-					targetAddress = InetAddress.getByName(addressAndPort[0]);
-					int targetPort = Integer.valueOf(addressAndPort[1]);
-					createAndLaunchReceiveProcessAndSendRunnable(flow, 
-							Integer.valueOf(flow.getDataSize()), targetAddress, targetPort, 
-							processingLoop, processingMemory, rate);
-				} catch (UnknownHostException e1) {
-					e1.printStackTrace();
-				}
-
-				if (nodePropertiesMap.get("UpstreamUri") != null){
+					InetAddress targetAddress = null;
 					try {
-						Map<String, String> upstreamFlow = flow.getNodeList().get(flowIndex+1);
-						upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port);
-						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri")+"/tasks", "PUT", flow);
+						targetAddress = InetAddress.getByName(addressAndPort[0]);
+						int targetPort = Integer.valueOf(addressAndPort[1]);
+
+						this.launchProcessRunnable(stream, 
+								Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
+								processingLoop, processingMemory, rate);
+					} catch (UnknownHostException e1) {
+						e1.printStackTrace();
+					}
+					//Send the stream spec to upstream uri
+					Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+					upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
+					try {
+						msgBusClient.send("/tasks", nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					}
+
+					break;
 				}
-				break;
-			}
-		}	
+			}	
+		}
 	}
 
 	/**
@@ -134,13 +134,13 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 * @param processingMemory
 	 * @param rate
 	 */
-	public void createAndLaunchReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
-		
-		ReceiveProcessAndSendRunnable procRunnable = 
-				new ReceiveProcessAndSendRunnable(flow, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
+	public void launchProcessRunnable(Stream stream, int totalData, InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
+
+		ProcessRunnable procRunnable = 
+				new ProcessRunnable(stream, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
 		Future procFuture = ThreadPool.executeAfter(new MDNTask(procRunnable), 0);
-		streamIdToRunnableMap.put(flow.getFlowId(), new StreamTaskHandler(procFuture, procRunnable));
-		
+		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(procFuture, procRunnable));
+
 	}
 
 	@Override
@@ -187,18 +187,18 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 	@Override
 	public void cleanUp() {
-		
+
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 			streamTask.kill();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			streamIdToRunnableMap.remove(streamTask.getFlowId());
-			System.out.println("[DEBUG]ProcNode.cleanUp(): Stops streamRunnable:" + streamTask.getFlowId());
+			streamIdToRunnableMap.remove(streamTask.getStreamId());
+			System.out.println("[DEBUG]ProcNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
 		}
-		
+
 		msgBusClient.removeResource("/" + getNodeId());
-		
-		
+
+
 	}
 	/**
 	 * 
@@ -208,11 +208,11 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 * sink node back to the master using the message bus.
 	 * 
 	 * As a private class, it can only be accessed within parent class
-	 * @param flowId The streamId is bind to a socket and stored in the map
+	 * @param streamId The streamId is bind to a socket and stored in the map
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	private class ReceiveProcessAndSendRunnable extends NodeRunnable {
+	private class ProcessRunnable extends NodeRunnable {
 
 		private int totalData;
 		private DatagramSocket receiveSocket;
@@ -224,8 +224,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		private DatagramSocket sendSocket;
 		private int rate;
 		private DatagramPacket packet;
-		
-		
+
 		/* For tracking packet lost */
 		int expectedMaxPacketId;
 		double packetNumPerSecond;
@@ -234,17 +233,17 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		int highPacketIdBoundry;
 		int receivedPacketNumInAWindow;
 
-		public ReceiveProcessAndSendRunnable(Flow flow, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
+		public ProcessRunnable(Stream stream, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
 
-			super(flow, msgBusClient, getNodeId());
-			
+			super(stream, msgBusClient, getNodeId());
+
 			this.totalData = totalData;
 			this.dstAddress = destAddress;
 			this.dstPort = dstPort;
 			this.processingLoop = processingLoop;
 			this.processingMemory = processingMemory;
 			this.rate = rate;
-			
+
 			/* For tracking packet lost */
 			expectedMaxPacketId = (int) Math.ceil(this.totalData * 1.0 / NodePacket.PACKET_MAX_LENGTH) - 1;
 			packetNumPerSecond = this.rate * 1.0 / NodePacket.PACKET_MAX_LENGTH;
@@ -252,7 +251,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			lowPacketIdBoundry = 0;
 			highPacketIdBoundry = Math.min(packetNumInAWindow - 1, expectedMaxPacketId);
 			receivedPacketNumInAWindow = 0;
-			
+
 		}
 
 		@Override
@@ -265,9 +264,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			boolean isStarted = false;
 
 			boolean isFinalWait = false;
-			
+
 			TaskHandler reportTask = null;
-			
+
 			while (!isKilled()) {
 				try {
 					receiveSocket.receive(packet);
@@ -286,12 +285,10 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 					e.printStackTrace();
 					break;
 				} 
-				
+
 				if(!isStarted) {
 					reportTask = createAndLaunchReportTransportationRateRunnable();
-					if(!integratedTest){
-						report(System.currentTimeMillis(), upStreamNodes.get(getFlowId()),EventType.RECEIVE_START);
-					}				
+					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
 					isStarted = true;
 				}
 
@@ -304,29 +301,24 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				} else{
 					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
 				}
-				
+
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
-				
+
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
-				
-				if (integratedTest) {
-					System.out.println("[Processing]" + getTotalBytesTranfered() + " " + Utility.currentTime());
-				}				
+
 			}	
-		
+
 			if(reportTask != null){
 				System.out.println("Processing Node: Cancelling Future");				
 				reportTask.kill();
 			}	
 			clean();
 
-			if(!integratedTest){
-				report(System.currentTimeMillis(), downStreamNodes.get(getFlowId()), EventType.SEND_END);
-				this.sendEndMessageToDownstream();
-			} 
-			
+			report(System.currentTimeMillis(), this.getDownStreamIds().iterator().next(), EventType.SEND_END);
+			this.sendEndMessageToDownstream();
+
 			if (ClusterConfig.DEBUG) {
 				if(isKilled()){
 					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
@@ -336,7 +328,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			}
 			stop();
 		}
-		
+
 		/**
 		 * Update the packet lost
 		 * @param status & packetId
@@ -344,20 +336,20 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		 */
 		private void updatePacketLostBasedOnStatus(NewArrivedPacketStatus newArrivedPacketStatus, int packetId){
 			switch(newArrivedPacketStatus){
-				case BEHIND_WINDOW:
-					return;
-				case IN_WINDOW:
-					receivedPacketNumInAWindow++;
-					break;
-				case BEYOND_WINDOW:
-					setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
-					lowPacketIdBoundry = packetId;
-					highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
-					receivedPacketNumInAWindow = 1;
-					break;
+			case BEHIND_WINDOW:
+				return;
+			case IN_WINDOW:
+				receivedPacketNumInAWindow++;
+				break;
+			case BEYOND_WINDOW:
+				setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
+				lowPacketIdBoundry = packetId;
+				highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
+				receivedPacketNumInAWindow = 1;
+				break;
 			}
 		}
-		
+
 		/**
 		 * Initialize the receive and send DatagramSockets
 		 * @return true if succeed
@@ -366,13 +358,13 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		 * 					initialize send socket encounters some exception 
 		 */
 		private boolean initializeSocketAndPacket(){
-			if ((receiveSocket = flowIdToSocketMap.get(getFlowId())) == null) {
+			if ((receiveSocket = streamIdToRcvSocketMap.get(getStreamId())) == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.initializeSockets():" + "[Exception]Attempt to receive data for non existent stream");
 				}
 				return false;
 			}
-			
+
 			try {
 				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
 			} catch (SocketException e1) {
@@ -386,30 +378,23 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				se.printStackTrace();
 				return false;
 			}
-			
+
 			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
 			packet = new DatagramPacket(buf, buf.length);
-			
+
 			return true;
 		}
-		
+
 		/**
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
 		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
-		
+
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
-			if(integratedTest){
-				ExecutorService executorService = Executors.newSingleThreadExecutor();
-				Future reportFuture = (Future) executorService.submit(reportTransportationRateRunnable);
-				executorService.shutdown();
-				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-			} else {
-				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
-				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-			}	
+			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
+			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
+			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
 		/**
@@ -427,7 +412,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				e.printStackTrace();
 			}
 		}
-		
+
 		/**
 		 * Get raw data from NodePacket, process it and put the output data back into NodePacket
 		 * @param nodePacket
@@ -437,7 +422,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			processByteArray(data);
 			nodePacket.setData(data);
 		}
-		
+
 		/**
 		 * Simulate the processing of a byte array with some memory and cpu loop
 		 * @param data
@@ -453,7 +438,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		private void report(long time, String destinationNodeId, EventType eventType) {
 
 			ProcReportMessage procReportMsg = new ProcReportMessage();
-			procReportMsg.setFlowId(getFlowId());
+			procReportMsg.setStreamId(getStreamId());
 			procReportMsg.setTime(Utility.millisecondTimeToString(time));
 			procReportMsg.setDestinationNodeId(destinationNodeId);	
 			procReportMsg.setEventType(eventType);
@@ -473,9 +458,9 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			if (!sendSocket.isClosed()) {
 				sendSocket.close();
 			}
-			flowIdToSocketMap.remove(getFlowId());
+			streamIdToRcvSocketMap.remove(getStreamId());
 		}
-		
+
 		/**
 		 * get packet status based on packetId
 		 * @param lowPacketIdBoundryInAWindow
@@ -492,29 +477,40 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				return NewArrivedPacketStatus.IN_WINDOW;
 			}
 		}
-		
+
 		private class TaskHandler {
-			
+
 			Future reportFuture;
 			ReportRateRunnable reportRunnable;
-			
+
 			public TaskHandler(Future future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
-			
+
 			public void kill() {
 				reportRunnable.kill();
 			}
-			
+
 			public boolean isDone() {
 				return reportFuture.isDone();
 			}
-			
+
+		}
+
+		@Override
+		protected void sendEndMessageToDownstream() {
+			try {
+				msgBusClient.send(getFromPath(), this.getDownStreamURIs().iterator().next()
+						+ "/" + this.getStreamId(), "DELETE", this.getStream());
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
+
 		}
 	}
-	
-	
+
+
 	/**
 	 * For packet lost statistical information:
 	 * When a new packet is received, there are three status:
@@ -522,35 +518,37 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 	 * - IN_WINDOW, this packet is in the current window
 	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
 	 */
-	
+
 	private class StreamTaskHandler {
 		private Future streamFuture;
-		private ReceiveProcessAndSendRunnable streamTask;
-		
-		public StreamTaskHandler(Future streamFuture, ReceiveProcessAndSendRunnable streamTask) {
+		private ProcessRunnable streamTask;
+
+		public StreamTaskHandler(Future streamFuture, ProcessRunnable streamTask) {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}
-		
+
 		public void kill() {
 			streamTask.kill();
 		}
-		
+
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-		
+
 		public void clean() {
 			streamTask.clean();
 		}
-		
-		public String getFlowId() {
-			return streamTask.getFlowId();
+
+		public String getStreamId() {
+			return streamTask.getStreamId();
 		}
 	}
-	
+
 	private enum NewArrivedPacketStatus{
 		BEYOND_WINDOW, IN_WINDOW, BEHIND_WINDOW; 
 	}
-	
+
+
+
 }

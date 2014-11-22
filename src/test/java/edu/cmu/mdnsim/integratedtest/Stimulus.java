@@ -96,7 +96,7 @@ public class Stimulus extends AbstractNode {
 
 
 	@Override
-	public void executeTask(Flow s) {
+	public void executeTask(Stream s) {
 		
 		/* 
 		 * This method is unnecessary for Stimulus as itself doesn't execute any

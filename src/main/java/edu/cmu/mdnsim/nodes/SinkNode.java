@@ -18,6 +18,7 @@ import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
+import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
@@ -27,7 +28,7 @@ import edu.cmu.util.Utility;
 
 public class SinkNode extends AbstractNode implements PortBindable{
 
-	private Map<String, DatagramSocket> flowIdToSocketMap = new HashMap<String, DatagramSocket>();
+	private Map<String, DatagramSocket> streamIdToSocketMap = new HashMap<String, DatagramSocket>();
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
@@ -39,16 +40,16 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 
 	@Override
-	public int bindAvailablePortToFlow(String flowId) {
+	public int bindAvailablePortToFlow(String streamId) {
 
-		if (flowIdToSocketMap.containsKey(flowId)) {
+		if (streamIdToSocketMap.containsKey(streamId)) {
 			// TODO handle potential error condition. We may consider throw this exception
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
 			}
-			return flowIdToSocketMap.get(flowId).getPort();
+			return streamIdToSocketMap.get(streamId).getPort();
 		} else {
-			
+
 			DatagramSocket udpSocket = null;
 			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
 				try {
@@ -62,49 +63,40 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				}
 				break;
 			}
-			
+
 			if(udpSocket == null){
 				return -1;
 			}
-			
-			flowIdToSocketMap.put(flowId, udpSocket);
+
+			streamIdToSocketMap.put(streamId, udpSocket);
 			return udpSocket.getLocalPort();
 		}
 	}
 
 	@Override
-	public void executeTask(Flow flow) {
+	public void executeTask(Stream stream) {
 
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SinkNode.executeTask(): Sink received a StreamSpec.");
 		}
 
-		int flowIndex = -1;
-
-		for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
-			flowIndex++;
-			if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-				Integer port = bindAvailablePortToFlow(flow.getFlowId());
-				createAndLanchReceiveRunnable(flow);
-				//Get up stream and down stream node ids
-				//As of now Sink Node does not have downstream id
-				upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
-				//downStreamNodes.put(streamSpec.StreamId, nodeProperties.get("DownstreamId"));
-
-				
-
-				if (flowIndex+1 < flow.getNodeList().size()) {
-					Map<String, String> upstreamFlow = flow.getNodeList().get(flowIndex+1);
-					upstreamFlow.put("ReceiverIpPort", super.getHostAddr().getHostAddress()+":"+port.toString());
+		for(Flow flow : stream.getFlowList()){
+			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
+				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
+					Integer port = bindAvailablePortToFlow(flow.getStreamId());
+					lanchReceiveRunnable(stream);
+					System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
+					//Send the stream spec to upstream uri
+					Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+					upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
 					try {
-						msgBusClient.send("/tasks", nodePropertiesMap.get("UpstreamUri") + "/tasks", "PUT", flow);
+						msgBusClient.send("/tasks", nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
 					} catch (MessageBusException e) {
 						e.printStackTrace();
 					}
+					break;
 				}
-				break;
 			}
-
 		}
 
 	}
@@ -113,12 +105,12 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	 * Create and Launch a ReceiveRunnable thread & record it in the map
 	 * @param streamId
 	 */
-	public void createAndLanchReceiveRunnable(Flow flow){
+	public void lanchReceiveRunnable(Stream stream){
 
-		ReceiveRunnable rcvRunnable = new ReceiveRunnable(flow);
+		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream);
 		Future rcvFuture = ThreadPool.executeAfter(new MDNTask(rcvRunnable), 0);
-		streamIdToRunnableMap.put(flow.getFlowId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
-		
+		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
+
 	}
 
 	@Override
@@ -155,20 +147,20 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		rcvThread.clean();
 		streamIdToRunnableMap.remove(flow.getFlowId());
 	}
-	
+
 	@Override
 	public void cleanUp() {
-		
+
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
-			
+
 			streamTask.kill();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			streamIdToRunnableMap.remove(streamTask.getFlowId());
-			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream(FlowID):" + streamTask.getFlowId());
-			
+			streamIdToRunnableMap.remove(streamTask.getStreamId());
+			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream:" + streamTask.getStreamId());
+
 		}
-		
+
 		msgBusClient.removeResource("/" + getNodeId());
 
 	}
@@ -180,18 +172,18 @@ public class SinkNode extends AbstractNode implements PortBindable{
 	 * reports the total time and total number of bytes received by the 
 	 * sink node back to the master using the message bus.
 	 * 
-	 * @param flowId The flowId is bind to a socket and stored in the map
+	 * @param streamId The flowId is bind to a socket and stored in the map
 	 * @param msgBus The message bus used to report to the master
 	 * 
 	 */
-	 private class ReceiveRunnable extends NodeRunnable {
+	private class ReceiveRunnable extends NodeRunnable {
 
 		private DatagramSocket receiveSocket;
-		
+
 		private DatagramPacket packet;
 
-		public ReceiveRunnable(Flow flow) {
-			super(flow, msgBusClient, getNodeId());
+		public ReceiveRunnable(Stream stream) {
+			super(stream, msgBusClient, getNodeId());
 		}
 
 		@Override
@@ -200,11 +192,11 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			if(!initializeSocketAndPacket()){
 				return;
 			}
-			
+
 			long startedTime = 0;
 			boolean isFinalWait = false;			
 			TaskHandler reportTaksHandler = null;
-			
+
 			while (!isKilled()) {
 				try{
 					receiveSocket.receive(packet);
@@ -227,21 +219,14 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
-					if(!integratedTest){
 						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
-					}
 				}
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
-				
-				if (integratedTest) {
-					System.out.println("[Sink] " + getTotalBytesTranfered() + " " + Utility.currentTime());		
-				}
+
 			}	
 			long endTime= System.currentTimeMillis();
-			if(!integratedTest){
 				report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
-			} 
-						
+
 			if (ClusterConfig.DEBUG) {
 				if (isKilled()) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Killed.");
@@ -255,14 +240,14 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			clean();
 			stop();
 		}
-		
+
 		/**
 		 * Initialize the receive socket and the DatagramPacket 
 		 * @return true, successfully done
 		 * 		   false, failed in some part
 		 */
 		private boolean initializeSocketAndPacket(){
-			receiveSocket = flowIdToSocketMap.get(getFlowId());
+			receiveSocket = streamIdToSocketMap.get(getStreamId());
 			if (receiveSocket == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] SinkNode.ReceiveDataThread.run():" + "[Exception]Attempt to receive data for non existent stream");
@@ -281,32 +266,25 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			return true;
 		}
 
-		
+
 		/**
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
 		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
-			if(integratedTest){
-				ExecutorService executorService = Executors.newSingleThreadExecutor();
-				Future reportFuture =  (Future) executorService.submit(reportTransportationRateRunnable);
-				executorService.shutdown();
-				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-			} else {
 				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-			}	
 		}
 
 		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
-			System.out.println("[SINK] Reporting to master FlowId:" + getFlowId());
+			System.out.println("[SINK] Reporting to master StreamId:" + getStreamId());
 			SinkReportMessage sinkReportMsg = new SinkReportMessage();
-			sinkReportMsg.setFlowId(getFlowId());
+			sinkReportMsg.setStreamId(getStreamId());
 			sinkReportMsg.setTotalBytes(totalBytes);
 			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
-			sinkReportMsg.setDestinationNodeId(upStreamNodes.get(getFlowId()));
+			sinkReportMsg.setDestinationNodeId(this.getUpStreamId());
 			sinkReportMsg.setEventType(eventType);
 
 			String fromPath = SinkNode.super.getNodeId() + "/finish-rcv";
@@ -325,7 +303,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			if (ClusterConfig.DEBUG) {
 				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " 
 						+ "Sink finished receiving data at Stream-ID " 
-						+ sinkReportMsg.getFlowId()
+						+ sinkReportMsg.getStreamId()
 						+ " Total bytes " + sinkReportMsg.getTotalBytes() 
 						+ " Total Time:" + ((endTime - startTime) / 1000)
 						+ "(sec)");
@@ -336,57 +314,63 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			if(receiveSocket != null && !receiveSocket.isClosed()){
 				receiveSocket.close();
 			}
-			if(flowIdToSocketMap.containsKey(getFlowId())){
-				flowIdToSocketMap.remove(getFlowId());
+			if(streamIdToSocketMap.containsKey(getStreamId())){
+				streamIdToSocketMap.remove(getStreamId());
 			}
 		}
-		
+
 		private class TaskHandler {
-			
+
 			Future reportFuture;
 			ReportRateRunnable reportRunnable;
-			
+
 			public TaskHandler(Future future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
-			
+
 			public void kill() {
 				reportRunnable.kill();
 			}
-			
+
 			public boolean isDone() {
 				return reportFuture.isDone();
 			}
+
+		}
+
+		@Override
+		protected void sendEndMessageToDownstream() {
+			
 			
 		}
 
 	}
 
-	
-	 private class StreamTaskHandler {
-			private Future streamFuture;
-			private ReceiveRunnable streamTask;
-			
-			public StreamTaskHandler(Future streamFuture, ReceiveRunnable streamTask) {
-				this.streamFuture = streamFuture;
-				this.streamTask = streamTask;
-			}
-			
-			public void kill() {
-				streamTask.kill();
-			}
-			
-			public boolean isDone() {
-				return streamFuture.isDone();
-			}
-			
-			public void clean() {
-				streamTask.clean();
-			}
-			
-			public String getFlowId() {
-				return streamTask.getFlowId();
-			}
+
+	private class StreamTaskHandler {
+		private Future streamFuture;
+		private ReceiveRunnable streamTask;
+
+		public StreamTaskHandler(Future streamFuture, ReceiveRunnable streamTask) {
+			this.streamFuture = streamFuture;
+			this.streamTask = streamTask;
 		}
+
+		public void kill() {
+			streamTask.kill();
+		}
+
+		public boolean isDone() {
+			return streamFuture.isDone();
+		}
+
+		public void clean() {
+			streamTask.clean();
+		}
+
+		public String getStreamId() {
+			return streamTask.getStreamId();
+		}
+	}
 }
