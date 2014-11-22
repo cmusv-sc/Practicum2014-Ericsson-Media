@@ -55,6 +55,7 @@ public abstract class NodeRunnable implements Runnable {
 
 	public void upStreamDoneSending(Flow flow) {
 		System.err.println(getNodeId() + " - Upstream Done");
+		this.msgBusClient.removeResource(getResourceName());
 		this.upStreamDone = true;
 	}
 

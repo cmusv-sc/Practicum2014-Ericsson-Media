@@ -7,6 +7,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.utils.PackageScanner;
+import com.ericsson.research.warp.api.rest.DELETE;
+import com.ericsson.research.warp.api.rest.PUT;
+import com.ericsson.research.warp.api.rest.Path;
+import com.ericsson.research.warp.api.rest.PathParam;
+import com.ericsson.research.warp.api.rest.WarpRestConverter;
 
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
@@ -15,7 +20,9 @@ import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 
 public class NodeContainer {
-
+	
+	public static final String NODE_COLLECTION_PATH = "/nodes";
+	
 	private MessageBusClient msgBusClient;
 	
 	private Map<String, AbstractNode> nodeMap;
@@ -41,10 +48,12 @@ public class NodeContainer {
 	public void config() throws MessageBusException {
 		
 		msgBusClient.config();
+
+		WarpRestConverter.convert(this, false);
 		
-		msgBusClient.addMethodListener("/create_node", "PUT", this, "createNode");
+		//msgBusClient.addMethodListener(NODE_COLLECTION_PATH + "/{nodeId}", "PUT", this, "createNode");
 		
-		msgBusClient.addMethodListener("/nodes", "DELETE", this, "cleanUpNodes");
+		//msgBusClient.addMethodListener(NODE_COLLECTION_PATH, "DELETE", this, "cleanUpNodes");
 	}
 	
 	public void connect() throws MessageBusException {
@@ -59,12 +68,16 @@ public class NodeContainer {
 		msgBusClient.sendToMaster("/", "/node_containers", "PUT", req);
 	
 	}
-	
-	public void createNode(CreateNodeRequest req) 
+
+	@Path(NODE_COLLECTION_PATH + "/{nodeId}")
+	@PUT
+	public void createNode(@PathParam("nodeId") String nodeId, CreateNodeRequest req) 
 			throws SecurityException, NoSuchMethodException, 
 			IllegalArgumentException, InstantiationException, 
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
+		
+		System.err.println("CREATE a new node with ID=" + nodeId);
 		
 		if (nodeMap.containsKey(req.getNodeId())) {
 			return;
@@ -111,7 +124,8 @@ public class NodeContainer {
 		
 	}
 	
-	
+	@Path(NODE_COLLECTION_PATH)
+	@DELETE
 	public void cleanUpNodes() {
 		for (String nodeId : nodeMap.keySet()) {
 			System.out.println("[DEBUG]NodeContainer.cleanUpNodes(): Clean the " + nodeId);

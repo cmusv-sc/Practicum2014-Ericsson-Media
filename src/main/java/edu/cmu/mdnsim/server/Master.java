@@ -252,7 +252,7 @@ public class Master {
 		String ncURI = nodeContainerTbl.get(containerLabel);
 
 		if (ClusterConfig.DEBUG) {
-			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " at " + ncURI);
+			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
 		}
 
 		try {
@@ -384,7 +384,7 @@ public class Master {
 		for (String key : nodeContainerTbl.keySet()) {
 			String nodeURI = nodeContainerTbl.get(key);
 			try {
-				msgBusSvr.send("/", nodeURI + "/nodes", "DELETE", null);
+				msgBusSvr.send("/", nodeURI + NodeContainer.NODE_COLLECTION_PATH, "DELETE", null);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
