@@ -45,6 +45,7 @@ sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	// );
 	context.stroke();
 };
+//used to show logs in the web client
 var loggerResource = Warp.rootResource.createResource("/logger");
 //Represents Sigma object
 var s = null;

@@ -23,9 +23,9 @@ public class SourceProcessAndSinkTest {
 		
 		String streamId = "stream-1";
 		InetAddress sinkAddress = sinkNode.getHostAddr();
-		int sinkPort = sinkNode.bindAvailablePortToFlow(streamId);
+		int sinkPort = sinkNode.getAvailablePort(streamId);
 		InetAddress processingAddress = processingNode.getHostAddr();
-		int processingPort = processingNode.bindAvailablePortToFlow(streamId);
+		int processingPort = processingNode.getAvailablePort(streamId);
 		
 /*		int totalDataSize = 6250000;
 		int rate = 625000;*/

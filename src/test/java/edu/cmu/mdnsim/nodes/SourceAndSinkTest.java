@@ -19,7 +19,7 @@ public class SourceAndSinkTest {
 		
 		String streamId = "stream-1";
 		InetAddress sinkAddress =sinkNode.getHostAddr();
-		int sinkPort = sinkNode.bindAvailablePortToFlow(streamId);
+		int sinkPort = sinkNode.getAvailablePort(streamId);
 		int packageSize = 3000;
 		int rate = 1000;
 	

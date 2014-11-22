@@ -105,7 +105,7 @@ public abstract class NodeRunnable implements Runnable {
 		return this.stream;
 	}
 
-	public void setStream(Stream flow) {
+	public void setStream(Stream stream) {
 		this.stream = stream;
 	}
 

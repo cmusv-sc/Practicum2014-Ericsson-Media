@@ -6,11 +6,8 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
@@ -26,9 +23,9 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.util.Utility;
 
-public class SinkNode extends AbstractNode implements PortBindable{
+public class SinkNode extends AbstractNode{
 
-	private Map<String, DatagramSocket> streamIdToSocketMap = new HashMap<String, DatagramSocket>();
+	//	private Map<String, DatagramSocket> streamIdToSocketMap = new HashMap<String, DatagramSocket>();
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
@@ -40,40 +37,6 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 
 	@Override
-	public int bindAvailablePortToFlow(String streamId) {
-
-		if (streamIdToSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamIdToSocketMap.get(streamId).getPort();
-		} else {
-
-			DatagramSocket udpSocket = null;
-			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
-				try {
-					udpSocket = new DatagramSocket(0, getHostAddr());
-				} catch (SocketException e) {
-					if (ClusterConfig.DEBUG) {
-						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
-					}
-					e.printStackTrace();
-					continue;
-				}
-				break;
-			}
-
-			if(udpSocket == null){
-				return -1;
-			}
-
-			streamIdToSocketMap.put(streamId, udpSocket);
-			return udpSocket.getLocalPort();
-		}
-	}
-
-	@Override
 	public void executeTask(Stream stream) {
 
 		if (ClusterConfig.DEBUG) {
@@ -83,7 +46,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		for(Flow flow : stream.getFlowList()){
 			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
 				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-					Integer port = bindAvailablePortToFlow(flow.getStreamId());
+					Integer port = this.getAvailablePort(flow.getStreamId());
 					lanchReceiveRunnable(stream);
 					System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
 					//Send the stream spec to upstream uri
@@ -219,13 +182,13 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
-						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
+					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
 				}
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
 			}	
 			long endTime= System.currentTimeMillis();
-				report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
+			report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
 
 			if (ClusterConfig.DEBUG) {
 				if (isKilled()) {
@@ -273,9 +236,9 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		 */
 		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
-				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
-				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-				return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
+			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
+			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
 		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
@@ -341,8 +304,8 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 		@Override
 		protected void sendEndMessageToDownstream() {
-			
-			
+
+
 		}
 
 	}

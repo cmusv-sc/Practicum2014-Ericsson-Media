@@ -9,8 +9,6 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
@@ -25,9 +23,9 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.util.Utility;
 
-public class ProcessingNode extends AbstractNode implements PortBindable{
+public class ProcessingNode extends AbstractNode{
 
-	private Map<String, DatagramSocket> streamIdToRcvSocketMap = new HashMap<String, DatagramSocket>();
+	//	private Map<String, DatagramSocket> streamIdToRcvSocketMap = new HashMap<String, DatagramSocket>();
 
 	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
 
@@ -35,39 +33,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		super();
 	}
 
-	@Override
-	public int bindAvailablePortToFlow(String streamId) {
-
-		if (streamIdToRcvSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamIdToRcvSocketMap.get(streamId).getPort();
-		} else {
-
-			DatagramSocket udpSocket = null;
-			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
-				try {
-					udpSocket = new DatagramSocket(0, getHostAddr());
-				} catch (SocketException e) {
-					if (ClusterConfig.DEBUG) {
-						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
-					}
-					e.printStackTrace();
-					continue;
-				}
-				break;
-			}
-
-			if(udpSocket == null){
-				return -1;
-			}
-
-			streamIdToRcvSocketMap.put(streamId, udpSocket);
-			return udpSocket.getLocalPort();
-		}
-	}
 	/**
 	 * It is assumed that there will be only one downstream node for one stream
 	 * even if Processing node exists in multiple flows.
@@ -81,7 +46,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				//flowIndex++;
 				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 					/* Open a socket for receiving data from upstream node */
-					int port = bindAvailablePortToFlow(flow.getStreamId());
+					int port = this.getAvailablePort(flow.getStreamId());
 					if(port == 0){
 						//TODO, report to the management layer, we failed to bind a port to a socket
 					}
@@ -358,7 +323,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		 * 					initialize send socket encounters some exception 
 		 */
 		private boolean initializeSocketAndPacket(){
-			if ((receiveSocket = streamIdToRcvSocketMap.get(getStreamId())) == null) {
+			if ((receiveSocket = streamIdToSocketMap.get(getStreamId())) == null) {
 				if (ClusterConfig.DEBUG) {
 					System.out.println("[DEBUG] ProcNode.ReceiveProcessAndSendThread.initializeSockets():" + "[Exception]Attempt to receive data for non existent stream");
 				}
@@ -432,6 +397,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			double value = 0;
 			for ( int i = 0; i< processingLoop; i++) {
 				value += Math.random();
+				array[0] = (byte) value;
 			}
 		}
 
@@ -458,7 +424,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			if (!sendSocket.isClosed()) {
 				sendSocket.close();
 			}
-			streamIdToRcvSocketMap.remove(getStreamId());
+			streamIdToSocketMap.remove(getStreamId());
 		}
 
 		/**
