@@ -192,6 +192,8 @@ public class SinkNode extends AbstractNode implements PortBindable{
 			if(!initializeSocketAndPacket()){
 				return;
 			}
+			
+			//PacketLostTracker packetLostTracker = new PacketLostTracker();
 
 			long startedTime = 0;
 			boolean isFinalWait = false;			
@@ -218,7 +220,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
+					//reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
 						report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
 				}
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
@@ -275,8 +277,8 @@ public class SinkNode extends AbstractNode implements PortBindable{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+		private TaskHandler createAndLaunchReportTransportationRateRunnable(PacketLostTracker packetLostTracker){	
+			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 				//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 				Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 				return new TaskHandler(reportFuture, reportTransportationRateRunnable);

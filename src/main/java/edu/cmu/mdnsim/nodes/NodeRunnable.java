@@ -176,6 +176,7 @@ public abstract class NodeRunnable implements Runnable {
 
 		private int lastRecordedPacketLost = 0;
 
+		PacketLostTracker packetLostTracker;
 		// -1 to avoid time difference to be 0 when used as a divider
 		private long lastRecordedTime = System.currentTimeMillis() - 1;
 
@@ -185,8 +186,9 @@ public abstract class NodeRunnable implements Runnable {
 
 		private volatile boolean killed = false;
 
-		public ReportRateRunnable(int intervalInMillisecond) {
+		public ReportRateRunnable(int intervalInMillisecond, PacketLostTracker packetLostTracker) {
 			this.intervalInMillisecond = intervalInMillisecond;
+			this.packetLostTracker = packetLostTracker;
 			startedTime = System.currentTimeMillis();
 		}
 
@@ -233,7 +235,8 @@ public abstract class NodeRunnable implements Runnable {
 			long transportationAverageRate = (long) (localToTalBytesTransfered
 					* 1.0 / totalTimeDiffInMillisecond * 1000);
 
-			int localPacketLostNum = getLostPacketNum();
+			//int localPacketLostNum = getLostPacketNum();
+			int localPacketLostNum = packetLostTracker.getLostPacketNum();
 			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
 			long dataLostInstantRate = (long) (lostDiff
 					* NodePacket.PACKET_MAX_LENGTH * 1.0
@@ -247,8 +250,7 @@ public abstract class NodeRunnable implements Runnable {
 			lastRecordedTime = currentTime;
 
 			if (startedTime != 0) {
-					reportTransportationRate(transportationAverageRate,
-							transportationInstantRate);
+				reportTransportationRate(transportationAverageRate, transportationInstantRate);
 				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
 			}
 		}

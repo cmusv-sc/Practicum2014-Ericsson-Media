@@ -256,6 +256,8 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 		@Override
 		public void run() {
+			
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND);
 
 			if(!initializeSocketAndPacket()){
 				return;
@@ -277,7 +279,8 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
-							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
+							packetLostTracker.updatePacketLostForTimeout();
+							//setLostPacketNum(getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					}					
@@ -287,7 +290,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				} 
 
 				if(!isStarted) {
-					reportTask = createAndLaunchReportTransportationRateRunnable();
+					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
 					isStarted = true;
 				}
@@ -295,12 +298,14 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
 				int packetId = nodePacket.getMessageId();
-				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
+				
+				packetLostTracker.updatePacketLost(packetId);
+/*				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
 				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
 					continue;
 				} else{
 					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
-				}
+				}*/
 
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
@@ -392,12 +397,12 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
+		private TaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
 
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+			ReportRateRunnable reportRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportRateRunnable), 0);
+			return new TaskHandler(reportFuture, reportRateRunnable);
 		}
 
 		/**
@@ -464,22 +469,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 			streamIdToRcvSocketMap.remove(getStreamId());
 		}
 
-		/**
-		 * get packet status based on packetId
-		 * @param lowPacketIdBoundryInAWindow
-		 * @param highPacketIdBoundryInAWindow
-		 * @param packetId
-		 * @return status
-		 */
-		public NewArrivedPacketStatus getNewArrivedPacketStatus(int lowPacketIdBoundryInAWindow, int highPacketIdBoundryInAWindow, int packetId){
-			if(packetId > highPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEYOND_WINDOW;
-			} else if(packetId < lowPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEHIND_WINDOW;
-			} else{
-				return NewArrivedPacketStatus.IN_WINDOW;
-			}
-		}
 
 		private class TaskHandler {
 
