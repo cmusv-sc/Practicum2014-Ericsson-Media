@@ -33,6 +33,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
+import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.server.WebClientGraph.Edge;
 import edu.cmu.mdnsim.server.WebClientGraph.Node;
 import edu.cmu.util.HtmlTags;
@@ -256,7 +257,7 @@ public class Master {
 		}
 
 		try {
-			msgBusSvr.send("/", ncURI + "/create_node", "PUT", req);
+			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
