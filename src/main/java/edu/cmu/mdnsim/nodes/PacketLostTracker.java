@@ -37,7 +37,6 @@ public class PacketLostTracker {
 		setLostPacketNum(getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 	}
 	
-	
 	public synchronized int getLostPacketNum() {
 		return lostPacketNum.get();
 	}

@@ -289,12 +289,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 					break;
 				} 
 
-				if(!isStarted) {
-					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
-					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
-					isStarted = true;
-				}
-
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
 				int packetId = nodePacket.getMessageId();
@@ -309,6 +303,12 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
+				if(!isStarted) {
+					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
+					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
+					isStarted = true;
+				}
+				
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
