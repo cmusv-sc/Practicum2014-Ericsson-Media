@@ -8,6 +8,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -185,8 +186,11 @@ public class SourceNode extends AbstractNode {
 
 				NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 				packet.setData(nodePacket.serialize());
+				Random random = new Random();
 				try {
-					sendSocket.send(packet);
+					if(random.nextDouble() > 0.5){
+						sendSocket.send(packet);
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
