@@ -279,7 +279,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
-							packetLostTracker.updatePacketLostForTimeout();
 							//setLostPacketNum(getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
@@ -318,6 +317,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				}
 			}	
 
+			packetLostTracker.updatePacketLostForLastTime();
 			if(reportTask != null){
 				System.out.println("Processing Node: Cancelling Future");				
 				reportTask.kill();

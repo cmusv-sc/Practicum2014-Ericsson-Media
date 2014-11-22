@@ -215,7 +215,6 @@ public class SinkNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
-							packetLostTracker.updatePacketLostForTimeout();
 							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
@@ -241,8 +240,10 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				}
 			}	
 			long endTime= System.currentTimeMillis();
-				report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
-
+			report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
+			
+			packetLostTracker.updatePacketLostForLastTime();
+			
 			if (ClusterConfig.DEBUG) {
 				if (isKilled()) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Killed.");
