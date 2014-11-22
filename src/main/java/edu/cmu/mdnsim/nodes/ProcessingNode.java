@@ -307,7 +307,10 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
-
+				
+				if(nodePacket.isLast()){
+					break;
+				}
 			}	
 
 			if(reportTask != null){

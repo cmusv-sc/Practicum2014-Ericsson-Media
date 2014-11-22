@@ -223,6 +223,10 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				}
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
+				NodePacket nodePacket = new NodePacket(packet.getData());
+				if(nodePacket.isLast()){
+					break;
+				}
 			}	
 			long endTime= System.currentTimeMillis();
 				report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
