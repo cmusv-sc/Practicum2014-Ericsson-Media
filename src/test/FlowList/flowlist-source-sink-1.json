@@ -3,7 +3,7 @@
 "StreamList":
   [
 	{
-	  "StreamId":"stream1234",
+	  "StreamId":"stream1",
 	  "DataSize":"200000",
 	  "KiloBitRate":"6250",
 	  "FlowList":
@@ -26,7 +26,7 @@
 	  ]
 	},
 	{
-	  "StreamId":"stream1234",
+	  "StreamId":"stream2",
 	  "DataSize":"200000",
 	  "KiloBitRate":"6250",
 	  "FlowList":

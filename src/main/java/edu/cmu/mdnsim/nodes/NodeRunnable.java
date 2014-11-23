@@ -203,7 +203,6 @@ public abstract class NodeRunnable implements Runnable {
 		 */
 		@Override
 		public void run() {
-
 			while (!killed) {
 				calculateAndReport();
 				try {
@@ -212,8 +211,6 @@ public abstract class NodeRunnable implements Runnable {
 					continue;
 				}
 			}
-
-			System.out.println("I m interrupted :(");
 			calculateAndReport();
 		}
 
