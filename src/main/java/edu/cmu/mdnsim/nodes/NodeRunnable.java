@@ -111,6 +111,7 @@ public abstract class NodeRunnable implements Runnable {
 		this.stream = stream;
 	}
 
+	
 	abstract protected void sendEndMessageToDownstream();
 //	protected void sendEndMessageToDownstream() {
 //		try {
@@ -165,6 +166,7 @@ public abstract class NodeRunnable implements Runnable {
 				downStreamURIs.add(nodeMap.get(Flow.DOWNSTREAM_URI));
 			}
 		}
+		System.out.println("Down Stream Uris: " + downStreamURIs.toString());
 		return downStreamURIs;	
 	}
 	/**

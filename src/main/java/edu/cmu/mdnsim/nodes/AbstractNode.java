@@ -7,7 +7,13 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ericsson.research.warp.api.message.Message;
+import com.ericsson.research.warp.api.rest.PUT;
+import com.ericsson.research.warp.api.rest.Path;
+import com.ericsson.research.warp.api.rest.PathParam;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
@@ -17,7 +23,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 
 public abstract class AbstractNode {
-	
+	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node");
 	protected MessageBusClient msgBusClient;
 	
 	String nodeId;
@@ -112,7 +118,7 @@ public abstract class AbstractNode {
 	 * 
 	 * @param flow
 	 */
-	public abstract void executeTask(Stream stream);
+	public abstract void executeTask(Message request, Stream stream);
 	
 	/**
 	 * 
@@ -187,4 +193,15 @@ public abstract class AbstractNode {
 			return udpSocket.getLocalPort();
 		}
 	}
+	/**
+	 * The from property of message should contain flow id at the end
+	 * @param request
+	 * @return
+	 */
+	protected String getFlowId(Message request) {
+		String flowId = request.getFrom().toString();
+		flowId = flowId.substring(flowId.lastIndexOf('/')+1);
+		logger.debug("[RELAY] Flow Id: " + flowId);
+		return flowId;
+	}	
 }

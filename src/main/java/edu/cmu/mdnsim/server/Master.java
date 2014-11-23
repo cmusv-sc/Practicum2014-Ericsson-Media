@@ -30,6 +30,7 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.messagebus.message.RelayReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
@@ -164,7 +165,10 @@ public class Master {
 
 		/* Proc Node report listener */
 		msgBusSvr.addMethodListener("/processing_report", "POST", this, "procReport");
-
+		
+		/* Relay Node report listener */
+		msgBusSvr.addMethodListener("/relay_report", "POST", this, "relayReport");
+		
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
 		
@@ -274,7 +278,7 @@ public class Master {
 	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
 	 * request
 	 */    
-	public void registerNode(Message request, RegisterNodeRequest registMsg) {
+	public synchronized void registerNode(Message request, RegisterNodeRequest registMsg) {
 
 		String nodeName = registMsg.getNodeName();
 		nodeNameToURITbl.put(nodeName, registMsg.getURI());
@@ -292,46 +296,46 @@ public class Master {
 		if (webClientURI != null) {
 			//Synchronization is required to ensure that we get latest values of the nodeNameToURITbl map 
 			//as it will be updated independently by the nodes as they come up
-			synchronized(System.in){
+			//synchronized(System.in){
 				try {
 					WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
 					msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
 				} catch (MessageBusException e) {
 					e.printStackTrace();
 				}
-			}
+			//}
 		}
 
 		// remove the node from nodesToInstantiate Map
 		this.nodesToInstantiate.remove(nodeName);
 
-		synchronized(this.flowsInNodeMap) {
-			/*
-			 *  For every flow in the flowList of a nodeId (the list of flows that are waiting for a node to
-			 *  register itself), update the flow with the nodeUri.
-			 *  If all the nodes in a flow are up, start the flow
-			 */
-			if (flowsInNodeMap.containsKey(nodeName)) {
-				ArrayList<Flow> flowList = new ArrayList<Flow>();
-				for (Flow flow : flowsInNodeMap.get(nodeName)) {
-					flow.updateFlowWithNodeUri(nodeName, registMsg.getURI());
-					if (flow.canRun()) {
-						//					System.out.println("Can run is true for flow "+flow.getFlowId());
-						/*
-						 * After updating the flow with the Uri of the node that has come up,
-						 * if the flow can run, meaning if all the nodes from sink to source
-						 * are up and registered with the master, then start the flow.
-						 */
-						this.runFlow(flow);
-					} else {
-						// add this flow to a list of flows that cannot run yet
-						flowList.add(flow);
-					}
+		
+		/*
+		 *  For every flow in the flowList of a nodeId (the list of flows that are waiting for a node to
+		 *  register itself), update the flow with the nodeUri.
+		 *  If all the nodes in a flow are up, start the flow
+		 */
+		if (flowsInNodeMap.containsKey(nodeName)) {
+			ArrayList<Flow> flowList = new ArrayList<Flow>();
+			for (Flow flow : flowsInNodeMap.get(nodeName)) {
+				flow.updateFlowWithNodeUri(nodeName, registMsg.getURI());
+				if (flow.canRun()) {
+					//					System.out.println("Can run is true for flow "+flow.getFlowId());
+					/*
+					 * After updating the flow with the Uri of the node that has come up,
+					 * if the flow can run, meaning if all the nodes from sink to source
+					 * are up and registered with the master, then start the flow.
+					 */
+					this.runFlow(flow);
+				} else {
+					// add this flow to a list of flows that cannot run yet
+					flowList.add(flow);
 				}
-				// update the flowList with flows that cannot run yet
-				flowsInNodeMap.put(nodeName, flowList);
 			}
+			// update the flowList with flows that cannot run yet
+			flowsInNodeMap.put(nodeName, flowList);
 		}
+
 	}
 
 	/**
@@ -344,7 +348,7 @@ public class Master {
 		String sinkUri;
 		try {
 			sinkUri = flow.getSinkNodeURI();
-			msgBusSvr.send("/", sinkUri + "/tasks", "PUT", this.streamMap.get(flow.getStreamId()));
+			msgBusSvr.send("/"+ flow.getFlowId(), sinkUri + "/tasks", "PUT", this.streamMap.get(flow.getStreamId()));
 			flowMap.remove(flow.getFlowId());
 			runningFlowMap.put(flow.getFlowId(), flow);
 		} catch (MessageBusException e) {
@@ -430,7 +434,7 @@ public class Master {
 						 */
 						nodesToInstantiate.put(nodeId, nodeType);
 
-						synchronized(this.flowsInNodeMap) {
+						//synchronized(this.flowsInNodeMap) {
 							ArrayList<Flow> flowList;
 							if (this.flowsInNodeMap.containsKey(nodeId)) {
 								// update existing flowList
@@ -441,7 +445,7 @@ public class Master {
 							}
 							flowList.add(flow);
 							this.flowsInNodeMap.put(nodeId, flowList);
-						}
+						//}
 					} else {
 						/* update the flow with the nodeUri */
 						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
@@ -690,6 +694,39 @@ public class Master {
 					"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR +	 
 					"Current Rate = " + procReport.getCurrentRate();
 			webClientGraph.updateEdge(procReport.getDestinationNodeId(),nodeId, edgeMsg);
+			updateWebClient(webClientGraph.getUpdateMessage());
+		}
+		logger.info(logMsg);
+	}
+	
+	public synchronized void relayReport(Message request, RelayReportMessage relayReport) throws MessageBusException {
+		String nodeId = getNodeId(request);
+		String logMsg = null;
+		String nodeMsg = null;
+		String edgeMsg = null;
+		String edgeColor = null;
+		if(relayReport.getEventType() == EventType.RECEIVE_START){
+			logMsg = String.format("Master.relayReport(): Relay node starts receiving (Stream ID=%s)", relayReport.getStreamId());
+			nodeMsg = "Relay Node started processing data for stream " + relayReport.getStreamId() ;
+			webClientGraph.updateNode(nodeId,nodeMsg);
+			updateWebClient(webClientGraph.getUpdateMessage());
+		} else if (relayReport.getEventType() == EventType.RECEIVE_END) {
+			logMsg = String.format("Master.procReport(): Relay node ends receiving for stream: " + relayReport.getStreamId());
+		} else if (relayReport.getEventType() == EventType.SEND_END) {
+			logMsg = String.format("Master.precReport(): Relay node ends sending for stream: " + relayReport.getStreamId());;
+		} else if (relayReport.getEventType() == EventType.SEND_START) {
+			logMsg = String.format("Relay node starts sending for stream: " + relayReport.getStreamId());
+			edgeMsg = "Started Flow Id: " + relayReport.getStreamId();
+			edgeColor = "rgb(0,255,0)";
+			webClientGraph.updateEdge(nodeId, relayReport.getDestinationNodeId(), edgeMsg, edgeColor);
+			updateWebClient(webClientGraph.getUpdateMessage());
+		} else{
+			logMsg = String.format("Master.precrelayReportReport(): Relay node starts receiving");
+			//if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
+			edgeMsg = "Stream Id: " + relayReport.getStreamId() + HtmlTags.BR + 
+					"Average Rate = " + relayReport.getAverageRate() + HtmlTags.BR +	 
+					"Current Rate = " + relayReport.getCurrentRate();
+			webClientGraph.updateEdge(relayReport.getDestinationNodeId(),nodeId, edgeMsg);
 			updateWebClient(webClientGraph.getUpdateMessage());
 		}
 		logger.info(logMsg);

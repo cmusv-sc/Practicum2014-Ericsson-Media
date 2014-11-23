@@ -4,6 +4,8 @@ import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.ericsson.research.warp.api.message.Message;
+
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
@@ -95,7 +97,6 @@ public class Stimulus extends AbstractNode {
 	}
 
 
-	@Override
 	public void executeTask(Stream s) {
 		
 		/* 
@@ -131,6 +132,12 @@ public class Stimulus extends AbstractNode {
 
 	@Override
 	public void cleanUp() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void executeTask(Message request, Stream stream) {
 		// TODO Auto-generated method stub
 		
 	}

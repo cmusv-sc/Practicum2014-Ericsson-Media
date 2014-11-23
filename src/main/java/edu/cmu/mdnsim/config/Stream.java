@@ -75,4 +75,30 @@ public class Stream extends MbMessage {
 		}
 		return true;
 	}
+
+
+	public Flow findFlow(String flowId) {
+		for (Flow flow : flowList) {
+			if(flow.getFlowId().equals(flowId))
+				return flow;
+		}
+		return null;
+	}
+	
+	public void mergeFlow(Flow flow){
+		int oldFlowIdx = -1;
+		for (Flow oldFlow : this.flowList) {
+			if (oldFlow.getFlowId().equals(flow.getFlowId())) {
+				oldFlowIdx++;
+				break;
+			} else {
+				oldFlowIdx++;
+			}
+		}
+		if (oldFlowIdx == -1) {
+			throw new RuntimeException("Invalid flow. Cannot find the flow with flowID=" + flow.getFlowId() + " in current stream.");
+		}
+		this.flowList.remove(oldFlowIdx);
+		this.flowList.add(flow);
+	}
 }

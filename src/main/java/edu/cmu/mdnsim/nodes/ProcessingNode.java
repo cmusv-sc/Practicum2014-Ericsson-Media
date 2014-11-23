@@ -12,6 +12,7 @@ import java.util.Map;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
+import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
@@ -38,54 +39,48 @@ public class ProcessingNode extends AbstractNode{
 	 * even if Processing node exists in multiple flows.
 	 */
 	@Override
-	public void executeTask(Stream stream) {
+	public void executeTask(Message request, Stream stream) {
+		Flow flow = stream.findFlow(this.getFlowId(request));
+		//Get the processing node properties
+		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
+		if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
+			/* Open a socket for receiving data from upstream node */
+			int port = this.getAvailablePort(flow.getStreamId());
+			if(port == 0){
+				//TODO, report to the management layer, we failed to bind a port to a socket
+			}
+			/* Get processing parameters */
+			long processingLoop = Long.valueOf(nodePropertiesMap.get(Flow.PROCESSING_LOOP));
+			int processingMemory = Integer.valueOf(nodePropertiesMap.get(Flow.PROCESSING_MEMORY));
+			//Get up stream and down stream node ids
+			//					upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
+			//					downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
 
-		//int flowIndex = -1;
-		for(Flow flow : stream.getFlowList()){
-			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
-				//flowIndex++;
-				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-					/* Open a socket for receiving data from upstream node */
-					int port = this.getAvailablePort(flow.getStreamId());
-					if(port == 0){
-						//TODO, report to the management layer, we failed to bind a port to a socket
-					}
-					/* Get processing parameters */
-					long processingLoop = Long.valueOf(nodePropertiesMap.get(Flow.PROCESSING_LOOP));
-					int processingMemory = Integer.valueOf(nodePropertiesMap.get(Flow.PROCESSING_MEMORY));
-					//Get up stream and down stream node ids
-					//					upStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("UpstreamId"));
-					//					downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get("DownstreamId"));
+			/* Get the IP:port */
+			String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 
-					/* Get the IP:port */
-					String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
+			/* Get the expected rate */
+			int rate = Integer.parseInt(flow.getKiloBitRate());
 
-					/* Get the expected rate */
-					int rate = Integer.parseInt(flow.getKiloBitRate());
+			InetAddress targetAddress = null;
+			try {
+				targetAddress = InetAddress.getByName(addressAndPort[0]);
+				int targetPort = Integer.valueOf(addressAndPort[1]);
 
-					InetAddress targetAddress = null;
-					try {
-						targetAddress = InetAddress.getByName(addressAndPort[0]);
-						int targetPort = Integer.valueOf(addressAndPort[1]);
-
-						this.launchProcessRunnable(stream, 
-								Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
-								processingLoop, processingMemory, rate);
-					} catch (UnknownHostException e1) {
-						e1.printStackTrace();
-					}
-					//Send the stream spec to upstream uri
-					Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-					upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
-					try {
-						msgBusClient.send("/tasks", nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
-					} catch (MessageBusException e) {
-						e.printStackTrace();
-					}
-
-					break;
-				}
-			}	
+				this.launchProcessRunnable(stream, 
+						Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
+						processingLoop, processingMemory, rate);
+			} catch (UnknownHostException e1) {
+				e1.printStackTrace();
+			}
+			//Send the stream spec to upstream uri
+			Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
+			try {
+				msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -124,7 +119,7 @@ public class ProcessingNode extends AbstractNode{
 		/* Notify the Upstream node */
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("UpstreamUri") + "/tasks", "POST", flow);
+			msgBusClient.send("/tasks", nodeMap.get(Flow.UPSTREAM_URI) + "/tasks", "POST", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -139,11 +134,12 @@ public class ProcessingNode extends AbstractNode{
 
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
 		while (!streamTaskHandler.isDone());
+
 		streamTaskHandler.clean();
 
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 		try {
-			msgBusClient.send("/tasks", nodeMap.get("DownstreamUri") + "/tasks", "DELETE", flow);
+			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -245,7 +241,8 @@ public class ProcessingNode extends AbstractNode{
 							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
-					}					
+					}	
+					continue;
 				} catch (IOException e) {
 					e.printStackTrace();
 					break;

@@ -14,7 +14,7 @@
 				{
 				  "NodeType":"SinkNode",
 				  "NodeId":"apple:sink1",
-				  "UpstreamId":"apple:processing1"
+				  "UpstreamId":"tomato:relay1"
 				},
 				{
 				  "NodeType":"RelayNode",
@@ -35,13 +35,13 @@
 				}
 			  ]
 		  },
-		  {
+		{
 		    "NodeList":
 			  [
 				{
 				  "NodeType":"SinkNode",
 				  "NodeId":"apple:sink2",
-				  "UpstreamId":"apple:processing1"
+				  "UpstreamId":"tomato:relay1"
 				},
 				{
 				  "NodeType":"RelayNode",

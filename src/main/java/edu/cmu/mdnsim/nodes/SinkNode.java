@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
+import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -37,28 +38,27 @@ public class SinkNode extends AbstractNode{
 
 
 	@Override
-	public void executeTask(Stream stream) {
+	public void executeTask(Message request, Stream stream) {
 
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SinkNode.executeTask(): Sink received a StreamSpec.");
 		}
-
-		for(Flow flow : stream.getFlowList()){
-			for (Map<String, String> nodePropertiesMap : flow.getNodeList()) {
-				if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-					Integer port = this.getAvailablePort(flow.getStreamId());
-					lanchReceiveRunnable(stream);
-					System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
-					//Send the stream spec to upstream uri
-					Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-					upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
-					try {
-						msgBusClient.send("/tasks", nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
-					} catch (MessageBusException e) {
-						e.printStackTrace();
-					}
-					break;
-				}
+		Flow flow = stream.findFlow(this.getFlowId(request));
+		//Get the processing node properties
+		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
+		if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
+			Integer port = this.getAvailablePort(flow.getStreamId());
+			lanchReceiveRunnable(stream);
+			System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
+			//Send the stream spec to upstream uri
+			Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
+			try {
+				logger.debug("[SINK] From path " + "/" + getNodeId() + "/tasks/" + flow.getFlowId());
+				msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
+						nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
 			}
 		}
 
@@ -173,7 +173,8 @@ public class SinkNode extends AbstractNode{
 							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
-					}					
+					}	
+					continue;
 				} catch (IOException e) {
 					e.printStackTrace();
 					break;

@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
+import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 import com.ericsson.research.warp.util.WarpThreadPool;
 
@@ -38,13 +39,14 @@ public class SourceNode extends AbstractNode {
 	 * even if Source node exists in multiple flows.
 	 */
 	@Override
-	public void executeTask(Stream stream) {
+	public void executeTask(Message request, Stream stream) {
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.executeTask(): Source received a work specification.");
 		}
 		//All the flows in the stream should have source node in it.
 		//And the properties for source node should be same in all flows.
-		Flow flow = stream.getFlowList().get(0);
+		Flow flow = stream.findFlow(this.getFlowId(request));
+		//Get the processing node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
 			String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
