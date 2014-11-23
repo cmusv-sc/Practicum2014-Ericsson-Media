@@ -185,7 +185,10 @@ public class RelayNode extends AbstractNode{
 		public void run() {
 			if(!initializeSocketAndPacket()){
 				return;
-			}
+			}		
+			PacketLostTracker packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
+					Integer.parseInt(this.getStream().getKiloBitRate()),
+					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
 			boolean isStarted = false;
 			boolean isFinalWait = false;
 			TaskHandler reportTask = null;
@@ -210,7 +213,8 @@ public class RelayNode extends AbstractNode{
 				} 
 
 				if(!isStarted) {
-					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+					
+					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 					reportTask = new TaskHandler(reportFuture, reportTransportationRateRunnable);
 					

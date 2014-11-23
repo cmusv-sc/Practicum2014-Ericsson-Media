@@ -43,6 +43,7 @@ public class SinkNode extends AbstractNode{
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SinkNode.executeTask(): Sink received a StreamSpec.");
 		}
+
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the processing node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
@@ -61,7 +62,6 @@ public class SinkNode extends AbstractNode{
 				e.printStackTrace();
 			}
 		}
-
 	}
 
 	/**
@@ -69,11 +69,9 @@ public class SinkNode extends AbstractNode{
 	 * @param streamId
 	 */
 	public void lanchReceiveRunnable(Stream stream){
-
 		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream);
 		Future rcvFuture = ThreadPool.executeAfter(new MDNTask(rcvRunnable), 0);
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
-
 	}
 
 	@Override
@@ -142,9 +140,7 @@ public class SinkNode extends AbstractNode{
 	private class ReceiveRunnable extends NodeRunnable {
 
 		private DatagramSocket receiveSocket;
-
 		private DatagramPacket packet;
-
 		public ReceiveRunnable(Stream stream) {
 			super(stream, msgBusClient, getNodeId());
 		}
@@ -155,6 +151,10 @@ public class SinkNode extends AbstractNode{
 			if(!initializeSocketAndPacket()){
 				return;
 			}
+
+			PacketLostTracker packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
+					Integer.parseInt(this.getStream().getKiloBitRate()), 
+					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
 
 			long startedTime = 0;
 			boolean isFinalWait = false;			
@@ -170,7 +170,6 @@ public class SinkNode extends AbstractNode{
 							isFinalWait = true;
 							continue;
 						}else{
-							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					}	
@@ -180,16 +179,24 @@ public class SinkNode extends AbstractNode{
 					break;
 				}
 
-				if(startedTime == 0){
-					startedTime = System.currentTimeMillis();
-					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
-					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
-				}
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
+				NodePacket nodePacket = new NodePacket(packet.getData());
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+
+				if(startedTime == 0){
+					startedTime = System.currentTimeMillis();
+					reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
+					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
+				}
+
+				if(nodePacket.isLast()){
+					break;
+				}
 			}	
 			long endTime= System.currentTimeMillis();
 			report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
+			packetLostTracker.updatePacketLostForLastTime();
 
 			if (ClusterConfig.DEBUG) {
 				if (isKilled()) {
@@ -235,8 +242,8 @@ public class SinkNode extends AbstractNode{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+		private TaskHandler createAndLaunchReportTransportationRateRunnable(PacketLostTracker packetLostTracker){	
+			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 			return new TaskHandler(reportFuture, reportTransportationRateRunnable);

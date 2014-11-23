@@ -217,6 +217,8 @@ public class ProcessingNode extends AbstractNode{
 
 		@Override
 		public void run() {
+			
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,0);
 
 			if(!initializeSocketAndPacket()){
 				return;
@@ -238,7 +240,6 @@ public class ProcessingNode extends AbstractNode{
 							isFinalWait = true;
 							continue;
 						}else{
-							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					}	
@@ -248,30 +249,30 @@ public class ProcessingNode extends AbstractNode{
 					break;
 				} 
 
-				if(!isStarted) {
-					reportTask = createAndLaunchReportTransportationRateRunnable();
-					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
-					isStarted = true;
-				}
-
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
 				int packetId = nodePacket.getMessageId();
-				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
-				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
-					continue;
-				} else{
-					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
-				}
+				
+				packetLostTracker.updatePacketLost(packetId);
 
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
+				if(!isStarted) {
+					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
+					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
+					isStarted = true;
+				}
+				
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
-
+				
+				if(nodePacket.isLast()){
+					break;
+				}
 			}	
 
+			packetLostTracker.updatePacketLostForLastTime();
 			if(reportTask != null){
 				System.out.println("Processing Node: Cancelling Future");				
 				reportTask.kill();
@@ -289,27 +290,6 @@ public class ProcessingNode extends AbstractNode{
 				}
 			}
 			stop();
-		}
-
-		/**
-		 * Update the packet lost
-		 * @param status & packetId
-		 * @return 
-		 */
-		private void updatePacketLostBasedOnStatus(NewArrivedPacketStatus newArrivedPacketStatus, int packetId){
-			switch(newArrivedPacketStatus){
-			case BEHIND_WINDOW:
-				return;
-			case IN_WINDOW:
-				receivedPacketNumInAWindow++;
-				break;
-			case BEYOND_WINDOW:
-				setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
-				lowPacketIdBoundry = packetId;
-				highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
-				receivedPacketNumInAWindow = 1;
-				break;
-			}
 		}
 
 		/**
@@ -351,12 +331,12 @@ public class ProcessingNode extends AbstractNode{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
+		private TaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
 
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+			ReportRateRunnable reportRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportRateRunnable), 0);
+			return new TaskHandler(reportFuture, reportRateRunnable);
 		}
 
 		/**
@@ -424,22 +404,6 @@ public class ProcessingNode extends AbstractNode{
 			streamIdToSocketMap.remove(getStreamId());
 		}
 
-		/**
-		 * get packet status based on packetId
-		 * @param lowPacketIdBoundryInAWindow
-		 * @param highPacketIdBoundryInAWindow
-		 * @param packetId
-		 * @return status
-		 */
-		public NewArrivedPacketStatus getNewArrivedPacketStatus(int lowPacketIdBoundryInAWindow, int highPacketIdBoundryInAWindow, int packetId){
-			if(packetId > highPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEYOND_WINDOW;
-			} else if(packetId < lowPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEHIND_WINDOW;
-			} else{
-				return NewArrivedPacketStatus.IN_WINDOW;
-			}
-		}
 
 		private class TaskHandler {
 
