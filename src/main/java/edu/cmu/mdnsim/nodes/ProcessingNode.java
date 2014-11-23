@@ -257,7 +257,7 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 		@Override
 		public void run() {
 			
-			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND);
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,0);
 
 			if(!initializeSocketAndPacket()){
 				return;
@@ -279,7 +279,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
-							//setLostPacketNum(getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					}					
@@ -293,12 +292,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				int packetId = nodePacket.getMessageId();
 				
 				packetLostTracker.updatePacketLost(packetId);
-/*				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
-				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
-					continue;
-				} else{
-					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
-				}*/
 
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
@@ -335,27 +328,6 @@ public class ProcessingNode extends AbstractNode implements PortBindable{
 				}
 			}
 			stop();
-		}
-
-		/**
-		 * Update the packet lost
-		 * @param status & packetId
-		 * @return 
-		 */
-		private void updatePacketLostBasedOnStatus(NewArrivedPacketStatus newArrivedPacketStatus, int packetId){
-			switch(newArrivedPacketStatus){
-			case BEHIND_WINDOW:
-				return;
-			case IN_WINDOW:
-				receivedPacketNumInAWindow++;
-				break;
-			case BEYOND_WINDOW:
-				setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
-				lowPacketIdBoundry = packetId;
-				highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
-				receivedPacketNumInAWindow = 1;
-				break;
-			}
 		}
 
 		/**

@@ -22,6 +22,7 @@ public class PacketLostTracker {
 	private final int rate;
 	private final int packetLength;
 	private final int timeout;
+	private final int beginId;
 
 
 	/**
@@ -32,9 +33,9 @@ public class PacketLostTracker {
 	 * @param timeout, longest time to wait when no packets comes, this can help calculate window size
 	 * @throws IllegalArgumentException if any of the four parameters is invalid
 	 */
-	public PacketLostTracker(int totalData, int rate, int packetLength, int timeout){
+	public PacketLostTracker(int totalData, int rate, int packetLength, int timeout, int beginId){
 		
-		if(totalData < 0 || rate < 0 || packetLength < 0 || timeout < 0){
+		if(totalData < 0 || rate < 0 || packetLength < 0 || timeout < 0 || beginId < 0){
 			throw new IllegalArgumentException();
 		}
 		
@@ -42,23 +43,14 @@ public class PacketLostTracker {
 		this.rate = rate;
 		this.packetLength = packetLength;
 		this.timeout = timeout;
-		
-		reset();
-	}
-	
-	/**
-	 * Reset the status of the tracker, so the tracker can be reused.
-	 * This is designed mainly for unit test purpose
-	 */
-	public void reset(){
+		this.beginId = beginId;
 		
 		lostPacketNum = new AtomicInteger(0);
-		
 		expectedMaxPacketId = (int) Math.ceil(totalData * 1.0 / packetLength) - 1;
 		double packetNumPerSecond = rate * 1.0 / packetLength;
 		packetNumInAWindow = (int) Math.ceil(packetNumPerSecond * timeout / 1000);
-		lowPacketIdBoundry = 0;
-		highPacketIdBoundry = Math.min(packetNumInAWindow - 1, expectedMaxPacketId);
+		lowPacketIdBoundry = beginId;
+		highPacketIdBoundry = Math.min(beginId + packetNumInAWindow - 1, expectedMaxPacketId);
 		receivedPacketNumInAWindow = 0;
 		
 		finished = false;

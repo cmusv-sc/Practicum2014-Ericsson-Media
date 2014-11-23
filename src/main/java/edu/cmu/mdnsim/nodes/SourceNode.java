@@ -51,9 +51,9 @@ public class SourceNode extends AbstractNode {
 			String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 			String destAddrStr = ipAndPort[0];
 			int destPort = Integer.parseInt(ipAndPort[1]);
-			int dataSize = Integer.parseInt(flow.getDataSize());
-			int rate = Integer.parseInt(flow.getKiloBitRate());
-
+			int dataSizeInBytes = Integer.parseInt(flow.getDataSize());
+			int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
+			int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  
 			//Get up stream and down stream node ids
 			//As of now Source Node does not have upstream id
 			//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
@@ -61,7 +61,7 @@ public class SourceNode extends AbstractNode {
 
 			try {
 				createAndLaunchSendRunnable(stream, InetAddress.getByName(destAddrStr), destPort, 
-						dataSize, rate);					
+						dataSizeInBytes, rateInBytesPerSec);					
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			}	
@@ -177,7 +177,6 @@ public class SourceNode extends AbstractNode {
 
 			report(EventType.SEND_START);
 
-			TaskHandler reportTaskHandler = null;	
 			long startedTime = 0;
 			int packetId = 0;
 
@@ -197,7 +196,6 @@ public class SourceNode extends AbstractNode {
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					reportTaskHandler = createAndLaunchReportTransportationRateRunnable();
 				}
 
 				bytesToTransfer -= packet.getLength();
@@ -225,10 +223,6 @@ public class SourceNode extends AbstractNode {
 					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has finished.");
 				}
 			}
-
-			if(reportTaskHandler != null){
-				reportTaskHandler.kill();
-			}
 			clean();
 			stop();
 		}
@@ -254,15 +248,6 @@ public class SourceNode extends AbstractNode {
 			return true;	
 		}
 
-		/**
-		 * Create and Launch a report thread
-		 * @return Future of the report thread
-		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, null);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
-		}
 
 		/**
 		 * Clean up all resources for this thread.
@@ -297,26 +282,6 @@ public class SourceNode extends AbstractNode {
 			};
 		}
 
-		private class TaskHandler {
-
-			Future reportFuture;
-			ReportRateRunnable reportRunnable;
-
-			public TaskHandler(Future future, ReportRateRunnable runnable) {
-				this.reportFuture = future;
-				reportRunnable = runnable;
-			}
-
-			public void kill() {
-				reportRunnable.kill();
-			}
-
-			public boolean isDone() {
-				return reportFuture.isDone();
-			}
-
-		}
-
 		@Override
 		protected void sendEndMessageToDownstream() {
 			try {
@@ -328,10 +293,6 @@ public class SourceNode extends AbstractNode {
 
 		}
 	}
-
-
-
-
 
 	private class StreamTaskHandler {
 		private Future streamFuture;

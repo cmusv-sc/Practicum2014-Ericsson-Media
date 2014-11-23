@@ -199,7 +199,7 @@ public class SinkNode extends AbstractNode implements PortBindable{
 				return;
 			}
 			
-			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND);
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
 
 			long startedTime = 0;
 			boolean isFinalWait = false;			
@@ -215,7 +215,6 @@ public class SinkNode extends AbstractNode implements PortBindable{
 							isFinalWait = true;
 							continue;
 						}else{
-							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					}					

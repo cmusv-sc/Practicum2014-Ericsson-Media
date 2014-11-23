@@ -5,7 +5,7 @@
 	{
 	  "StreamId":"stream123",
 	  "DataSize":"200000",
-	  "KiloBitRate":"6250",
+	  "KiloBitRate":"60",
 	  "FlowList":
 	  [
 		  {
@@ -28,7 +28,7 @@
 	{
 	  "StreamId":"stream1234",
 	  "DataSize":"200000",
-	  "KiloBitRate":"6250",
+	  "KiloBitRate":"60",
 	  "FlowList":
 	  [
 		  {
@@ -36,7 +36,7 @@
 			  [
 				{
 				  "NodeType":"SinkNode",
-				  "NodeId":"tomato:sink2",
+				  "NodeId":"apple:sink2",
 				  "UpstreamId":"orange:source1"
 				},
 				{
