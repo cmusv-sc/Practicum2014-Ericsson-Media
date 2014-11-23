@@ -18,7 +18,7 @@ public class StopTwoStreamTwoFlowTestCase implements MessageBusTestCase {
 	@Override
 	public void execute() throws MessageBusException {
 		
-		WorkConfig wc = WorkConfigFactory.getWorkConfig(WorkConfigFactory.Scenario.SINGLE_STREAM_SINGLE_FLOW, streamID);
+		WorkConfig wc = WorkConfigFactory.getWorkConfig("simu-test", WorkConfigFactory.Scenario.SINGLE_STREAM_SINGLE_FLOW, streamID);
 		
 		msgBusClient.sendToMaster("/", "/simulations", "POST", wc);
 		

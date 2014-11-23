@@ -10,13 +10,13 @@ import edu.cmu.mdnsim.config.WorkConfig;
 
 public class WorkConfigFactory {
 	
-	public static WorkConfig getWorkConfig(Scenario scenario, String... streamIDs) {
+	public static WorkConfig getWorkConfig(String simuID, Scenario scenario, String... streamIDs) {
 		
 		if (scenario == Scenario.SINGLE_STREAM_SINGLE_FLOW && streamIDs.length == 1) {
-			return singleStreamSingleFlow(streamIDs[0]);
+			return singleStreamSingleFlow(simuID, streamIDs[0]);
 		}
 		if (scenario == Scenario.TWO_STREMS_TWO_FLOWS && streamIDs.length == 2) {
-			return twoStreamTwoFlow(streamIDs[0], streamIDs[1]);
+			return twoStreamTwoFlow(simuID, streamIDs[0], streamIDs[1]);
 		} else {
 			return null;
 		}
@@ -24,10 +24,10 @@ public class WorkConfigFactory {
 		
 	}
 	
-	private static WorkConfig twoStreamTwoFlow(String streamID1, String streamID2) {
+	private static WorkConfig twoStreamTwoFlow(String simuID, String streamID1, String streamID2) {
 		
 		WorkConfig wc = new WorkConfig();
-		wc.setSimId(streamID1);
+		wc.setSimId(simuID);
 		
 		/* Stream 1 */
 		Stream stream1 = new Stream();
@@ -94,9 +94,9 @@ public class WorkConfigFactory {
 		return wc;
 	}
 	
-	private static WorkConfig singleStreamSingleFlow(String streamID) {
+	private static WorkConfig singleStreamSingleFlow(String simuID, String streamID) {
 		WorkConfig wc = new WorkConfig();
-		wc.setSimId(streamID);
+		wc.setSimId(simuID);
 		
 		/* Stream 1 */
 		Stream stream1 = new Stream();

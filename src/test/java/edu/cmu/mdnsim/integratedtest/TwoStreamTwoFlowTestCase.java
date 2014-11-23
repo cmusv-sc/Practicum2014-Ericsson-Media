@@ -1,6 +1,7 @@
 package edu.cmu.mdnsim.integratedtest;
 
 import edu.cmu.mdnsim.config.WorkConfig;
+import edu.cmu.mdnsim.integratedtest.WorkConfigFactory.Scenario;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
@@ -19,7 +20,7 @@ public class TwoStreamTwoFlowTestCase implements MessageBusTestCase {
 	@Override
 	public void execute() throws MessageBusException {
 		
-		WorkConfig wc = WorkConfigFactory.getWorkConfig(WorkConfigFactory.Scenario.TWO_STREMS_TWO_FLOWS, streamID1, streamID2);
+		WorkConfig wc = WorkConfigFactory.getWorkConfig("simu-test", Scenario.TWO_STREMS_TWO_FLOWS, streamID1, streamID2);
 		
 		try {
 			msgBusClient.sendToMaster("/", "/work_config", "POST", wc);
