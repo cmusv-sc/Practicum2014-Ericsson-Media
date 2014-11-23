@@ -131,7 +131,7 @@ public class Stimulus extends AbstractNode {
 	}
 
 	@Override
-	public void cleanUp() {
+	public void reset() {
 		// TODO Auto-generated method stub
 		
 	}
