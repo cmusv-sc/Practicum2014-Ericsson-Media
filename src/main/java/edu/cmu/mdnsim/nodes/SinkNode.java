@@ -112,13 +112,12 @@ public class SinkNode extends AbstractNode{
 	}
 
 	@Override
-	public void cleanUp() {
+	public void reset() {
 
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 
-			streamTask.kill();
+			streamTask.reset();
 			while(!streamTask.isDone());
-			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
 			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream:" + streamTask.getStreamId());
 
@@ -158,14 +157,14 @@ public class SinkNode extends AbstractNode{
 
 			long startedTime = 0;
 			boolean isFinalWait = false;			
-			TaskHandler reportTaksHandler = null;
+			ReportTaskHandler reportTaksHandler = null;
 
 			while (!isKilled()) {
 				try{
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
-					//ste.printStackTrace();
-					if(this.isUpStreamDone()){
+
+					if(this.isUpstreamDone()){
 						if(!isFinalWait){
 							isFinalWait = true;
 							continue;
@@ -176,11 +175,13 @@ public class SinkNode extends AbstractNode{
 					}	
 					continue;
 				} catch (IOException e) {
-					e.printStackTrace();
+					
+					System.err.println("Received IOException.");
+					
 					break;
 				}
 
-				if(startedTime == 0){
+				if(reportTaksHandler == null){
 					startedTime = System.currentTimeMillis();
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable();					
 					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
@@ -188,9 +189,56 @@ public class SinkNode extends AbstractNode{
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
 			}	
+			
+			/*
+			 * The reportTask might be null when the NodeRunnable thread is 
+			 * killed before enters the while loop.
+			 * 
+			 */
+			if(reportTaksHandler != null){
+				
+				reportTaksHandler.kill();
+				
+				/*
+				 * Wait for reportTask completely finished.
+				 */
+				while (!reportTaksHandler.isDone());
+			}
+
+			/*
+			 * No mater what final state is, the NodeRunnable should always
+			 * report to Master that it is going to end.
+			 * 
+			 */
 			long endTime= System.currentTimeMillis();
 			report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
 
+			if (isUpstreamDone()) { //Simulation completes as informed by upstream.
+				
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has finished.");
+				
+				}
+			} else if (isReset()) {
+				
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has been reset.");
+				
+				}
+				
+			} else {
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has been killed.");
+				
+				}
+			}
 			if (ClusterConfig.DEBUG) {
 				if (isKilled()) {
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Killed.");
@@ -198,11 +246,7 @@ public class SinkNode extends AbstractNode{
 					System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
 				}
 			}
-			if(reportTaksHandler != null){
-				reportTaksHandler.kill();
-			}
-			clean();
-			stop();
+
 		}
 
 		/**
@@ -235,11 +279,11 @@ public class SinkNode extends AbstractNode{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){	
+		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(){	
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
 		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
@@ -283,12 +327,12 @@ public class SinkNode extends AbstractNode{
 			}
 		}
 
-		private class TaskHandler {
+		private class ReportTaskHandler {
 
 			Future reportFuture;
 			ReportRateRunnable reportRunnable;
 
-			public TaskHandler(Future future, ReportRateRunnable runnable) {
+			public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
@@ -328,7 +372,11 @@ public class SinkNode extends AbstractNode{
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-
+		
+		public void reset() {
+			streamTask.reset();
+		}
+		
 		public void clean() {
 			streamTask.clean();
 		}

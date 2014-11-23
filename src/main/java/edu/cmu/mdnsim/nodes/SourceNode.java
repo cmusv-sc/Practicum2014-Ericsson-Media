@@ -8,14 +8,11 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
-import com.ericsson.research.warp.util.WarpThreadPool;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
@@ -112,7 +109,9 @@ public class SourceNode extends AbstractNode {
 	public void releaseResource(Flow flow) {
 
 		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getFlowId());
+		
 		while (!sndThread.isDone());
+		
 		if (ClusterConfig.DEBUG) {
 			System.out.println("[DEBUG]SourceNode.releaseResource(): Source starts to clean-up resource.");
 		}
@@ -130,9 +129,10 @@ public class SourceNode extends AbstractNode {
 	}
 
 	@Override
-	public void cleanUp() {
+	public void reset() {
+		
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
-			streamTask.kill();
+			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
@@ -142,7 +142,7 @@ public class SourceNode extends AbstractNode {
 	}
 
 	private class SendRunnable extends NodeRunnable {
-
+		
 		private DatagramSocket sendSocket = null;
 		private InetAddress dstAddrStr;
 		private int dstPort;
@@ -168,7 +168,7 @@ public class SourceNode extends AbstractNode {
 		 */
 		@Override
 		public void run() {
-
+			
 			if(!initializeSocketAndPacket()){
 				return;
 			}
@@ -178,7 +178,7 @@ public class SourceNode extends AbstractNode {
 
 			report(EventType.SEND_START);
 
-			TaskHandler reportTaskHandler = null;	
+			ReportTaskHandler reportTaskHandler = null;	
 			long startedTime = 0;
 			int packetId = 0;
 
@@ -212,23 +212,76 @@ public class SourceNode extends AbstractNode {
 				}
 				packetId++;
 			}
-
-			report(EventType.SEND_END);
-			this.sendEndMessageToDownstream();
-
-			if (ClusterConfig.DEBUG) {
-				if (isKilled()) {
-					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has been killed(not finished yet).");
-				} else{
-					System.out.println("[DEBUG]SourceNode.SendDataThread.run():" + " This thread has finished.");
-				}
-			}
-
+			
+			/*
+			 * ReportTaskHandler might be null as the thread might be killed
+			 * before the while loop. The report thread is started in the while
+			 * loop. Therefore, the reportTaskHandler might be null.
+			 * 
+			 */
 			if(reportTaskHandler != null){
+				
+				/*
+				 * Kill the report thread.
+				 * 
+				 */
 				reportTaskHandler.kill();
+				
+				/*
+				 * Wait for report thread completes totally.
+				 */
+				while(!reportTaskHandler.isDone());
 			}
-			clean();
-			stop();
+			
+			/*
+			 * No mater what final state is, the NodeRunnable should always
+			 * report to Master that it is going to end.
+			 * 
+			 */
+			report(EventType.SEND_END);
+			
+			if (bytesToTransfer <= 0) { //Simulation completes
+				
+				/*
+				 * Source should actively tell downstream it has sent out all
+				 * data. This message should force the downstream stops the loop.
+				 * 
+				 */
+				this.sendEndMessageToDownstream();
+				
+				/*
+				 * Close sending socket
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has finished.");
+				}
+					
+			} else if (isReset()) { //NodeRunnable is reset by Node
+				
+				/*
+				 * Close sending socket
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has been reset.");
+				}
+				
+			} else { //NodeRunnable is killed by Node
+				
+				/*
+				 * Do nothing
+				 */
+				
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has been killed");
+				}
+				
+			}
+
+
 		}
 
 
@@ -256,10 +309,10 @@ public class SourceNode extends AbstractNode {
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
+		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(){
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
 		/**
@@ -277,7 +330,7 @@ public class SourceNode extends AbstractNode {
 		private void report(EventType eventType){
 
 			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SourceNode.SendDataThread.run(): " + "Source will start sending data. " + "Record satrt time and report to master");
+				System.out.println("[DEBUG] SourceNode.SendDataThread.run(): " + "EventType=" + eventType + ". Record event time and report to master");
 			}
 			SourceReportMessage srcReportMsg = new SourceReportMessage();
 			srcReportMsg.setStreamId(getStreamId());
@@ -295,12 +348,12 @@ public class SourceNode extends AbstractNode {
 			};
 		}
 
-		private class TaskHandler {
+		private class ReportTaskHandler {
 
 			Future reportFuture;
 			ReportRateRunnable reportRunnable;
 
-			public TaskHandler(Future future, ReportRateRunnable runnable) {
+			public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
@@ -325,6 +378,8 @@ public class SourceNode extends AbstractNode {
 			}
 
 		}
+		
+		
 	}
 
 
@@ -339,7 +394,15 @@ public class SourceNode extends AbstractNode {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}
-
+		
+		/**
+		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
+		 * and set reset flag as actions for clean up is different from being killed.
+		 */
+		public void reset() {
+			streamTask.reset();
+		}
+		
 		public void kill() {
 			streamTask.kill();
 		}

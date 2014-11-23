@@ -30,6 +30,11 @@ public abstract class NodeRunnable implements Runnable {
 	 * NodeRunnable
 	 */
 	private boolean killed = false;
+	
+	/**
+	 * Used to indicate NodeRunnable thread is reset by Node thread.
+	 */
+	private boolean reset = false;
 	/**
 	 * Used to release resources like socket after the flow is terminated.
 	 */
@@ -95,6 +100,19 @@ public abstract class NodeRunnable implements Runnable {
 		return killed;
 	}
 
+	/**
+	 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
+	 * and set reset flag as actions for clean up is different from being killed.
+	 */
+	public synchronized void reset() {
+		this.killed = true;
+		this.reset = true;
+	}
+	
+	public synchronized boolean isReset() {
+		return this.reset;
+	}
+	
 	public synchronized void stop() {
 		stopped = true;
 	}
@@ -128,7 +146,7 @@ public abstract class NodeRunnable implements Runnable {
 
 	}
 
-	public boolean isUpStreamDone() {
+	public boolean isUpstreamDone() {
 		return upStreamDone;
 	}
 	
@@ -213,8 +231,9 @@ public abstract class NodeRunnable implements Runnable {
 				}
 			}
 
-			System.out.println("I m interrupted :(");
 			calculateAndReport();
+			System.out.println("ReportRateRunnable.run(): " + NodeRunnable.this.nodeId + " report thread has been interrupted.");
+			
 		}
 
 		public void kill() {

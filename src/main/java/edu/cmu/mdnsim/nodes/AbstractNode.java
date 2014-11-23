@@ -151,7 +151,7 @@ public abstract class AbstractNode {
 	 * resources(MethodListners as well!).
 	 * 
 	 */
-	public abstract void cleanUp();
+	public abstract void reset();
 
 	/**
 	 * This function is used by Nodes which need to receive data.

@@ -147,14 +147,14 @@ public class ProcessingNode extends AbstractNode{
 	}
 
 	@Override
-	public void cleanUp() {
+	public void reset() {
 
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
-			streamTask.kill();
+			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			System.out.println("[DEBUG]ProcNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
+			System.out.println("[DEBUG]ProcNode.reset(): Stops streamRunnable:" + streamTask.getStreamId());
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());
@@ -222,18 +222,26 @@ public class ProcessingNode extends AbstractNode{
 				return;
 			}
 
-			boolean isStarted = false;
-
 			boolean isFinalWait = false;
 
-			TaskHandler reportTask = null;
+			ReportTaskHandler reportTask = null;
 
 			while (!isKilled()) {
 				try {
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
-					//ste.printStackTrace();
-					if(this.isUpStreamDone()){
+					
+					/*
+					 * When socket doesn't receive any packet before time out,
+					 * check whether Upstream has informed the NodeRunnable that
+					 * it has finished.
+					 * 
+					 */
+					if(this.isUpstreamDone()){
+						/*
+						 * If the upstream has finished, wait for one more time
+						 * out to ensure some packet in the flight.
+						 */
 						if(!isFinalWait){
 							isFinalWait = true;
 							continue;
@@ -241,21 +249,34 @@ public class ProcessingNode extends AbstractNode{
 							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
-					}	
-					continue;
+					} else {	
+						/*
+						 * If the upstream hsan't finished, continue waiting for
+						 * upcoming packet.
+						 */
+						continue;
+					}
 				} catch (IOException e) {
+					
+					/*
+					 * IOException forces the thread stopping.
+					 */
 					e.printStackTrace();
 					break;
 				} 
-
-				if(!isStarted) {
+				
+				/*
+				 * If reportTaskHandler is null, the packet is the first packet 
+				 * received.
+				 */
+				if(reportTask == null) {
 					reportTask = createAndLaunchReportTransportationRateRunnable();
 					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
-					isStarted = true;
 				}
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
-
+				
+				
 				int packetId = nodePacket.getMessageId();
 				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
 				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
@@ -271,24 +292,69 @@ public class ProcessingNode extends AbstractNode{
 				sendPacket(packet, nodePacket);
 
 			}	
-
-			if(reportTask != null){
-				System.out.println("Processing Node: Cancelling Future");				
+			
+			/*
+			 * The reportTask might be null when the NodeRunnable thread is 
+			 * killed before enters the while loop.
+			 * 
+			 */
+			if(reportTask != null){				
 				reportTask.kill();
+				/*
+				 * Wait for reportTask completely finished.
+				 */
+				while (!reportTask.isDone());
 			}	
-			clean();
-
+			
+			/*
+			 * No mater what final state is, the NodeRunnable should always
+			 * report to Master that it is going to end.
+			 * 
+			 */
 			report(System.currentTimeMillis(), this.getDownStreamIds().iterator().next(), EventType.SEND_END);
-			this.sendEndMessageToDownstream();
-
-			if (ClusterConfig.DEBUG) {
-				if(isKilled()){
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
-				} else{
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
+			
+			if (isUpstreamDone()) { //Simulation completes as informed by upstream.
+				
+				/*
+				 * Processing Node should actively tell downstream it has sent out all
+				 * data. This message should force the downstream stops the loop.
+				 * 
+				 */
+				this.sendEndMessageToDownstream();
+				
+				/*
+				 * release resources.
+				 * 
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has finished.");
+				
+				}
+			} else if (isReset()) { //NodeRunnable is reset by Node
+				
+				/*
+				 * release resources.
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has been reset.");
+				
+				}
+			} else {
+				//Do nothing.
+				
+				if (ClusterConfig.DEBUG) {
+					
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has been killed.");
+				
 				}
 			}
-			stop();
+
 		}
 
 		/**
@@ -351,12 +417,12 @@ public class ProcessingNode extends AbstractNode{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private TaskHandler createAndLaunchReportTransportationRateRunnable(){
+		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(){
 
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new TaskHandler(reportFuture, reportTransportationRateRunnable);
+			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
 		/**
@@ -441,12 +507,12 @@ public class ProcessingNode extends AbstractNode{
 			}
 		}
 
-		private class TaskHandler {
+		private class ReportTaskHandler {
 
 			Future reportFuture;
 			ReportRateRunnable reportRunnable;
 
-			public TaskHandler(Future future, ReportRateRunnable runnable) {
+			public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
@@ -499,6 +565,12 @@ public class ProcessingNode extends AbstractNode{
 			return streamFuture.isDone();
 		}
 
+		public void reset() {
+			
+			streamTask.reset();
+			
+		}
+		
 		public void clean() {
 			streamTask.clean();
 		}

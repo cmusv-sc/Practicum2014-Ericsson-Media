@@ -126,7 +126,7 @@ public class NodeContainer {
 	
 	@Path(NODE_COLLECTION_PATH)
 	@DELETE
-	public void cleanUpNodes() {
+	public void reset() {
 		for (String nodeId : nodeMap.keySet()) {
 			System.out.println("[DEBUG]NodeContainer.cleanUpNodes(): Clean the " + nodeId);
 			stopNode(nodeId);
@@ -135,7 +135,7 @@ public class NodeContainer {
 	
 	public void stopNode(String nodeId) {
 		AbstractNode node = nodeMap.get(nodeId);
-		node.cleanUp();
+		node.reset();
 	}
 	
 	

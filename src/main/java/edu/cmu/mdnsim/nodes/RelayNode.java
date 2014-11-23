@@ -142,9 +142,9 @@ public class RelayNode extends AbstractNode{
 	}
 
 	@Override
-	public void cleanUp() {
+	public void reset() {
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
-			streamTask.kill();
+			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
@@ -188,13 +188,13 @@ public class RelayNode extends AbstractNode{
 			}
 			boolean isStarted = false;
 			boolean isFinalWait = false;
-			TaskHandler reportTask = null;
+			ReportTaskHandler reportTaskHandler = null;
 			while (!isKilled()) {
 				try {
 					receiveSocket.receive(receivedPacket);
 					logger.debug("[RELAY] Received Packet" );
 				} catch(SocketTimeoutException ste){
-					if(this.isUpStreamDone()){
+					if(this.isUpstreamDone()){
 						if(!isFinalWait){
 							isFinalWait = true;
 							continue;
@@ -202,20 +202,20 @@ public class RelayNode extends AbstractNode{
 							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
+					} else {
+						continue;
 					}
-					continue;
 				} catch (IOException e) {
 					e.printStackTrace();
 					break;
 				} 
 
-				if(!isStarted) {
+				if(reportTaskHandler == null) {
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
 					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-					reportTask = new TaskHandler(reportFuture, reportTransportationRateRunnable);
+					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 					
 					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
-					isStarted = true;
 				}
 
 				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
@@ -245,25 +245,65 @@ public class RelayNode extends AbstractNode{
 					}
 				}
 
-			}	
-			if(reportTask != null){
-				reportTask.kill();
-			}	
-			clean();
+			}
+			
+			/*
+			 * ReportTaskHandler might be null as the thread might be killed
+			 * before the while loop. The report thread is started in the while
+			 * loop. Therefore, the reportTaskHandler might be null.
+			 * 
+			 */
+			if(reportTaskHandler != null){
+				reportTaskHandler.kill();
+				
+				/*
+				 * Wait for report thread completes totally.
+				 */
+				while(!reportTaskHandler.isDone());
+			}
+			
+			/*
+			 * No mater what final state is, the NodeRunnable should always
+			 * report to Master that it is going to end.
+			 * 
+			 */
 			for(String downStreamId : this.getDownStreamIds()){
 				report(System.currentTimeMillis(), downStreamId, EventType.SEND_END);
 			}
-
-			this.sendEndMessageToDownstream();
-
-			if (ClusterConfig.DEBUG) {
-				if(isKilled()){
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has been killed (not finished yet)." );
-				} else{
-					System.out.println("[DEBUG]ProcessingNode.ReceiveProcessAndSendThread.run(): " + "Processing node has finished simulation." );
+			
+			if (isUpstreamDone()) { //Simulation completes
+				/*
+				 * Processing node should actively tell downstream its has sent out all
+				 * data. This message should force the downstream stops the loop.
+				 * 
+				 */
+				sendEndMessageToDownstream();
+				
+				/*
+				 * Release resources
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has finished.");
+				}
+				
+			} else if (isReset()) { //NodeRunnable is reset by Node
+				/*
+				 * Release resources
+				 */
+				clean();
+				
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has been reset.");
+				}
+				
+			} else {
+				//Do nothing
+				if (ClusterConfig.DEBUG) {
+					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has killed.");
 				}
 			}
-			stop();
 
 		}
 
@@ -351,12 +391,12 @@ public class RelayNode extends AbstractNode{
 			}
 		}
 	}
-	private class TaskHandler {
+	private class ReportTaskHandler {
 
 		Future reportFuture;
 		ReportRateRunnable reportRunnable;
 
-		public TaskHandler(Future future, ReportRateRunnable runnable) {
+		public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
 			this.reportFuture = future;
 			reportRunnable = runnable;
 		}
@@ -386,7 +426,15 @@ public class RelayNode extends AbstractNode{
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-
+		
+		/**
+		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
+		 * and set reset flag as actions for clean up is different from being killed.
+		 */
+		public void reset() {
+			streamTask.reset();
+		}
+		
 		public void clean() {
 			streamTask.clean();
 		}
