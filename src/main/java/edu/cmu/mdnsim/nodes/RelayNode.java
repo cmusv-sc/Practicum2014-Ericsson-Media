@@ -93,15 +93,22 @@ public class RelayNode extends AbstractNode{
 
 	@Override
 	public synchronized void terminateTask(Flow flow) {
+		
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]RelayNode.terminateTask(): Received terminate request.");
+			System.out.format("[DEBUG]RelayNode.terminateTask(): try to terminate flow %s\n", flow.getFlowId());
 		}
+		
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
-		if(streamTaskHandler == null){
+		
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		
+		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
 			throw new TerminateTaskBeforeExecutingException();
 		}
-		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){
+		
+		
+		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){ 
+			
 			streamTaskHandler.kill();
 			/* Notify the Upstream node */
 			Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
@@ -110,7 +117,7 @@ public class RelayNode extends AbstractNode{
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}	
-		}else{
+		} else {
 			streamTaskHandler.streamTask.removeDownStream(
 					flow.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI));
 			//Send release resource command to downstream node 
@@ -120,16 +127,20 @@ public class RelayNode extends AbstractNode{
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
+			
+			if (ClusterConfig.DEBUG) {
+				System.out.format("[DEBUG]RelayNode.terminateTask(): Ask downstream node(%s) to release resouces.\n", flow.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_ID));
+			}
 		}
 	}
 
 	@Override
 	public void releaseResource(Flow flow) {
+		
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]RelayNode.releaseResource(): Received clean resource request.");
+			System.out.format("[DEBUG]RelayNode.releaseResource(): try to release flow %s\n", flow.getFlowId());
 		}
-
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
 		streamTaskHandler.clean();
@@ -149,7 +160,9 @@ public class RelayNode extends AbstractNode{
 			while(!streamTask.isDone());
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			System.out.println("[DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
+			if (ClusterConfig.DEBUG) {
+				System.out.println("[DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
+			}
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());

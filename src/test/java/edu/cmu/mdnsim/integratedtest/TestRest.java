@@ -15,7 +15,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 
-public class TestRelayNode extends AbstractNode {
+public class TestRest extends AbstractNode {
 	
 	/**
 	 * The list of test cases. Just add the test cases
@@ -23,7 +23,7 @@ public class TestRelayNode extends AbstractNode {
 	List<MessageBusTestCase> testCaseList = new LinkedList<MessageBusTestCase>();
 	
 	
-	public TestRelayNode() throws UnknownHostException, MessageBusException {
+	public TestRest() throws UnknownHostException, MessageBusException {
 		super();
 	}
 	
@@ -34,7 +34,7 @@ public class TestRelayNode extends AbstractNode {
 		msgBusClient.config();
 		msgBusClient.connect();
 		
-		TestRelayNode tester = new TestRelayNode();
+		TestRest tester = new TestRest();
 		tester.config(msgBusClient, "undefined", "STIMULUS");
 		tester.register();
 		Thread.sleep(1000 * 5);

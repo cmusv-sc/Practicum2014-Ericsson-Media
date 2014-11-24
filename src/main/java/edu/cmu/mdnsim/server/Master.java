@@ -405,16 +405,9 @@ public class Master {
 	public synchronized void uploadWorkConfig(Message mesg, WorkConfig wc) {
 
 		for (Stream stream : wc.getStreamList()) {
-
-			String streamId = stream.getStreamId();
-			String kiloBitRate = stream.getKiloBitRate();
-			String dataSize = stream.getDataSize();
 			
 			for (Flow flow : stream.getFlowList()) {
-				String flowId = flow.generateFlowId(streamId);
-				flow.setStreamId(streamId);
-				flow.setDataSize(dataSize);
-				flow.setKiloBitRate(kiloBitRate);
+				String flowId = flow.generateFlowId();
 				flow.updateFlowWithDownstreamIds();
 				//We are adding the nodes in reverse order because nodes are created in reverse order 
 				//- first sink then others and finally Source node. If the work config order changes then following code needs to be changed				
@@ -461,7 +454,7 @@ public class Master {
 				if (flow.canRun())
 					this.runFlow(flow);
 			}
-
+			String streamId = stream.getStreamId();
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {
@@ -742,17 +735,50 @@ public class Master {
 	 * Stop Simulation request
 	 * @throws MessageBusException
 	 */
-	public void stopSimulation() throws MessageBusException {
+	public void stopSimulation(WorkConfig wc) throws MessageBusException {
 
 		if (ClusterConfig.DEBUG) {
 			logger.debug("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");
 		}
-		for(String flowId : runningFlowMap.keySet()) {
-			Flow flow = runningFlowMap.get(flowId);
-			msgBusSvr.send("/", flow.getSinkNodeURI() + "/tasks", "POST", flow);
+		
+		for (Stream stream : wc.getStreamList()) {
+			stopStream(stream);
 		}
 
+	}
+	
+	private void stopStream(Stream stream) {
+		
+		for (Flow flow : stream.getFlowList()) {
+			stopFlow(flow);
+		}
+		
+	}
+	
+	private void stopFlow(Flow flow) {
+		
+		/*
+		 * A flow switch is required here as some fields of the flow submitted 
+		 * by user are missing. Therefore switch to the flow in Master's memory
+		 * which contains complete node map
+		 * 
+		 */
+		String flowId = flow.generateFlowId();
+
+		
+		/* Flow is replaced with one in running map */
+		flow = runningFlowMap.get(flowId);
+		
+		assert flow.isValidFlow();
+		
+		
+		
+		try {
+			msgBusSvr.send("/", flow.getSinkNodeURI() + "/tasks", "POST", flow);
+		} catch (MessageBusException e) {
+			logger.debug("Failed to send stop control message to sink node(" + flow.getSindNodeId() + ")");
+		}
 	}
 
 	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {

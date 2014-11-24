@@ -21,10 +21,7 @@ public class WorkConfigTest {
 		WorkConfig wc = new WorkConfig();
 		wc.setSimId(simuID);
 
-		Stream stream = new Stream();
-		stream.setStreamId(simuID);
-		stream.setKiloBitRate("625000");
-		stream.setDataSize("20000000");
+		Stream stream = new Stream(simuID, "20000000", "20");
 		
 		Flow flow = new Flow();
 		Map<String, String> sink = new HashMap<String, String>();

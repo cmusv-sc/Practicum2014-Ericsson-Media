@@ -85,6 +85,11 @@ public class Flow extends MbMessage {
 		return sinkNodeMap.get(NODE_URI);
 	}
 	
+	public String getSindNodeId() {
+		Map<String, String>sinkNodeMap = nodeList.get(0);
+		return sinkNodeMap.get(NODE_ID);
+	}
+	
 	/**
 	 * Find the node map according to the nodeId
 	 * @param nodeId
@@ -98,34 +103,7 @@ public class Flow extends MbMessage {
 		}
 		return null;
 	}
-	
-//	public Map<String, String> findUpstreamNodeMap(String nodeId) {
-//		Map<String, String> currNodeMap = findNodeMap(nodeId);
-//		if (currNodeMap == null) {
-//			return null;
-//		}
-//		
-//		return null;
-//	}
-	
-	/**
-	 * Build and return the FlowId for the current flow and stream
-	 * The FlowId is the concatenation of the streamId followed by 
-	 * all NodeId's from sink to source
-	 * This overloaded type takes the streamId as an argument
-	 * @return String (FlowId)
-	 */
-	public String generateFlowId(String streamId) {
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append(streamId);
-		for (Map<String, String>nodeMap : nodeList) {
-			sb.append("-");
-			sb.append(nodeMap.get(Flow.NODE_ID));
-		}
-		this.flowId = sb.toString();
-		return flowId;
-	}
+
 	
 	/**
 	 * Build and return the FlowId for the current flow and stream

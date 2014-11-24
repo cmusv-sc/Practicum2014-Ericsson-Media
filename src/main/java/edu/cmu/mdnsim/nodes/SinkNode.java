@@ -76,12 +76,9 @@ public class SinkNode extends AbstractNode{
 
 	@Override
 	public void terminateTask(Flow flow) {
-
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SinkNode.terminateTask(): " + JSON.toJSON(flow));
-		}
-
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
+		
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		
 		if(streamTaskHandler == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -99,14 +96,11 @@ public class SinkNode extends AbstractNode{
 
 	@Override
 	public void releaseResource(Flow flow) {
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SinkNode.releaseResource(): Sink starts to clean-up resource.");
-		}
 
-		StreamTaskHandler rcvThread = streamIdToRunnableMap.get(flow.getFlowId());
-		while (!rcvThread.isDone());
-		rcvThread.clean();
-		streamIdToRunnableMap.remove(flow.getFlowId());
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		while (!streamTaskHandler.isDone());
+		streamTaskHandler.clean();
+		streamIdToRunnableMap.remove(flow.getStreamId());
 	}
 
 	@Override

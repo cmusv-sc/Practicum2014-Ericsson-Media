@@ -31,10 +31,7 @@ public class WorkConfigFactory {
 		wc.setSimId(simuID);
 		
 		/* Stream 1 */
-		Stream stream1 = new Stream();
-		stream1.setStreamId(streamID1);
-		stream1.setKiloBitRate("62500");
-		stream1.setDataSize("20000000");
+		Stream stream1 = new Stream(streamID1, "20000000", "20");
 		
 		Flow flow1 = new Flow();
 		
@@ -62,10 +59,7 @@ public class WorkConfigFactory {
 		wc.addStream(stream1);
 		
 		/* Stream 2 */
-		Stream stream2 = new Stream();
-		stream2.setStreamId(streamID2);
-		stream2.setKiloBitRate("625000");
-		stream2.setDataSize("20000000");
+		Stream stream2 = new Stream(streamID2, "20000000", "20");
 		
 		Flow flow2 = new Flow();
 		
@@ -100,10 +94,7 @@ public class WorkConfigFactory {
 		wc.setSimId(simuID);
 		
 		/* Stream 1 */
-		Stream stream1 = new Stream();
-		stream1.setStreamId(streamID);
-		stream1.setKiloBitRate("625000");
-		stream1.setDataSize("20000000");
+		Stream stream1 = new Stream(streamID, "20000000", "20");
 		
 		Flow flow1 = new Flow();
 		
@@ -144,10 +135,7 @@ public class WorkConfigFactory {
 		wc.setSimId(simuId);
 		
 		/* Create a stream */
-		Stream stream = new Stream();
-		stream.setStreamId(streamId);
-		stream.setKiloBitRate("20");
-		stream.setDataSize("20000000");
+		Stream stream = new Stream(streamId, "20000000", "20");
 		
 		/* Add one flow */
 		Flow flow1 = new Flow();

@@ -131,15 +131,6 @@ public abstract class NodeRunnable implements Runnable {
 
 	
 	abstract protected void sendEndMessageToDownstream();
-//	protected void sendEndMessageToDownstream() {
-//		try {
-//			msgBusClient.send(getFromPath(), this.getFlow()
-//					.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI)
-//					+ "/" + this.getFlowId(), "DELETE", this.getFlow());
-//		} catch (MessageBusException e) {
-//			e.printStackTrace();
-//		}
-//	}
 
 	protected String getFromPath() {
 		return "/" + getNodeId() + "/" + this.getStreamId();
@@ -177,7 +168,7 @@ public abstract class NodeRunnable implements Runnable {
 	}
 	protected Set<String> getDownStreamURIs() {
 		Set<String> downStreamURIs = new HashSet<String>();
-		Stream stream = NodeRunnable.this.getStream();
+		Stream stream = getStream();
 		for(Flow flow : stream.getFlowList()){
 			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
 			if(nodeMap != null){

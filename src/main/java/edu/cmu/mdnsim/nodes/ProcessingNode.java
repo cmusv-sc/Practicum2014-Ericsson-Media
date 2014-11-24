@@ -106,11 +106,7 @@ public class ProcessingNode extends AbstractNode{
 	@Override
 	public void terminateTask(Flow flow) {
 
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received terminate request.");
-		}
-
-		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getFlowId());
+		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getStreamId());
 		if(streamTask == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -132,7 +128,7 @@ public class ProcessingNode extends AbstractNode{
 			System.out.println("[DEBUG]ProcessingNode.terminateTask(): Received clean resource request.");
 		}
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getFlowId());
+		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
 		streamTaskHandler.clean();

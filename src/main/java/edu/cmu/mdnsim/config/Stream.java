@@ -9,7 +9,6 @@ public class Stream extends MbMessage {
 	private String streamId;
 	private String dataSize;
 	private String kiloBitRate;
-	
 	/**
 	 * This is a list of Flows that are receiving, relaying, processing or sending
 	 * a particular stream.
@@ -18,7 +17,16 @@ public class Stream extends MbMessage {
 	 * properties like NodeType, NodeId, UpstreamId etc. 
 	 */
 	private List<Flow> flowList = new ArrayList<Flow>();
-
+	
+	public Stream() {
+		super();
+	}
+	
+	public Stream(String streamId, String dataSize, String kiloBitRate) {
+		this.streamId = streamId;
+		this.dataSize = dataSize;
+		this.kiloBitRate = kiloBitRate;
+	}
 	
 	public List<Flow> getFlowList() {
 		return flowList;
@@ -30,6 +38,9 @@ public class Stream extends MbMessage {
 	}
 	
 	public void addFlow(Flow flow) {
+		flow.setStreamId(streamId);
+		flow.setDataSize(dataSize);
+		flow.setKiloBitRate(kiloBitRate);
 		this.flowList.add(flow);
 	}
 

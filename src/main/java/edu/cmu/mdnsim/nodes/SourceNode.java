@@ -87,11 +87,7 @@ public class SourceNode extends AbstractNode {
 	@Override
 	public void terminateTask(Flow flow) {
 
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SourceNode.terminateTask(): Source received terminate task.\n" + JSON.toJSON(flow));
-		}
-
-		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getFlowId());
+		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(sendTaskHanlder == null){
 
@@ -110,7 +106,7 @@ public class SourceNode extends AbstractNode {
 	@Override
 	public void releaseResource(Flow flow) {
 
-		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getFlowId());
+		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getStreamId());
 		
 		while (!sndThread.isDone());
 		
@@ -119,8 +115,6 @@ public class SourceNode extends AbstractNode {
 		}
 
 		sndThread.clean();
-		streamIdToRunnableMap.remove(flow.getFlowId());
-
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 
 		try {
