@@ -92,7 +92,7 @@ function attachNodeEvents(){
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
 		if(s.graph.nodes(nodeId).tag){
-			$("<p id=p"+nodeId+" class='tooltip'></p>")
+			$("<p id=p"+nodeId+" class='tag'></p>")
 			.html(s.graph.nodes(nodeId).tag)
 			.appendTo('body')
 			.fadeIn('fast');
@@ -117,7 +117,7 @@ function attachEdgeEvents(){
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
 		if(s.graph.edges(lineId).tag){			
-			$("<p id=p"+lineId+" class='tooltip'></p>")
+			$("<p id=p"+lineId+" class='tag'></p>")
 			.html(s.graph.edges(lineId).tag)
 			.appendTo('body')
 			.fadeIn('fast');

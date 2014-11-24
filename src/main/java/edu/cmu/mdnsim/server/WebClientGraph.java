@@ -137,7 +137,7 @@ public class WebClientGraph {
 			}
 			reportToolTip.streamStatus = eventType.toString();
 			this.tag = reportToolTip.buildTag(streamId);
-			logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
+			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
 		}
 
 		public void updateToolTip(String streamId, long latency) {
@@ -148,7 +148,7 @@ public class WebClientGraph {
 			}
 			reportToolTip.latency = String.valueOf(latency);
 			this.tag = reportToolTip.buildTag(streamId);
-			logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
+			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
 		}
 	}
 
