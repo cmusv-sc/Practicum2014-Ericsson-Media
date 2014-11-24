@@ -184,6 +184,7 @@ public class SinkNode extends AbstractNode{
 				}
 
 				if(nodePacket.isLast()){
+					super.setUpstreamDone();
 					break;
 				}
 			}	
