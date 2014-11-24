@@ -141,7 +141,10 @@ public class Master {
 		msgBusSvr.addMethodListener("/node_containers", "PUT", this, "registerNodeContainer");
 
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
-		msgBusSvr.addMethodListener("/work_config", "POST", this, "uploadWorkConfig");
+		msgBusSvr.addMethodListener("/work_config", "POST", this, "startWorkConfig");
+		
+		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
+		msgBusSvr.addMethodListener("/work_config", "DELETE", this, "stopWorkConfig");
 
 		/* Once the hosted resource for the front end connects to the domain, it registers itself to the master*/
 		msgBusSvr.addMethodListener("/register_webclient", "POST", this, "registerWebClient");
@@ -162,8 +165,7 @@ public class Master {
 		msgBusSvr.addMethodListener("/relay_report", "POST", this, "relayReport");
 		
 		/* Add listener for suspend a simulation */
-		msgBusSvr.addMethodListener("/simulations", "POST", this, "stopSimulation");
-		
+		msgBusSvr.addMethodListener("/simulations", "DELETE", this, "resetSimulation");		
 		
 	}
 
@@ -374,6 +376,13 @@ public class Master {
 	}
 	
 	/**
+	 * Reset the entire system
+	 */
+	public synchronized void resetSimulation() {
+		removeAllNodes();
+	}
+	
+	/**
 	 * This method is the listener for RESET functionality
 	 */
 	public void removeAllNodes() {
@@ -395,7 +404,7 @@ public class Master {
 	 * @param Message
 	 * @param WorkConfig
 	 */
-	public synchronized void uploadWorkConfig(Message mesg, WorkConfig wc) {
+	public synchronized void startWorkConfig(Message mesg, WorkConfig wc) {
 
 		for (Stream stream : wc.getStreamList()) {
 			String streamId = stream.getStreamId();
@@ -728,7 +737,7 @@ public class Master {
 	 * Stop Simulation request
 	 * @throws MessageBusException
 	 */
-	public void stopSimulation(WorkConfig wc) throws MessageBusException {
+	public void stopWorkConfig(WorkConfig wc) throws MessageBusException {
 
 		if (ClusterConfig.DEBUG) {
 			logger.debug("[DEBUG]Master.stopSimulation(): Received stop "
@@ -759,13 +768,10 @@ public class Master {
 		 */
 		String flowId = flow.generateFlowId();
 
-		
 		/* Flow is replaced with one in running map */
 		flow = runningFlowMap.get(flowId);
 		
 		assert flow.isValidFlow();
-		
-		
 		
 		try {
 			msgBusSvr.send("/", flow.getSinkNodeURI() + "/tasks", "POST", flow);

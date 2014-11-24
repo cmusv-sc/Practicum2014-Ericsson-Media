@@ -1,37 +1,86 @@
+<!DOCTYPE html>
 <html>
-<head>
-warp.js
-<title>Hello</title>
-<style>
-.tooltip {
-	display: none;
-	position: absolute;
-	border: 1px solid #333;
-	background-color: #161616;
-	border-radius: 5px;
-	padding: 10px;
-	color: #fff;
-	max-width: 200px;
-}
-</style>
-<script src="js/sigma.min.js"></script>
-<script src="js/sigma.parsers.json.min.js"></script>
-<script type="text/javascript"
-	src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
-<script type="text/javascript" src="js/displayGraph.js"></script>
-
-</head>
-<body >
-	<div>Media Delivery Network Simulator</div>
-	<div id="main">
-		<div>
-			Work Specification File: <input type="file" id="wsinput"
-				name="wsfile" />
+	<head>
+		warp.js
+		<title>Media Delivery Network Simulator</title>
+		<style type="text/css">
+		.tooltip {
+			display: none;
+			position: absolute;
+			border: 1px solid #333;
+			background-color: #161616;
+			border-radius: 5px;
+			padding: 10px;
+			color: #fff;
+			max-width: 200px;
+		}
+		.btn-file {
+		    position: relative;
+		    overflow: hidden;
+		}
+		.btn-file input[type=file] {
+		    position: absolute;
+		    top: 0;
+		    right: 0;
+		    min-width: 100%;
+		    min-height: 100%;
+		    font-size: 100px;
+		    text-align: right;
+		    filter: alpha(opacity=0);
+		    opacity: 0;
+		    outline: none;
+		    background: white;
+		    cursor: inherit;
+		    display: block;
+		}
+		</style>
+		
+		<script src="js/sigma.min.js" type="text/javascript"></script>
+		<script src="js/sigma.parsers.json.min.js" type="text/javascript"></script>
+		<script type="text/javascript"
+			src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+		<script type="text/javascript" src="js/displayGraph.js"></script>
+		
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+		
+	</head>
+	
+	<body>
+		<div class="”container”">
+			
+			<div class="hero-unit">
+				<h1>Media Delivery Network Simulator</h1>
+			</div>
+			
+			<div id="main">
+				<div>
+					<div class="btn-group btn-input clearfix" id="flowaction">
+						<button type="button" class="btn btn-default dropdown-toggle form-control" data-toggle="dropdown">
+					    	<span id="flowactionspan" data-bind="flowactionlabel">Select Flow Action</span> <span class="caret"></span>
+					  	</button>
+						  <ul class="dropdown-menu" role="menu">
+						    <li><a href="#">Start Flows</a></li>
+						    <li><a href="#">Stop Flows</a></li>
+						  </ul>
+					</div>
+					<span id="wsinputspan" class="btn btn-default btn-file">
+    					Work Specification File <input type="file" id="wsinput"
+						name="wsfile" />
+					</span>
+				</div>
+				
+				<input id="btnReset" type="button" class="btn btn-default" value="Reset" /> 
+			</div>
+			
+			<div id="svg" style="width: 1000; height: 500"
+				ondragstart="return false;" ondrop="return false;"></div>
+				
+			<div id="messages"></div>
+			
+			<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+			<script src="js/bootstrap.min.js"></script>
 		</div>
-		<input id="btnStart" type="button" value="Start" />
-		<input id="btnStop" type="button" value="Stop" />
-	</div>
-	<div id="svg" style="width:1000;height:500" ondragstart="return false;" ondrop="return false;"></div>
-	<div id="messages"></div>
-</body>
+	</body>
+
 </html>

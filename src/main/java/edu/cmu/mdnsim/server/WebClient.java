@@ -60,11 +60,22 @@ public class WebClient {
 	private static TrapHostable sigmaForceAtlas2Js = new TrapHostable("text/javascript") {
 		@Override
 		public byte[] getBytes() {
-			System.err.println("JEREMY DEBUG:" + "js" + _separator + "sigma.layout.forceAtlas2.min.js");
 			return getResourceBytes("js" + _separator + "sigma.layout.forceAtlas2.min.js");
 		}
 	};
-
+	private static TrapHostable bootstrapMinJs = new TrapHostable("text/javascript") {
+		@Override
+		public byte[] getBytes() {
+			return getResourceBytes("js" + _separator + "bootstrap.min.js");
+		}
+	};
+	private static TrapHostable bootstrapMinCss = new TrapHostable("text/css") {
+		@Override
+		public byte[] getBytes() {
+			return getResourceBytes("css" + _separator + "bootstrap.min.css");
+		}
+	};
+	
 	/**
 	 * Reads the file from the folder and returns its bytes
 	 * @param resourceName path relative to resources folder like "js\abc.js"
@@ -100,5 +111,7 @@ public class WebClient {
 		System.out.println(domain.addHostedObject(sigmaJs, "js/sigma.min.js"));
 		System.out.println(domain.addHostedObject(sigmaJsonParserJs, "js/sigma.parsers.json.min.js"));
 		System.out.println(domain.addHostedObject(sigmaForceAtlas2Js, "js/sigma.layout.forceAtlas2.min.js"));
+		System.out.println(domain.addHostedObject(bootstrapMinJs, "js/bootstrap.min.js"));
+		System.out.println(domain.addHostedObject(bootstrapMinCss, "css/bootstrap.min.css"));
 	}
 }
