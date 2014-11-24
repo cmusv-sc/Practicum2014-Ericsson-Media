@@ -47,14 +47,14 @@ public class TestStopFlow extends AbstractNode {
 		Stream stream = wc.getStreamList().get(0);
 		Flow removedFlow = stream.getFlowList().remove(0);
 		
-		msgBusClient.sendToMaster("/", "/simulations", "POST", wc);
+		msgBusClient.sendToMaster("/", "/work_config", "DELETE", wc);
 		
 		Thread.sleep(1000 * 3);
 		
 		stream.getFlowList().remove(0);
 		stream.getFlowList().add(removedFlow);
 		
-		msgBusClient.sendToMaster("/", "/simulations", "POST", wc);
+		msgBusClient.sendToMaster("/", "/work_config", "DELETE", wc);
 		
 		
 		

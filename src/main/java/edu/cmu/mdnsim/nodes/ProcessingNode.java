@@ -265,6 +265,7 @@ public class ProcessingNode extends AbstractNode{
 					isStarted = true;
 				}
 				if(nodePacket.isLast()){
+					super.setUpstreamDone();
 					break;
 				}
 			}	
