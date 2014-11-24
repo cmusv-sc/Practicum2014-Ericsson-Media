@@ -340,7 +340,7 @@ public class Master {
 		String sinkUri;
 		try {
 			sinkUri = flow.getSinkNodeURI();
-			System.out.println("flow.getStreamId(): " + flow.getStreamId());
+			logger.info("Starting Flow " + flow.getFlowId() + " for Stream: " + flow.getStreamId());
 			msgBusSvr.send("/"+ flow.getFlowId(), sinkUri + "/tasks", "PUT", this.streamMap.get(flow.getStreamId()));
 			flowMap.remove(flow.getFlowId());
 			runningFlowMap.put(flow.getFlowId(), flow);
