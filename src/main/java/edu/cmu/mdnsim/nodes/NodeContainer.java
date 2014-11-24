@@ -77,7 +77,6 @@ public class NodeContainer {
 			IllegalAccessException, InvocationTargetException, 
 			ClassNotFoundException {
 		
-		System.err.println("CREATE a new node with ID=" + nodeId);
 		
 		if (nodeMap.containsKey(req.getNodeId())) {
 			return;

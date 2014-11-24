@@ -186,13 +186,7 @@ public class ProcessingNode extends AbstractNode{
 		private int rate;
 		private DatagramPacket packet;
 
-		/* For tracking packet lost */
-		int expectedMaxPacketId;
-		double packetNumPerSecond;
-		int packetNumInAWindow;
-		int lowPacketIdBoundry;
-		int highPacketIdBoundry;
-		int receivedPacketNumInAWindow;
+
 
 		public ProcessRunnable(Stream stream, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate) {
 
@@ -205,18 +199,12 @@ public class ProcessingNode extends AbstractNode{
 			this.processingMemory = processingMemory;
 			this.rate = rate;
 
-			/* For tracking packet lost */
-			expectedMaxPacketId = (int) Math.ceil(this.totalData * 1.0 / NodePacket.PACKET_MAX_LENGTH) - 1;
-			packetNumPerSecond = this.rate * 1.0 / NodePacket.PACKET_MAX_LENGTH;
-			packetNumInAWindow = (int) Math.ceil(packetNumPerSecond * MAX_WAITING_TIME_IN_MILLISECOND / 1000);
-			lowPacketIdBoundry = 0;
-			highPacketIdBoundry = Math.min(packetNumInAWindow - 1, expectedMaxPacketId);
-			receivedPacketNumInAWindow = 0;
-
 		}
 
 		@Override
 		public void run() {
+			
+			PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,0);
 
 			if(!initializeSocketAndPacket()){
 				return;
@@ -246,7 +234,6 @@ public class ProcessingNode extends AbstractNode{
 							isFinalWait = true;
 							continue;
 						}else{
-							setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					} else {	
@@ -265,33 +252,41 @@ public class ProcessingNode extends AbstractNode{
 					break;
 				} 
 				
-				/*
-				 * If reportTaskHandler is null, the packet is the first packet 
-				 * received.
-				 */
-				if(reportTask == null) {
-					reportTask = createAndLaunchReportTransportationRateRunnable();
-					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
-				}
+				
+
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
 				
 				
 				int packetId = nodePacket.getMessageId();
-				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
-				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
-					continue;
-				} else{
-					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
-				}
+				
+				packetLostTracker.updatePacketLost(packetId);
 
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
+				/*
+				 * If reportTaskHandler is null, the packet is the first packet 
+				 * received.
+				 */
+				if(reportTask == null) {
+					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
+					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
+				}
+
+				
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
-
+				
+				if(nodePacket.isLast()){
+					break;
+				}
 			}	
+			
+			/*
+			 * Calculating packet lost at the end
+			 */
+			packetLostTracker.updatePacketLostForLastTime();
 			
 			/*
 			 * The reportTask might be null when the NodeRunnable thread is 
@@ -358,27 +353,6 @@ public class ProcessingNode extends AbstractNode{
 		}
 
 		/**
-		 * Update the packet lost
-		 * @param status & packetId
-		 * @return 
-		 */
-		private void updatePacketLostBasedOnStatus(NewArrivedPacketStatus newArrivedPacketStatus, int packetId){
-			switch(newArrivedPacketStatus){
-			case BEHIND_WINDOW:
-				return;
-			case IN_WINDOW:
-				receivedPacketNumInAWindow++;
-				break;
-			case BEYOND_WINDOW:
-				setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
-				lowPacketIdBoundry = packetId;
-				highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
-				receivedPacketNumInAWindow = 1;
-				break;
-			}
-		}
-
-		/**
 		 * Initialize the receive and send DatagramSockets
 		 * @return true if succeed
 		 * 	       false if acquiring an non-exist socket
@@ -417,12 +391,14 @@ public class ProcessingNode extends AbstractNode{
 		 * Create and Launch a report thread
 		 * @return Future of the report thread
 		 */
-		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(){
 
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
-			//WarpThreadPool.executeCached(reportTransportationRateRunnable);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
+		private ReportTaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
+
+
+			ReportRateRunnable reportRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
+			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportRateRunnable), 0);
+			return new ReportTaskHandler(reportFuture, reportRateRunnable);
+
 		}
 
 		/**
@@ -490,22 +466,6 @@ public class ProcessingNode extends AbstractNode{
 			streamIdToSocketMap.remove(getStreamId());
 		}
 
-		/**
-		 * get packet status based on packetId
-		 * @param lowPacketIdBoundryInAWindow
-		 * @param highPacketIdBoundryInAWindow
-		 * @param packetId
-		 * @return status
-		 */
-		public NewArrivedPacketStatus getNewArrivedPacketStatus(int lowPacketIdBoundryInAWindow, int highPacketIdBoundryInAWindow, int packetId){
-			if(packetId > highPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEYOND_WINDOW;
-			} else if(packetId < lowPacketIdBoundryInAWindow){
-				return NewArrivedPacketStatus.BEHIND_WINDOW;
-			} else{
-				return NewArrivedPacketStatus.IN_WINDOW;
-			}
-		}
 
 		private class ReportTaskHandler {
 
@@ -580,9 +540,6 @@ public class ProcessingNode extends AbstractNode{
 		}
 	}
 
-	private enum NewArrivedPacketStatus{
-		BEYOND_WINDOW, IN_WINDOW, BEHIND_WINDOW; 
-	}
 
 
 

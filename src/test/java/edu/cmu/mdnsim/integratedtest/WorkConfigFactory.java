@@ -33,7 +33,7 @@ public class WorkConfigFactory {
 		/* Stream 1 */
 		Stream stream1 = new Stream();
 		stream1.setStreamId(streamID1);
-		stream1.setKiloBitRate("625000");
+		stream1.setKiloBitRate("62500");
 		stream1.setDataSize("20000000");
 		
 		Flow flow1 = new Flow();
@@ -146,7 +146,7 @@ public class WorkConfigFactory {
 		/* Create a stream */
 		Stream stream = new Stream();
 		stream.setStreamId(streamId);
-		stream.setKiloBitRate("625000");
+		stream.setKiloBitRate("20");
 		stream.setDataSize("20000000");
 		
 		/* Add one flow */
@@ -190,7 +190,7 @@ public class WorkConfigFactory {
 		sink2.put(Flow.NODE_ID, SINK2_ID);
 		sink2.put(Flow.UPSTREAM_ID, RELAY_ID);
 		
-		flow2.addNode(sink1);
+		flow2.addNode(sink2);
 		
 		relay = new HashMap<String, String>();
 		relay.put(Flow.NODE_TYPE, WorkConfig.RELAY_NODE_TYPE_INPUT);

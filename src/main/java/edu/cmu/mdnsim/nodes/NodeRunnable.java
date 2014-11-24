@@ -198,6 +198,7 @@ public abstract class NodeRunnable implements Runnable {
 
 		private int lastRecordedPacketLost = 0;
 
+		PacketLostTracker packetLostTracker;
 		// -1 to avoid time difference to be 0 when used as a divider
 		private long lastRecordedTime = System.currentTimeMillis() - 1;
 
@@ -207,8 +208,9 @@ public abstract class NodeRunnable implements Runnable {
 
 		private volatile boolean killed = false;
 
-		public ReportRateRunnable(int intervalInMillisecond) {
+		public ReportRateRunnable(int intervalInMillisecond, PacketLostTracker packetLostTracker) {
 			this.intervalInMillisecond = intervalInMillisecond;
+			this.packetLostTracker = packetLostTracker;
 			startedTime = System.currentTimeMillis();
 		}
 
@@ -221,7 +223,6 @@ public abstract class NodeRunnable implements Runnable {
 		 */
 		@Override
 		public void run() {
-
 			while (!killed) {
 				calculateAndReport();
 				try {
@@ -230,7 +231,6 @@ public abstract class NodeRunnable implements Runnable {
 					continue;
 				}
 			}
-
 			calculateAndReport();
 			System.out.println("ReportRateRunnable.run(): " + NodeRunnable.this.nodeId + " report thread has been interrupted.");
 			
@@ -251,40 +251,35 @@ public abstract class NodeRunnable implements Runnable {
 
 			int localToTalBytesTransfered = getTotalBytesTranfered();
 			int bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
-			long transportationInstantRate = (long) (bytesDiff * 1.0
-					/ timeDiffInMillisecond * 1000);
-			long transportationAverageRate = (long) (localToTalBytesTransfered
-					* 1.0 / totalTimeDiffInMillisecond * 1000);
+			double transportationInstantRate = ((double)bytesDiff/ timeDiffInMillisecond) * 1000;
+			double transportationAverageRate = 
+					((double)localToTalBytesTransfered / totalTimeDiffInMillisecond) * 1000;
 
-			int localPacketLostNum = getLostPacketNum();
+			//int localPacketLostNum = getLostPacketNum();
+			int localPacketLostNum = packetLostTracker.getLostPacketNum();
 			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			long dataLostInstantRate = (long) (lostDiff
-					* NodePacket.PACKET_MAX_LENGTH * 1.0
-					/ timeDiffInMillisecond * 1000);
-			long dateLostAverageRate = (long) (localPacketLostNum
-					* NodePacket.PACKET_MAX_LENGTH * 1.0
-					/ totalTimeDiffInMillisecond * 1000);
+			double dataLostInstantRate = lostDiff * 1.0 / timeDiffInMillisecond * 1000;
+			double dateLostAverageRate = localPacketLostNum * 1.0 / totalTimeDiffInMillisecond * 1000;
 
 			lastRecordedTotalBytes = localToTalBytesTransfered;
 			lastRecordedPacketLost = localPacketLostNum;
 			lastRecordedTime = currentTime;
 
 			if (startedTime != 0) {
-					reportTransportationRate(transportationAverageRate,
-							transportationInstantRate);
+				reportTransportationRate(transportationAverageRate, transportationInstantRate);
 				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
 			}
 		}
 
-		private void reportPacketLost(long packetLostAverageRate,
-				long dataLostInstantRate) {
-			System.out.println("[Packet Lost] " + packetLostAverageRate + " "
-					+ dataLostInstantRate);
+		private void reportPacketLost(double packetLostAverageRate, double packetLostInstantRate) {
+			System.out.println("[Packet Lost] " + String.format("%.2f", packetLostAverageRate) + " " + packetLostInstantRate);
 		}
 
-		private void reportTransportationRate(long averageRate, long instantRate) {
-			System.out
-					.println("[RATE]" + " " + averageRate + " " + instantRate);
+		private void reportTransportationRate(double averageRate, double instantRate) {
+			double averageRateInKiloBitsPerSec = averageRate / 128;
+			double instantRateInKiloBitsPerSec = instantRate / 128;
+			System.out.println("[RATE in KBits per sec]" + " " + (averageRateInKiloBitsPerSec) + " " + (instantRateInKiloBitsPerSec));
+			
 			NodeType nodeType = getNodeType();
 			System.out.println("NodeType:" + nodeType);
 			String fromPath = getNodeId()
@@ -294,8 +289,8 @@ public abstract class NodeRunnable implements Runnable {
 				msg.setEventType(EventType.PROGRESS_REPORT);
 				msg.setStreamId(NodeRunnable.this.getStreamId());
 				msg.setDestinationNodeId(getUpStreamId());
-				msg.setAverageRate("" + averageRate);
-				msg.setCurrentRate("" + instantRate);
+				msg.setAverageRate("" + averageRateInKiloBitsPerSec);
+				msg.setCurrentRate("" + instantRateInKiloBitsPerSec);
 				try {
 					msgBusClient.sendToMaster(fromPath,
 							"/sink_report", "POST", msg);
@@ -307,8 +302,8 @@ public abstract class NodeRunnable implements Runnable {
 				msg.setEventType(EventType.PROGRESS_REPORT);
 				msg.setStreamId(NodeRunnable.this.getStreamId());
 				msg.setDestinationNodeId(getUpStreamId());
-				msg.setAverageRate("" + averageRate);
-				msg.setCurrentRate("" + instantRate);
+				msg.setAverageRate("" + averageRateInKiloBitsPerSec);
+				msg.setCurrentRate("" + instantRateInKiloBitsPerSec);
 				try {
 					msgBusClient.sendToMaster(fromPath,
 							"/processing_report", "POST", msg);

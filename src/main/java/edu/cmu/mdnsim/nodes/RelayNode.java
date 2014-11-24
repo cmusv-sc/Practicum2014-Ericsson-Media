@@ -59,6 +59,7 @@ public class RelayNode extends AbstractNode{
 			destPort = Integer.valueOf(destinationAddressAndPort[1]);
 			String downStreamUri = nodePropertiesMap.get(Flow.DOWNSTREAM_URI);
 			if(streamIdToRunnableMap.get(stream.getStreamId()) != null){
+
 				//Add new flow to the stream object maintained by NodeRunable
 				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.getStream().mergeFlow(flow);
 				//A new downstream node is connected to relay, just add it to existing runnable
@@ -185,8 +186,11 @@ public class RelayNode extends AbstractNode{
 		public void run() {
 			if(!initializeSocketAndPacket()){
 				return;
-			}
-			boolean isStarted = false;
+			}		
+			PacketLostTracker packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
+					Integer.parseInt(this.getStream().getKiloBitRate()),
+					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
+
 			boolean isFinalWait = false;
 			ReportTaskHandler reportTaskHandler = null;
 			while (!isKilled()) {
@@ -211,7 +215,7 @@ public class RelayNode extends AbstractNode{
 				} 
 
 				if(reportTaskHandler == null) {
-					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
+					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 					
@@ -220,15 +224,6 @@ public class RelayNode extends AbstractNode{
 
 				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
 
-				//				int packetId = nodePacket.getMessageId();
-				//				NewArrivedPacketStatus newArrivedPacketStatus = getNewArrivedPacketStatus(lowPacketIdBoundry, highPacketIdBoundry, packetId);
-				//				if(newArrivedPacketStatus == NewArrivedPacketStatus.BEHIND_WINDOW){
-				//					continue;
-				//				} else{
-				//					updatePacketLostBasedOnStatus(newArrivedPacketStatus, packetId);
-				//				}
-
-				//setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
 				//Send data to all destination nodes
 				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);				

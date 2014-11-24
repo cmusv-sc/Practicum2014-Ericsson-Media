@@ -8,9 +8,8 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
-import com.ericsson.research.trap.utils.Future;
-import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
 import com.ericsson.research.warp.util.JSON;
 
@@ -23,6 +22,9 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.util.Utility;
+//github.com/cmusv-sc/Practicum2014-Ericsson-Media.git
+import com.ericsson.research.trap.utils.Future;
+import com.ericsson.research.trap.utils.ThreadPool;
 
 public class SourceNode extends AbstractNode {
 
@@ -49,9 +51,9 @@ public class SourceNode extends AbstractNode {
 			String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 			String destAddrStr = ipAndPort[0];
 			int destPort = Integer.parseInt(ipAndPort[1]);
-			int dataSize = Integer.parseInt(flow.getDataSize());
-			int rate = Integer.parseInt(flow.getKiloBitRate());
-
+			int dataSizeInBytes = Integer.parseInt(flow.getDataSize());
+			int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
+			int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  
 			//Get up stream and down stream node ids
 			//As of now Source Node does not have upstream id
 			//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
@@ -59,7 +61,7 @@ public class SourceNode extends AbstractNode {
 
 			try {
 				createAndLaunchSendRunnable(stream, InetAddress.getByName(destAddrStr), destPort, 
-						dataSize, rate);					
+						dataSizeInBytes, rateInBytesPerSec);					
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			}	
@@ -178,7 +180,7 @@ public class SourceNode extends AbstractNode {
 
 			report(EventType.SEND_START);
 
-			ReportTaskHandler reportTaskHandler = null;	
+			
 			long startedTime = 0;
 			int packetId = 0;
 
@@ -187,17 +189,19 @@ public class SourceNode extends AbstractNode {
 
 				NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 				packet.setData(nodePacket.serialize());
+				Random random = new Random();
 				try {
-					sendSocket.send(packet);
+					if(random.nextDouble() > 0.5){
+						sendSocket.send(packet);
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 
 				if(startedTime == 0){
 					startedTime = System.currentTimeMillis();
-					reportTaskHandler = createAndLaunchReportTransportationRateRunnable();
 				}
-
+				
 				bytesToTransfer -= packet.getLength();
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
@@ -212,26 +216,7 @@ public class SourceNode extends AbstractNode {
 				}
 				packetId++;
 			}
-			
-			/*
-			 * ReportTaskHandler might be null as the thread might be killed
-			 * before the while loop. The report thread is started in the while
-			 * loop. Therefore, the reportTaskHandler might be null.
-			 * 
-			 */
-			if(reportTaskHandler != null){
-				
-				/*
-				 * Kill the report thread.
-				 * 
-				 */
-				reportTaskHandler.kill();
-				
-				/*
-				 * Wait for report thread completes totally.
-				 */
-				while(!reportTaskHandler.isDone());
-			}
+
 			
 			/*
 			 * No mater what final state is, the NodeRunnable should always
@@ -281,7 +266,6 @@ public class SourceNode extends AbstractNode {
 				
 			}
 
-
 		}
 
 
@@ -305,15 +289,6 @@ public class SourceNode extends AbstractNode {
 			return true;	
 		}
 
-		/**
-		 * Create and Launch a report thread
-		 * @return Future of the report thread
-		 */
-		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(){
-			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
-			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
-		}
 
 		/**
 		 * Clean up all resources for this thread.
@@ -348,26 +323,6 @@ public class SourceNode extends AbstractNode {
 			};
 		}
 
-		private class ReportTaskHandler {
-
-			Future reportFuture;
-			ReportRateRunnable reportRunnable;
-
-			public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
-				this.reportFuture = future;
-				reportRunnable = runnable;
-			}
-
-			public void kill() {
-				reportRunnable.kill();
-			}
-
-			public boolean isDone() {
-				return reportFuture.isDone();
-			}
-
-		}
-
 		@Override
 		protected void sendEndMessageToDownstream() {
 			try {
@@ -381,10 +336,6 @@ public class SourceNode extends AbstractNode {
 		
 		
 	}
-
-
-
-
 
 	private class StreamTaskHandler {
 		private Future streamFuture;

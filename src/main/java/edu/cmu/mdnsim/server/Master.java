@@ -384,8 +384,7 @@ public class Master {
 	 * This method is the listener for RESET functionality
 	 */
 	public void removeAllNodes() {
-		
-		System.err.println("RECEIVED RESET");
+
 		for (String key : nodeContainerTbl.keySet()) {
 			String nodeURI = nodeContainerTbl.get(key);
 			try {
@@ -410,7 +409,7 @@ public class Master {
 			String streamId = stream.getStreamId();
 			String kiloBitRate = stream.getKiloBitRate();
 			String dataSize = stream.getDataSize();
-
+			
 			for (Flow flow : stream.getFlowList()) {
 				String flowId = flow.generateFlowId(streamId);
 				flow.setStreamId(streamId);
@@ -422,8 +421,8 @@ public class Master {
 				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
 				while(nodesReverseIterator.hasPrevious()){
 					Map<String,String> nodeProperties = (Map<String,String>)nodesReverseIterator.previous();
-					String nodeId = nodeProperties.get("NodeId");
-					String nodeType = nodeProperties.get("NodeType");
+					String nodeId = nodeProperties.get(Flow.NODE_ID);
+					String nodeType = nodeProperties.get(Flow.NODE_TYPE);
 					webClientGraph.addNode(nodeProperties);
 					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
@@ -434,18 +433,18 @@ public class Master {
 						 */
 						nodesToInstantiate.put(nodeId, nodeType);
 
-						//synchronized(this.flowsInNodeMap) {
-							ArrayList<Flow> flowList;
-							if (this.flowsInNodeMap.containsKey(nodeId)) {
-								// update existing flowList
-								flowList = this.flowsInNodeMap.get(nodeId);
-							} else {
-								// create a new flowList and add it to the map
-								flowList = new ArrayList<Flow>();
-							}
-							flowList.add(flow);
-							this.flowsInNodeMap.put(nodeId, flowList);
-						//}
+
+						ArrayList<Flow> flowList;
+						if (this.flowsInNodeMap.containsKey(nodeId)) {
+							// update existing flowList
+							flowList = this.flowsInNodeMap.get(nodeId);
+						} else {
+							// create a new flowList and add it to the map
+							flowList = new ArrayList<Flow>();
+						}
+						flowList.add(flow);
+						this.flowsInNodeMap.put(nodeId, flowList);
+
 					} else {
 						/* update the flow with the nodeUri */
 						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
@@ -472,7 +471,7 @@ public class Master {
 		}
 		//Generate locations for all the nodes
 		webClientGraph.setLocations();
-
+		
 		instantiateNodes();
 	}
 
