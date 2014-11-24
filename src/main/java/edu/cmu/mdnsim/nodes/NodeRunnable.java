@@ -160,7 +160,7 @@ public abstract class NodeRunnable implements Runnable {
 		Stream stream = NodeRunnable.this.getStream();
 		for(Flow flow : stream.getFlowList()){
 			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
-			if(nodeMap != null){
+			if(nodeMap != null && nodeMap.get(Flow.DOWNSTREAM_ID) != null){
 				downStreamIds.add(nodeMap.get(Flow.DOWNSTREAM_ID));
 			}
 		}
@@ -171,7 +171,9 @@ public abstract class NodeRunnable implements Runnable {
 		Stream stream = getStream();
 		for(Flow flow : stream.getFlowList()){
 			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
-			if(nodeMap != null){
+			//Down Stream URI may be null for some nodes as there might be multiple flows in a single stream having same node 
+			// but downstream uri will be updated only for one node in the stream spec
+			if(nodeMap != null && nodeMap.get(Flow.DOWNSTREAM_URI) != null){
 				downStreamURIs.add(nodeMap.get(Flow.DOWNSTREAM_URI));
 			}
 		}

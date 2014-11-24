@@ -17,7 +17,6 @@ import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
 import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
@@ -35,8 +34,6 @@ import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
 import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeContainer;
-import edu.cmu.mdnsim.server.WebClientGraph.Edge;
-import edu.cmu.mdnsim.server.WebClientGraph.Node;
 import edu.cmu.util.HtmlTags;
 import edu.cmu.util.Utility;
 /**
@@ -55,16 +52,16 @@ import edu.cmu.util.Utility;
  *
  */
 public class Master {
+	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
+	
 	/**
-	 * The Message Bus Server is part of the master node and is started 
+	 * The Message Bus Server is part of the master node and is started along with master
 	 */
 	MessageBusServer msgBusSvr;
-	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 	/**
 	 * Contains a mapping of the node container label to the URI
 	 */
 	private Map<String, String> nodeContainerTbl = new ConcurrentHashMap<String, String>();
-
 	/**
 	 * Maintains the double direction HashMap. So that the map relationship between
 	 * node name and URI can be easily got.
@@ -102,11 +99,6 @@ public class Master {
 	 * webClientURI records the URI of the web client
 	 */
 	private String webClientURI;
-	/**
-	 * Indicates whether a graph has been created in the web client 
-	 */
-	boolean graphCreated = false;
-
 	/**
 	 * Global object representing the nodes and edges as shown in WebClient. 
 	 * This will be initialized or updated whenever users uploads a new simulation script.
@@ -348,6 +340,7 @@ public class Master {
 		String sinkUri;
 		try {
 			sinkUri = flow.getSinkNodeURI();
+			System.out.println("flow.getStreamId(): " + flow.getStreamId());
 			msgBusSvr.send("/"+ flow.getFlowId(), sinkUri + "/tasks", "PUT", this.streamMap.get(flow.getStreamId()));
 			flowMap.remove(flow.getFlowId());
 			runningFlowMap.put(flow.getFlowId(), flow);
@@ -405,10 +398,16 @@ public class Master {
 	public synchronized void uploadWorkConfig(Message mesg, WorkConfig wc) {
 
 		for (Stream stream : wc.getStreamList()) {
-			
+			String streamId = stream.getStreamId();
+			String kiloBitRate = stream.getKiloBitRate();
+			String dataSize = stream.getDataSize();
 			for (Flow flow : stream.getFlowList()) {
+				
 				String flowId = flow.generateFlowId();
 				flow.updateFlowWithDownstreamIds();
+				flow.setStreamId(streamId);
+				flow.setDataSize(dataSize);
+				flow.setKiloBitRate(kiloBitRate);
 				//We are adding the nodes in reverse order because nodes are created in reverse order 
 				//- first sink then others and finally Source node. If the work config order changes then following code needs to be changed				
 				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
@@ -419,14 +418,9 @@ public class Master {
 					webClientGraph.addNode(nodeProperties);
 					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
-						/*  If a node in the flow is not registered yet,
-						 *  add it to a list of nodes to be instantiated
-						 *  and add it a list of pending flows waiting 
-						 *  for a node to register itself
-						 */
+						//If a node in the flow is not registered yet, add it to a list of nodes to be instantiated
+						//  and add it a list of pending flows waiting for a node to register itself
 						nodesToInstantiate.put(nodeId, nodeType);
-
-
 						ArrayList<Flow> flowList;
 						if (this.flowsInNodeMap.containsKey(nodeId)) {
 							// update existing flowList
@@ -437,7 +431,6 @@ public class Master {
 						}
 						flowList.add(flow);
 						this.flowsInNodeMap.put(nodeId, flowList);
-
 					} else {
 						/* update the flow with the nodeUri */
 						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
@@ -447,14 +440,14 @@ public class Master {
 				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);
 				}
-
+				System.out.println("Flow: " +  flow);
 				/* If the flow is ready to run, i.e. all the nodes in the flow
 				 * are registered with the master, then start the flow
 				 */
 				if (flow.canRun())
 					this.runFlow(flow);
 			}
-			String streamId = stream.getStreamId();
+			
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {

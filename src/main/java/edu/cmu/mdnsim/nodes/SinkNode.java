@@ -45,22 +45,18 @@ public class SinkNode extends AbstractNode{
 		}
 
 		Flow flow = stream.findFlow(this.getFlowId(request));
-		//Get the processing node properties
+		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
-		if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-			Integer port = this.getAvailablePort(flow.getStreamId());
-			lanchReceiveRunnable(stream);
-			System.out.println("[SINK] UpStream Node Id" + flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID)));
-			//Send the stream spec to upstream uri
-			Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-			upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
-			try {
-				logger.debug("[SINK] From path " + "/" + getNodeId() + "/tasks/" + flow.getFlowId());
-				msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
-						nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			}
+		Integer port = this.getAvailablePort(flow.getStreamId());
+		lanchReceiveRunnable(stream);
+		//Send the stream spec to upstream uri
+		Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+		upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
+		try {
+			msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
+					nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
+		} catch (MessageBusException e) {
+			logger.debug("Could not send work config spec to upstream node." + e.toString());
 		}
 	}
 
@@ -76,9 +72,9 @@ public class SinkNode extends AbstractNode{
 
 	@Override
 	public void terminateTask(Flow flow) {
-		
+
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
-		
+
 		if(streamTaskHandler == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -157,7 +153,6 @@ public class SinkNode extends AbstractNode{
 				try{
 					receiveSocket.receive(packet);
 				} catch(SocketTimeoutException ste){
-
 					if(this.isUpstreamDone()){
 						if(!isFinalWait){
 							isFinalWait = true;
@@ -168,9 +163,7 @@ public class SinkNode extends AbstractNode{
 					}	
 					continue;
 				} catch (IOException e) {
-					
-					System.err.println("Received IOException.");
-					
+					logger.error(e.toString());
 					break;
 				}
 
@@ -189,16 +182,16 @@ public class SinkNode extends AbstractNode{
 					break;
 				}
 			}	
-			
+
 			/*
 			 * The reportTask might be null when the NodeRunnable thread is 
 			 * killed before enters the while loop.
 			 * 
 			 */
 			if(reportTaksHandler != null){
-				
+
 				reportTaksHandler.kill();
-				
+
 				/*
 				 * Wait for reportTask completely finished.
 				 */
@@ -215,29 +208,29 @@ public class SinkNode extends AbstractNode{
 			packetLostTracker.updatePacketLostForLastTime();
 
 			if (isUpstreamDone()) { //Simulation completes as informed by upstream.
-				
+
 				clean();
-				
+
 				if (ClusterConfig.DEBUG) {
-					
+
 					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has finished.");
-				
+
 				}
 			} else if (isReset()) {
-				
+
 				clean();
-				
+
 				if (ClusterConfig.DEBUG) {
-					
+
 					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has been reset.");
-				
+
 				}
-				
+
 			} else {
 				if (ClusterConfig.DEBUG) {
-					
+
 					System.out.println("[DEBUG]SinkNode.SinkRunnable.run():" + " This thread has been killed.");
-				
+
 				}
 			}
 			if (ClusterConfig.DEBUG) {
@@ -282,7 +275,7 @@ public class SinkNode extends AbstractNode{
 		 */
 
 		private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(PacketLostTracker packetLostTracker){	
-			
+
 			ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
@@ -374,11 +367,11 @@ public class SinkNode extends AbstractNode{
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-		
+
 		public void reset() {
 			streamTask.reset();
 		}
-		
+
 		public void clean() {
 			streamTask.clean();
 		}

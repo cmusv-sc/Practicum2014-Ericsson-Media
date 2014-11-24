@@ -263,4 +263,18 @@ public class Flow extends MbMessage {
 
 		return true;
 	}
+	@Override
+	public String toString(){
+		StringBuilder sb = new StringBuilder();
+		sb.append("FlowId : ");sb.append(this.getFlowId());sb.append("\n");
+		sb.append("StreamId : ");sb.append(this.getStreamId());sb.append("\n");
+		for(Map<String,String> nodes: this.getNodeList()){
+			for(Map.Entry<String,String> nodeProperties : nodes.entrySet()){
+				sb.append(nodeProperties.getKey());
+				sb.append(nodeProperties.getValue());
+				sb.append("\n");
+			}
+		}
+		return sb.toString();
+	}
 }
