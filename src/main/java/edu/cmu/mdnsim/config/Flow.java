@@ -89,7 +89,17 @@ public class Flow extends MbMessage {
 		Map<String, String>sinkNodeMap = nodeList.get(0);
 		return sinkNodeMap.get(NODE_ID);
 	}
-	
+	/**
+	 * Extracts Stream Id from given flow id
+	 * Assumption: FlowId is as per format specified in {@link edu.cmu.mdnsim.config.Flow#generateFlowId()}
+	 * @param flowId
+	 * @return null if input is null. 
+	 */
+	public static String extractStreamId(String flowId){
+		if(flowId != null)
+			return flowId.substring(0,flowId.indexOf("-"));
+		return null;
+	}
 	/**
 	 * Find the node map according to the nodeId
 	 * @param nodeId
@@ -121,6 +131,7 @@ public class Flow extends MbMessage {
 			sb.append(nodeMap.get(Flow.NODE_ID));
 		}
 		flowId = sb.toString();
+		System.out.println("Flow Id: " + flowId);
 		return flowId;
 	}
 	

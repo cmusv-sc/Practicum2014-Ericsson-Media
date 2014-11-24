@@ -24,29 +24,6 @@
 			  ]
 		  }
 	  ]
-	},
-	{
-	  "StreamId":"stream1234",
-	  "DataSize":"200000",
-	  "KiloBitRate":"60",
-	  "FlowList":
-	  [
-		  {
-		    "NodeList":
-			  [
-				{
-				  "NodeType":"SinkNode",
-				  "NodeId":"apple:sink2",
-				  "UpstreamId":"orange:source1"
-				},
-				{
-				  "NodeType":"SourceNode",
-				  "NodeId":"orange:source1",
-				  "UpstreamId":"NULL"
-				}
-			  ]
-		  }
-	  ]
 	}
   ]
 }

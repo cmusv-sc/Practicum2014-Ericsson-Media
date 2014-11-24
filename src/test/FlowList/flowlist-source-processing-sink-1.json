@@ -13,12 +13,12 @@
 			  [
 				{
 				  "NodeType":"SinkNode",
-				  "NodeId":"apple:sink6",
-				  "UpstreamId":"tomato:processing2"
+				  "NodeId":"apple:sink1",
+				  "UpstreamId":"tomato:processing1"
 				},
 				{
 				  "NodeType":"ProcessingNode",
-				  "NodeId":"tomato:processing2",
+				  "NodeId":"tomato:processing1",
 				  "UpstreamId":"orange:source1",
 				  "ProcessingLoop":"100000",
 				  "ProcessingMemory":"1000"

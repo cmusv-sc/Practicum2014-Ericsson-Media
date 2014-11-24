@@ -3,7 +3,6 @@ package edu.cmu.mdnsim.server;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.ListIterator;
@@ -25,13 +24,9 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusServer;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
-import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
-import edu.cmu.mdnsim.messagebus.message.RelayReportMessage;
-import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
-import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
+import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.util.HtmlTags;
@@ -53,7 +48,7 @@ import edu.cmu.util.Utility;
  */
 public class Master {
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
-	
+
 	/**
 	 * The Message Bus Server is part of the master node and is started along with master
 	 */
@@ -134,7 +129,7 @@ public class Master {
 
 		/* Register a new node. This is called from a real Node */
 		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
-		
+
 		msgBusSvr.addMethodListener("/nodes", "DELETE", this, "removeAllNodes");
 
 		/* Register a new node container. This is called from a node container */
@@ -142,7 +137,7 @@ public class Master {
 
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
 		msgBusSvr.addMethodListener("/work_config", "POST", this, "startWorkConfig");
-		
+
 		/* The user specified work specification in JSON format is validated and graph JSON is generated*/
 		msgBusSvr.addMethodListener("/work_config", "DELETE", this, "stopWorkConfig");
 
@@ -152,21 +147,11 @@ public class Master {
 		/* Add listener for web browser call (start simulation) */
 		msgBusSvr.addMethodListener("/start_simulation", "POST", this, "startSimulation");
 
-		/* Source report listener */
-		msgBusSvr.addMethodListener("/source_report", "POST", this, "sourceReport");
-
-		/* Sink report listener */
-		msgBusSvr.addMethodListener("/sink_report", "POST", this, "sinkReport");
-
-		/* Proc Node report listener */
-		msgBusSvr.addMethodListener("/processing_report", "POST", this, "procReport");
-		
-		/* Relay Node report listener */
-		msgBusSvr.addMethodListener("/relay_report", "POST", this, "relayReport");
-		
 		/* Add listener for suspend a simulation */
 		msgBusSvr.addMethodListener("/simulations", "DELETE", this, "resetSimulation");		
-		
+
+		/* Stream report listener */
+		msgBusSvr.addMethodListener("/stream_report", "POST", this, "streamReport");
 	}
 
 
@@ -291,19 +276,19 @@ public class Master {
 			//Synchronization is required to ensure that we get latest values of the nodeNameToURITbl map 
 			//as it will be updated independently by the nodes as they come up
 			//synchronized(System.in){
-				try {
-					WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
-					msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
-				} catch (MessageBusException e) {
-					e.printStackTrace();
-				}
+			try {
+				WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
+				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
+			} catch (MessageBusException e) {
+				e.printStackTrace();
+			}
 			//}
 		}
 
 		// remove the node from nodesToInstantiate Map
 		this.nodesToInstantiate.remove(nodeName);
 
-		
+
 		/*
 		 *  For every flow in the flowList of a nodeId (the list of flows that are waiting for a node to
 		 *  register itself), update the flow with the nodeUri.
@@ -374,14 +359,14 @@ public class Master {
 			}
 		}
 	}
-	
+
 	/**
 	 * Reset the entire system
 	 */
 	public synchronized void resetSimulation() {
 		removeAllNodes();
 	}
-	
+
 	/**
 	 * This method is the listener for RESET functionality
 	 */
@@ -395,7 +380,7 @@ public class Master {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 
 	/**
@@ -411,12 +396,11 @@ public class Master {
 			String kiloBitRate = stream.getKiloBitRate();
 			String dataSize = stream.getDataSize();
 			for (Flow flow : stream.getFlowList()) {
-				
-				String flowId = flow.generateFlowId();
 				flow.updateFlowWithDownstreamIds();
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
+				String flowId = flow.generateFlowId();
 				//We are adding the nodes in reverse order because nodes are created in reverse order 
 				//- first sink then others and finally Source node. If the work config order changes then following code needs to be changed				
 				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
@@ -456,7 +440,7 @@ public class Master {
 				if (flow.canRun())
 					this.runFlow(flow);
 			}
-			
+
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {
@@ -466,7 +450,7 @@ public class Master {
 		}
 		//Generate locations for all the nodes
 		webClientGraph.setLocations();
-		
+
 		instantiateNodes();
 	}
 
@@ -570,42 +554,10 @@ public class Master {
 			msgBusSvr.send("/", webClientURI.toString()+"/update", "POST", webClientUpdateMessage);
 	}
 
-	/**
-	 * Reports sent by the Source Nodes
-	 * @param request
-	 * @param srcMsg
-	 * @throws MessageBusException 
-	 * @throws WarpException
-	 */
-	public synchronized void sourceReport(Message request, SourceReportMessage srcMsg) throws MessageBusException {
-		String nodeId = getNodeId(request);
-		String nodeMsg = null;
-		String edgeColor = null;
-		String edgeMsg = null;
-		String logMsg = null;
-		//TODO: Change node and edge messages to have a table with different streams and their status
-		if(srcMsg.getEventType() == EventType.SEND_START){
-			//TODO: Change the logic for calculating latency
-			putStartTime(srcMsg.getStreamId(), srcMsg.getTime());
-			logMsg = nodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
-			edgeColor = "rgb(0,255,0)";
-			edgeMsg = "Started Stream Id: " + srcMsg.getStreamId();
-		} else { //SEND_END event
-			logMsg  = nodeMsg = "Done sending data for stream " + srcMsg.getStreamId() ;
-			edgeColor = "rgb(0,0,0)";
-			edgeMsg = "Ended Stream Id: " + srcMsg.getStreamId();
-		}
-		logger.info(Utility.getFormattedLogMessage(logMsg, nodeId));
-		
-		webClientGraph.updateNode(nodeId, nodeMsg);
-		webClientGraph.updateEdge(nodeId,srcMsg.getDestinationNodeId(), edgeMsg, edgeColor);
-
-		updateWebClient(webClientGraph.getUpdateMessage());
-	}
-
 
 	/**
 	 * Extracts node id from messageRequest.from
+	 * nodeId should be before last "/" and after last second "/" in the request.from string
 	 * It will throw runtime exceptions if message is not in proper format
 	 * @param request
 	 * @return NodeId
@@ -617,114 +569,6 @@ public class Master {
 		return nodeId;
 	}
 
-	/**
-	 * The report sent by the sink nodes
-	 * @param request
-	 * @param sinkMsg
-	 * @throws MessageBusException 
-	 */
-	public synchronized void sinkReport(Message request, SinkReportMessage sinkMsg) throws MessageBusException {
-		long totalTime = 0;
-		String nodeId = getNodeId(request);
-		String nodeMsg = null;
-		String edgeColor = null;
-		String edgeMsg = null;
-		String logMsg = null;
-		if(sinkMsg.getEventType() == EventType.RECEIVE_START){
-			logMsg = nodeMsg = "Started receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
-					sinkMsg.getTotalBytes() + " bytes." ;
-			edgeColor = "rgb(0,255,0)";
-			edgeMsg =  "Stream Id: " + sinkMsg.getStreamId();
-		}else if(sinkMsg.getEventType() == EventType.RECEIVE_END){
-			try {
-				totalTime = Utility.stringToMillisecondTime(sinkMsg.getTime()) 
-						- Utility.stringToMillisecondTime(this.getStartTimeForFlow(sinkMsg.getStreamId()));
-			} catch (ParseException e) {
-				e.printStackTrace();
-				totalTime = -1;
-			}
-			logMsg = nodeMsg  = "Done receiving data for stream " + sinkMsg.getStreamId() + " . Got " + 
-					sinkMsg.getTotalBytes() + " bytes. Time Taken: " + totalTime + " ms." ;
-			edgeColor = "rgb(0,0,0)";
-			edgeMsg = "Stream Id: " + sinkMsg.getStreamId();
-		}else if (sinkMsg.getEventType() == EventType.PROGRESS_REPORT) {
-			logMsg = edgeMsg = "Stream Id: " + sinkMsg.getStreamId() + HtmlTags.BR + 
-					"Average Rate = " + sinkMsg.getAverageRate() + HtmlTags.BR + 
-					"Current Rate = " + sinkMsg.getCurrentRate();
-		}
-		logger.info(Utility.getFormattedLogMessage(logMsg, nodeId));
-		
-		webClientGraph.updateNode(nodeId, nodeMsg);
-		webClientGraph.updateEdge(sinkMsg.getDestinationNodeId(), nodeId, edgeMsg, edgeColor);
-
-		updateWebClient(webClientGraph.getUpdateMessage());
-	}
-
-	public synchronized void procReport(Message request, ProcReportMessage procReport) throws MessageBusException {
-		String nodeId = getNodeId(request);
-		String logMsg = null;
-		String nodeMsg = null;
-		String edgeMsg = null;
-		String edgeColor = null;
-		if(procReport.getEventType() == EventType.RECEIVE_START){
-			logMsg = String.format("Master.precReport(): PROC node starts receiving (Stream ID=%s)", procReport.getStreamId());
-			nodeMsg = "Processing Node started processing data for stream " + procReport.getStreamId() ;
-			webClientGraph.updateNode(nodeId,nodeMsg);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		} else if (procReport.getEventType() == EventType.RECEIVE_END) {
-			logMsg = String.format("Master.procReport(): PROC node ends receiving for stream: " + procReport.getStreamId());
-		} else if (procReport.getEventType() == EventType.SEND_END) {
-			logMsg = String.format("Master.precReport(): PROC node ends sending for stream: " + procReport.getStreamId());;
-		} else if (procReport.getEventType() == EventType.SEND_START) {
-			logMsg = String.format("Processing node starts sending for stream: " + procReport.getStreamId());
-			edgeMsg = "Started Flow Id: " + procReport.getStreamId();
-			edgeColor = "rgb(0,255,0)";
-			webClientGraph.updateEdge(nodeId, procReport.getDestinationNodeId(), edgeMsg, edgeColor);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		} else{
-			logMsg = String.format("Master.precReport(): PROC node starts receiving");
-			//if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
-			edgeMsg = "Stream Id: " + procReport.getStreamId() + HtmlTags.BR + 
-					"Average Rate = " + procReport.getAverageRate() + HtmlTags.BR +	 
-					"Current Rate = " + procReport.getCurrentRate();
-			webClientGraph.updateEdge(procReport.getDestinationNodeId(),nodeId, edgeMsg);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		}
-		logger.info(logMsg);
-	}
-	
-	public synchronized void relayReport(Message request, RelayReportMessage relayReport) throws MessageBusException {
-		String nodeId = getNodeId(request);
-		String logMsg = null;
-		String nodeMsg = null;
-		String edgeMsg = null;
-		String edgeColor = null;
-		if(relayReport.getEventType() == EventType.RECEIVE_START){
-			logMsg = String.format("Master.relayReport(): Relay node starts receiving (Stream ID=%s)", relayReport.getStreamId());
-			nodeMsg = "Relay Node started processing data for stream " + relayReport.getStreamId() ;
-			webClientGraph.updateNode(nodeId,nodeMsg);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		} else if (relayReport.getEventType() == EventType.RECEIVE_END) {
-			logMsg = String.format("Master.procReport(): Relay node ends receiving for stream: " + relayReport.getStreamId());
-		} else if (relayReport.getEventType() == EventType.SEND_END) {
-			logMsg = String.format("Master.precReport(): Relay node ends sending for stream: " + relayReport.getStreamId());;
-		} else if (relayReport.getEventType() == EventType.SEND_START) {
-			logMsg = String.format("Relay node starts sending for stream: " + relayReport.getStreamId());
-			edgeMsg = "Started Flow Id: " + relayReport.getStreamId();
-			edgeColor = "rgb(0,255,0)";
-			webClientGraph.updateEdge(nodeId, relayReport.getDestinationNodeId(), edgeMsg, edgeColor);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		} else{
-			logMsg = String.format("Master.precrelayReportReport(): Relay node starts receiving");
-			//if (procReport.getEventType() == EventType.PROGRESS_REPORT) {
-			edgeMsg = "Stream Id: " + relayReport.getStreamId() + HtmlTags.BR + 
-					"Average Rate = " + relayReport.getAverageRate() + HtmlTags.BR +	 
-					"Current Rate = " + relayReport.getCurrentRate();
-			webClientGraph.updateEdge(relayReport.getDestinationNodeId(),nodeId, edgeMsg);
-			updateWebClient(webClientGraph.getUpdateMessage());
-		}
-		logger.info(logMsg);
-	}
 
 	public void putStartTime(String flowId, String startTime) {
 		this.startTimeMap.put(flowId, startTime);
@@ -743,23 +587,23 @@ public class Master {
 			logger.debug("[DEBUG]Master.stopSimulation(): Received stop "
 					+ "simulation request.");
 		}
-		
+
 		for (Stream stream : wc.getStreamList()) {
 			stopStream(stream);
 		}
 
 	}
-	
+
 	private void stopStream(Stream stream) {
-		
+
 		for (Flow flow : stream.getFlowList()) {
 			stopFlow(flow);
 		}
-		
+
 	}
-	
+
 	private void stopFlow(Flow flow) {
-		
+
 		/*
 		 * A flow switch is required here as some fields of the flow submitted 
 		 * by user are missing. Therefore switch to the flow in Master's memory
@@ -770,14 +614,88 @@ public class Master {
 
 		/* Flow is replaced with one in running map */
 		flow = runningFlowMap.get(flowId);
-		
+
 		assert flow.isValidFlow();
-		
+
 		try {
 			msgBusSvr.send("/", flow.getSinkNodeURI() + "/tasks", "POST", flow);
 		} catch (MessageBusException e) {
 			logger.debug("Failed to send stop control message to sink node(" + flow.getSindNodeId() + ")");
 		}
+	}
+
+	public void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
+		String nodeIdOfReportSender = getNodeId(request);		
+		String streamId = getStreamId(request);
+		//logger.debug("[Stream Report] Source NodeId: " + nodeIdOfReportSender + ", Destination NodeId:"  + reportMsg.getDestinationNodeId());
+		String sourceNodeId  = nodeIdOfReportSender;
+		String destinationNodeId = reportMsg.getDestinationNodeId();
+		String nodeMsg = null;
+		String edgeColor = null;
+		String edgeMsg = null;
+		String logMsg = null;
+		switch(reportMsg.getEventType()){
+		case SEND_START:
+			logMsg = nodeMsg = edgeMsg = "Started sending data for stream " + streamId;
+			break;
+		case SEND_END:
+			logMsg = nodeMsg = edgeMsg = "Stopped sending data for stream " + streamId;
+			break;
+		case PROGRESS_REPORT:
+			nodeMsg = edgeMsg = "Stream Id: " + streamId + HtmlTags.BR + 
+					"Transfer Rate (Average, Current) = " + 
+						String.format("%.2f",reportMsg.getAverageTransferRate()) + "," + 
+						String.format("%.2f",reportMsg.getCurrentTransferRate()) + HtmlTags.BR +	 
+					"Packet Loss Rate (Average, Current) = " 
+						+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
+							String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
+			logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
+			sourceNodeId  = reportMsg.getDestinationNodeId();
+			destinationNodeId = nodeIdOfReportSender;
+			break;
+		case RECEIVE_START:
+			logMsg = nodeMsg = edgeMsg = "Started receiving data for stream " + streamId;
+			edgeColor = "rgb(0,255,0)";
+			sourceNodeId  = reportMsg.getDestinationNodeId();
+			destinationNodeId = nodeIdOfReportSender;
+			break;
+		case RECEIVE_END:
+			logMsg = nodeMsg = edgeMsg = "Stopped receiving data for stream " + streamId;
+			edgeColor = "rgb(0,0,0)";
+			sourceNodeId  = reportMsg.getDestinationNodeId();
+			destinationNodeId = nodeIdOfReportSender;
+			break;
+		default:
+			break;
+		}
+		/*//TODO: Change node and edge messages to have a table with different streams and their status
+		if(srcMsg.getEventType() == EventType.SEND_START){
+			//TODO: Change the logic for calculating latency
+			putStartTime(srcMsg.getStreamId(), srcMsg.getTime());
+			logMsg = nodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
+			edgeColor = "rgb(0,255,0)";
+			edgeMsg = "Started Stream Id: " + srcMsg.getStreamId();
+		} else { //SEND_END event
+			logMsg  = nodeMsg = "Done sending data for stream " + srcMsg.getStreamId() ;
+			edgeColor = "rgb(0,0,0)";
+			edgeMsg = "Ended Stream Id: " + srcMsg.getStreamId();
+		}*/
+		logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+
+		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
+		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+
+		updateWebClient(webClientGraph.getUpdateMessage());
+	}
+	/**
+	 * StreamId needs to be after last "/" in request.from
+	 * @param request
+	 * @return
+	 */
+	private String getStreamId(Message request) {
+		String streamId = request.getFrom().toString();
+		streamId = streamId.substring(streamId.lastIndexOf('/')+1);
+		return streamId;
 	}
 
 	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {

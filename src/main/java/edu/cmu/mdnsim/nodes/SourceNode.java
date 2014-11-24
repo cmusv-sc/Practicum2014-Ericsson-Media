@@ -10,21 +10,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import com.ericsson.research.trap.utils.Future;
+import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
-import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.SourceReportMessage;
-import edu.cmu.util.Utility;
-//github.com/cmusv-sc/Practicum2014-Ericsson-Media.git
-import com.ericsson.research.trap.utils.Future;
-import com.ericsson.research.trap.utils.ThreadPool;
+import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 
 public class SourceNode extends AbstractNode {
 
@@ -34,38 +30,32 @@ public class SourceNode extends AbstractNode {
 		super();
 	}	
 	/**
-	 * It is assumed that there will be only one downstream node for one stream
-	 * even if Source node exists in multiple flows.
+	 * Assumptions:
+	 * 1. All the flows in the stream should have source node in it.
+	 * 2. Properties for source node should be same in all flows.
+	 * 3. It is assumed that there will be only one downstream node for one stream
+	 * 		even if Source node exists in multiple flows.
+	 * 
 	 */
 	@Override
 	public void executeTask(Message request, Stream stream) {
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SourceNode.executeTask(): Source received a work specification.");
-		}
-		//All the flows in the stream should have source node in it.
-		//And the properties for source node should be same in all flows.
-		Flow flow = stream.findFlow(this.getFlowId(request));
-		//Get the processing node properties
-		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
-		if (nodePropertiesMap.get(Flow.NODE_ID).equals(getNodeId())) {
-			String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
-			String destAddrStr = ipAndPort[0];
-			int destPort = Integer.parseInt(ipAndPort[1]);
-			int dataSizeInBytes = Integer.parseInt(flow.getDataSize());
-			int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
-			int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  
-			//Get up stream and down stream node ids
-			//As of now Source Node does not have upstream id
-			//upStreamNodes.put(streamSpec.StreamId, nodeProperties.get("UpstreamId"));
-			//downStreamNodes.put(flow.getFlowId(), nodePropertiesMap.get(Flow.DOWNSTREAM_ID));
+		logger.debug(this.getNodeId() + " received a work specification. StreamId: " + stream.getStreamId());
 
-			try {
-				createAndLaunchSendRunnable(stream, InetAddress.getByName(destAddrStr), destPort, 
-						dataSizeInBytes, rateInBytesPerSec);					
-			} catch (UnknownHostException e) {
-				e.printStackTrace();
-			}	
-		}
+		Flow flow = stream.findFlow(this.getFlowId(request));
+		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
+		String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
+		String destAddrStr = ipAndPort[0];
+		int destPort = Integer.parseInt(ipAndPort[1]);
+		int dataSizeInBytes = Integer.parseInt(flow.getDataSize());
+		int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
+		int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  //Assumed that KiloBits = 1024 bits
+
+		try {
+			createAndLaunchSendRunnable(stream, InetAddress.getByName(destAddrStr), destPort, 
+					dataSizeInBytes, rateInBytesPerSec, flow);					
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}	
 	}
 
 	/**
@@ -76,8 +66,8 @@ public class SourceNode extends AbstractNode {
 	 * @param bytesToTransfer
 	 * @param rate
 	 */
-	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate){
-		SendRunnable sendRunnable = new SendRunnable(stream, destAddrStr, destPort, bytesToTransfer, rate);
+	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate, Flow flow){
+		SendRunnable sendRunnable = new SendRunnable(stream, destAddrStr, destPort, bytesToTransfer, rate, flow);
 		Future sendFuture = ThreadPool.executeAfter(new MDNTask(sendRunnable), 0);
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(sendFuture, sendRunnable));
 	}
@@ -86,37 +76,26 @@ public class SourceNode extends AbstractNode {
 	 */
 	@Override
 	public void terminateTask(Flow flow) {
-
 		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
-
 		if(sendTaskHanlder == null){
-
 			throw new TerminateTaskBeforeExecutingException();
-
 		}
-
 		sendTaskHanlder.kill();
-
 		releaseResource(flow);
-
 	}
 	/**
 	 * For Source Node, stopping flow and stopping stream is same thing.
 	 */
 	@Override
 	public void releaseResource(Flow flow) {
-
 		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getStreamId());
-		
+
 		while (!sndThread.isDone());
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SourceNode.releaseResource(): Source starts to clean-up resource.");
-		}
+
+		logger.debug(this.getNodeId() + " starts to clean-up resources for flow: " + flow.getFlowId());
 
 		sndThread.clean();
 		Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
-
 		try {
 			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
@@ -126,32 +105,39 @@ public class SourceNode extends AbstractNode {
 
 	@Override
 	public void reset() {
-		
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
+
 			while(!streamTask.isDone());
+
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			System.out.println("[DEBUG]SourceNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
 		}
 		msgBusClient.removeResource("/" + getNodeId());
 	}
 
 	private class SendRunnable extends NodeRunnable {
-		
+
 		private DatagramSocket sendSocket = null;
 		private InetAddress dstAddrStr;
 		private int dstPort;
 		private int bytesToTransfer;
 		private int rate;
 		private DatagramPacket packet;
-
-		public SendRunnable(Stream stream, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate) {
+		/**
+		 * The flow for which the Source is sending data. 
+		 * Source Node may have multiple flows to which it is sending data. 
+		 * But we are keeping only one reference as we just need any one flowId
+		 * Used only for reporting to master
+		 */
+		private Flow flow;
+		public SendRunnable(Stream stream, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate, Flow flow) {
 			super(stream, msgBusClient, getNodeId());
 			this.dstAddrStr = dstAddrStr;
 			this.dstPort = dstPort;
 			this.bytesToTransfer = bytesToTransfer;
 			this.rate = rate;	
+			this.flow = flow;
 		}
 
 		/**
@@ -164,38 +150,39 @@ public class SourceNode extends AbstractNode {
 		 */
 		@Override
 		public void run() {
-			
+
 			if(!initializeSocketAndPacket()){
 				return;
 			}
 
 			double packetPerSecond = rate / NodePacket.PACKET_MAX_LENGTH;
 			long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
-
-			report(EventType.SEND_START);
-
 			
-			long startedTime = 0;
+			StreamReportMessage streamReportMessage = 
+					new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
+							.flowId(flow.getFlowId())
+							.build();
+			this.sendStreamReport(streamReportMessage);
+
 			int packetId = 0;
 
 			while (bytesToTransfer > 0 && !isKilled()) {	
 				long begin = System.currentTimeMillis();
 
-				NodePacket nodePacket = bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+				NodePacket nodePacket = 
+						bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? 
+								new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 				packet.setData(nodePacket.serialize());
 				Random random = new Random();
 				try {
+					//TODO: Remove Random - it is used only for testing Packet Loss
 					if(random.nextDouble() > 0.5){
 						sendSocket.send(packet);
 					}
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error(e.toString());
 				}
 
-				if(startedTime == 0){
-					startedTime = System.currentTimeMillis();
-				}
-				
 				bytesToTransfer -= packet.getLength();
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
@@ -204,76 +191,57 @@ public class SourceNode extends AbstractNode {
 				if (millisRemaining > 0) {
 					try {
 						Thread.sleep(millisRemaining);
-					} catch (InterruptedException ie) {
-						ie.printStackTrace();
+					} catch (InterruptedException e) {
+						logger.error(e.toString());
 					}
 				}
 				packetId++;
 			}
-
-			
 			/*
 			 * No mater what final state is, the NodeRunnable should always
 			 * report to Master that it is going to end.
-			 * 
 			 */
-			report(EventType.SEND_END);
-			
+			streamReportMessage = 
+					new StreamReportMessage.Builder(EventType.SEND_END, this.getDownStreamIds().iterator().next())
+							.flowId(flow.getFlowId())
+							.build();
+			this.sendStreamReport(streamReportMessage);
+
 			if (bytesToTransfer <= 0) { //Simulation completes
-				
+
 				/*
+				 * This message is required only for cases when last packet is lost.
 				 * Source should actively tell downstream it has sent out all
 				 * data. This message should force the downstream stops the loop.
-				 * 
 				 */
 				this.sendEndMessageToDownstream();
-				
-				/*
-				 * Close sending socket
-				 */
+
 				clean();
+				logger.debug("Send Runnbale is done for stream " + this.getStreamId());
+
+			} else if (isReset()) { //NodeRunnable is reset by Master Node
 				
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has finished.");
-				}
-					
-			} else if (isReset()) { //NodeRunnable is reset by Node
-				
-				/*
-				 * Close sending socket
-				 */
 				clean();
-				
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has been reset.");
-				}
-				
-			} else { //NodeRunnable is killed by Node
-				
+				logger.debug("Send Runnbale has been reset for stream " + this.getStreamId());
+
+			} else { //NodeRunnable is killed by Master Node
 				/*
 				 * Do nothing
 				 */
-				
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]SourceNode.SendRunnable.run():" + " This thread has been killed");
-				}
-				
+				logger.debug("Send Runnbale has been killed for stream " + this.getStreamId());
 			}
 
 		}
 
-
-
-
 		/**
 		 * Initialize the send socket and the DatagramPacket 
-		 * @return true, successfully done
-		 * 		   false, failed in some part
+		 * @return true if successfully done
 		 */
 		private boolean initializeSocketAndPacket(){
 			try {
 				sendSocket = new DatagramSocket();
-			} catch (SocketException socketException) {
+			} catch (SocketException se) {
+				logger.error(se.toString());
 				return false;
 			}
 
@@ -296,27 +264,6 @@ public class SourceNode extends AbstractNode {
 			}
 		}
 
-		private void report(EventType eventType){
-
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SourceNode.SendDataThread.run(): " + "EventType=" + eventType + ". Record event time and report to master");
-			}
-			SourceReportMessage srcReportMsg = new SourceReportMessage();
-			srcReportMsg.setStreamId(getStreamId());
-			srcReportMsg.setTotalBytesTransferred(bytesToTransfer);
-			srcReportMsg.setTime(Utility.currentTime());	
-			//It is assumed that Source node will have only one down stream node
-			srcReportMsg.setDestinationNodeId(getDownStreamIds().iterator().next());
-			srcReportMsg.setEventType(eventType);
-
-			String fromPath = "/" + SourceNode.this.getNodeId() + "/ready-send";
-			try {
-				msgBusClient.sendToMaster(fromPath, "/source_report", "POST", srcReportMsg);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			};
-		}
-
 		@Override
 		protected void sendEndMessageToDownstream() {
 			try {
@@ -325,10 +272,7 @@ public class SourceNode extends AbstractNode {
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
-
 		}
-		
-		
 	}
 
 	private class StreamTaskHandler {
@@ -339,7 +283,7 @@ public class SourceNode extends AbstractNode {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}
-		
+
 		/**
 		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
 		 * and set reset flag as actions for clean up is different from being killed.
@@ -347,7 +291,7 @@ public class SourceNode extends AbstractNode {
 		public void reset() {
 			streamTask.reset();
 		}
-		
+
 		public void kill() {
 			streamTask.kill();
 		}

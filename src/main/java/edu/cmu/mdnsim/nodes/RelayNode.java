@@ -25,12 +25,11 @@ import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
+import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
-import edu.cmu.util.Utility;
 
 /**
- *
+ * Relay Node can send data to multiple flows for the same stream 
  */
 public class RelayNode extends AbstractNode{
 
@@ -45,6 +44,7 @@ public class RelayNode extends AbstractNode{
 	 */
 	@Override
 	public synchronized void executeTask(Message request, Stream stream) {
+
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the relay node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
@@ -58,20 +58,18 @@ public class RelayNode extends AbstractNode{
 			destAddress = InetAddress.getByName(destinationAddressAndPort[0]);
 			destPort = Integer.valueOf(destinationAddressAndPort[1]);
 			String downStreamUri = nodePropertiesMap.get(Flow.DOWNSTREAM_URI);
-			if(streamIdToRunnableMap.get(stream.getStreamId()) != null){
 
+			if(streamIdToRunnableMap.get(stream.getStreamId()) != null){
 				//Add new flow to the stream object maintained by NodeRunable
 				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.getStream().mergeFlow(flow);
 				//A new downstream node is connected to relay, just add it to existing runnable
 				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.addNewDestination(downStreamUri, destAddress, destPort);
 			}else{
-				//For the first time create a new Runnable and send stream spec to upstream node
-
+				//For the first time, create a new Runnable and send stream spec to upstream node
 				RelayRunnable relayRunnable = 
 						new RelayRunnable(stream,downStreamUri, destAddress, destPort);
 				Future relayFuture = ThreadPool.executeAfter(new MDNTask(relayRunnable), 0);
 				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(relayFuture, relayRunnable));
-
 
 				Map<String, String> upstreamNodePropertiesMap = 
 						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
@@ -84,38 +82,31 @@ public class RelayNode extends AbstractNode{
 					e.printStackTrace();
 				}
 			}
-		} catch (UnknownHostException e1) {
-			e1.printStackTrace();
+		} catch (UnknownHostException e) {
+			logger.error(e.toString());
 		}
-
-
 	}
 
 	@Override
 	public synchronized void terminateTask(Flow flow) {
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.format("[DEBUG]RelayNode.terminateTask(): try to terminate flow %s\n", flow.getFlowId());
-		}
-		
 
-		
+		logger.debug( this.getNodeId() + " Trying to terminate flow: " +  flow.getFlowId());
+
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
-		
+
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
 			throw new TerminateTaskBeforeExecutingException();
 		}
-		
-		
+
 		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){ 
-			
+
 			streamTaskHandler.kill();
 			/* Notify the Upstream node */
 			Map<String, String> nodeMap = flow.findNodeMap(getNodeId());
 			try {
 				msgBusClient.send("/tasks", nodeMap.get(Flow.UPSTREAM_URI) + "/tasks", "POST", flow);
 			} catch (MessageBusException e) {
-				e.printStackTrace();
+				logger.error(e.toString());
 			}	
 		} else {
 			streamTaskHandler.streamTask.removeDownStream(
@@ -125,21 +116,19 @@ public class RelayNode extends AbstractNode{
 				msgBusClient.send("/tasks", 
 						flow.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 			} catch (MessageBusException e) {
-				e.printStackTrace();
+				logger.error(e.toString());
 			}
-			
-			if (ClusterConfig.DEBUG) {
-				System.out.format("[DEBUG]RelayNode.terminateTask(): Ask downstream node(%s) to release resouces.\n", flow.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_ID));
-			}
+
+			logger.debug(this.getNodeId() + 
+					String.format(" terminateTask(): Ask downstream node(%s) to release resouces.\n", 
+							flow.findNodeMap(getNodeId()).get(Flow.DOWNSTREAM_ID)));
 		}
 	}
 
 	@Override
 	public void releaseResource(Flow flow) {
-		
-		if (ClusterConfig.DEBUG) {
-			System.out.format("[DEBUG]RelayNode.releaseResource(): try to release flow %s\n", flow.getFlowId());
-		}
+
+		logger.debug("%s [DEBUG]RelayNode.releaseResource(): try to release flow %s\n", this.getNodeId(), flow.getFlowId());
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
@@ -149,7 +138,7 @@ public class RelayNode extends AbstractNode{
 		try {
 			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
-			e.printStackTrace();
+			logger.error(e.toString());
 		}
 	}
 
@@ -160,9 +149,7 @@ public class RelayNode extends AbstractNode{
 			while(!streamTask.isDone());
 			streamTask.clean();
 			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
-			}
+			logger.debug(this.getNodeId() + " [DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());
@@ -216,14 +203,13 @@ public class RelayNode extends AbstractNode{
 							isFinalWait = true;
 							continue;
 						}else{
-							//setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (expectedMaxPacketId - highPacketIdBoundry));
 							break;		
 						}
 					} else {
 						continue;
 					}
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error(e.toString());
 					break;
 				} 
 
@@ -231,12 +217,13 @@ public class RelayNode extends AbstractNode{
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
 					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
-					
-					report(System.currentTimeMillis(), this.getUpStreamId(),EventType.RECEIVE_START);
+					StreamReportMessage streamReportMessage = 
+							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
+									.build();
+					this.sendStreamReport(streamReportMessage);
 				}
 
 				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
-
 
 				//Send data to all destination nodes
 				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);				
@@ -246,15 +233,14 @@ public class RelayNode extends AbstractNode{
 						buf.put(nodePacket.serialize());
 						buf.flip();
 						int bytesSent = sendingChannel.send(buf, destination);
-						logger.debug("[Relay] Sent " + bytesSent + " bytes to destination " + destination.toString());
+						logger.debug(getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						logger.error(e.toString());
 					}
 				}
 
 			}
-			
+
 			/*
 			 * ReportTaskHandler might be null as the thread might be killed
 			 * before the while loop. The report thread is started in the while
@@ -263,7 +249,7 @@ public class RelayNode extends AbstractNode{
 			 */
 			if(reportTaskHandler != null){
 				reportTaskHandler.kill();
-				
+
 				/*
 				 * Wait for report thread completes totally.
 				 */
@@ -275,10 +261,17 @@ public class RelayNode extends AbstractNode{
 			 * report to Master that it is going to end.
 			 * 
 			 */
+			StreamReportMessage streamReportMessage = 
+					new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
+							.build();
+			this.sendStreamReport(streamReportMessage);
 			for(String downStreamId : this.getDownStreamIds()){
-				report(System.currentTimeMillis(), downStreamId, EventType.SEND_END);
+				streamReportMessage = 
+						new StreamReportMessage.Builder(EventType.SEND_END, downStreamId)
+								.build();
+				this.sendStreamReport(streamReportMessage);
 			}
-			
+
 			if (isUpstreamDone()) { //Simulation completes
 				/*
 				 * Processing node should actively tell downstream its has sent out all
@@ -286,31 +279,19 @@ public class RelayNode extends AbstractNode{
 				 * 
 				 */
 				sendEndMessageToDownstream();
-				
-				/*
-				 * Release resources
-				 */
+
 				clean();
-				
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has finished.");
-				}
-				
-			} else if (isReset()) { //NodeRunnable is reset by Node
-				/*
-				 * Release resources
-				 */
+				logger.debug("Relay Runnbale is done for stream " + this.getStreamId());
+
+			} else if (isReset()) { //NodeRunnable is reset by Master Node
 				clean();
-				
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has been reset.");
-				}
-				
-			} else {
-				//Do nothing
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG]ProcNode.ProcRunnable.run():" + " This thread has killed.");
-				}
+				logger.debug("Relay Runnbale has been reset for stream " + this.getStreamId());
+
+			} else { //NodeRunnable is killed by Master Node
+				/*
+				 * Do nothing
+				 */
+				logger.debug("Relay Runnbale has been killed for stream " + this.getStreamId());
 			}
 
 		}
@@ -318,12 +299,11 @@ public class RelayNode extends AbstractNode{
 		@Override
 		protected void sendEndMessageToDownstream() {
 			for(String downStreamURI : this.getDownStreamURIs()){
-				logger.debug("[RELAY] downStreamURI - " + downStreamURI);
 				try {
 					msgBusClient.send(getFromPath(), downStreamURI + "/" + this.getStreamId(), 
 							"DELETE", this.getStream());
 				} catch (MessageBusException e) {
-					e.printStackTrace();
+					logger.error(e.toString());
 				}
 			}
 
@@ -341,7 +321,7 @@ public class RelayNode extends AbstractNode{
 			streamIdToSocketMap.remove(getStreamId());
 		}
 		/**
-		 * 
+		 * Adds new downstream node to relay
 		 * @param downStreamUri 
 		 * @param destAddress
 		 * @param destPort
@@ -383,21 +363,6 @@ public class RelayNode extends AbstractNode{
 			}
 			return true;
 		}
-		private void report(long time, String destinationNodeId, EventType eventType) {
-
-			ProcReportMessage procReportMsg = new ProcReportMessage();
-			procReportMsg.setStreamId(getStreamId());
-			procReportMsg.setTime(Utility.millisecondTimeToString(time));
-			procReportMsg.setDestinationNodeId(destinationNodeId);	
-			procReportMsg.setEventType(eventType);
-
-			String fromPath = RelayNode.super.getNodeId() + "/finish-rcv";
-			try {
-				msgBusClient.sendToMaster(fromPath, "/relay_report", "POST", procReportMsg);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 	private class ReportTaskHandler {
 
@@ -434,7 +399,7 @@ public class RelayNode extends AbstractNode{
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-		
+
 		/**
 		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
 		 * and set reset flag as actions for clean up is different from being killed.
@@ -442,7 +407,7 @@ public class RelayNode extends AbstractNode{
 		public void reset() {
 			streamTask.reset();
 		}
-		
+
 		public void clean() {
 			streamTask.clean();
 		}

@@ -95,8 +95,8 @@ function attachNodeEvents(){
 			$("<p id=p"+nodeId+" class='tooltip'></p>")
 			.html(s.graph.nodes(nodeId).tag)
 			.appendTo('body')
-			.fadeIn('slow');
-			$('#p' + jq(nodeId)).css({ top: y, left: x });
+			.fadeIn('fast');
+			$('#p' + jq(nodeId)).css({ top: y, left: x, opacity:1 });
 		}
 	},function(e){
 		var nodeId = $(this)[0].attributes["data-node-id"].value;
@@ -120,8 +120,8 @@ function attachEdgeEvents(){
 			$("<p id=p"+lineId+" class='tooltip'></p>")
 			.html(s.graph.edges(lineId).tag)
 			.appendTo('body')
-			.fadeIn('slow');
-			$('#p' + jq(lineId)).css({ top: y, left: x });
+			.fadeIn('fast');
+			$('#p' + jq(lineId)).css({ top: y, left: x, opacity:1 });
 		}
 	},function(e){
 		var lineId = $(this)[0].attributes["data-edge-id"].value;
@@ -138,20 +138,16 @@ function refreshGraph(updated_data){
 //	"nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
 //	{"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
 //	{"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}]};
-	console.log(updated_data);
+	//console.log(updated_data);
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
-	updated_data = {"nodes":nodes,"edges":edges};
-	//console.log(updated_data);	
 	if(s != null){		
 		s.graph.clear();
 		for(var i=0; i<nodes.length; i++){			
 			s.graph.addNode(nodes[i]);
 		}		
 		for(var i=0; i<edges.length; i++){			
-			//console.log(edges[i]);			
 			s.graph.addEdge(edges[i]);
-			//console.log($( "line[data-edge-id='"+edges[i].id+"']" ));
 			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
 			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
 		}
@@ -160,6 +156,7 @@ function refreshGraph(updated_data){
 		attachNodeEvents();
 		attachEdgeEvents();
 	}else{
+		updated_data = {"nodes":nodes,"edges":edges};
 		createGraph(updated_data);
 	}
 }

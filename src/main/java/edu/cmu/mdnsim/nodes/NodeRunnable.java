@@ -1,23 +1,22 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.ProcReportMessage;
-import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
+import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 
 public abstract class NodeRunnable implements Runnable {
-
+	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-runnable");
 	private Stream stream;
 	private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
 	private AtomicInteger lostPacketNum = new AtomicInteger(0);
@@ -180,6 +179,14 @@ public abstract class NodeRunnable implements Runnable {
 		System.out.println("Down Stream Uris: " + downStreamURIs.toString());
 		return downStreamURIs;	
 	}
+	protected void sendStreamReport(StreamReportMessage streamReportMessage) {
+		String fromPath = "/" + this.getNodeId() + "/" + this.getStreamId();
+		try {
+			msgBusClient.sendToMaster(fromPath, "/stream_report", "POST", streamReportMessage);
+		} catch (MessageBusException e) {
+			logger.error(e.toString());
+		};
+	}
 	/**
 	 * Package private class could not be accessed by outside subclasses
 	 * 
@@ -251,75 +258,25 @@ public abstract class NodeRunnable implements Runnable {
 			//int localPacketLostNum = getLostPacketNum();
 			int localPacketLostNum = packetLostTracker.getLostPacketNum();
 			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			double dataLostInstantRate = lostDiff * 1.0 / timeDiffInMillisecond * 1000;
-			double dateLostAverageRate = localPacketLostNum * 1.0 / totalTimeDiffInMillisecond * 1000;
+			double currentPacketLossRateInPacketsPerSec = lostDiff * 1.0 / timeDiffInMillisecond * 1000;
+			double averagePacketLossRateInPacketsPerSec = localPacketLostNum * 1.0 / totalTimeDiffInMillisecond * 1000;
 
 			lastRecordedTotalBytes = localToTalBytesTransfered;
 			lastRecordedPacketLost = localPacketLostNum;
 			lastRecordedTime = currentTime;
 
 			if (startedTime != 0) {
-				reportTransportationRate(transportationAverageRate, transportationInstantRate);
-				reportPacketLost(dateLostAverageRate, dataLostInstantRate);
+				double averageRateInKiloBitsPerSec = transportationAverageRate / 128;
+				double currentRateInKiloBitsPerSec = transportationInstantRate / 128;
+				StreamReportMessage streamReportMessage = 
+						new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, getUpStreamId())
+								.averagePacketLossRate(averagePacketLossRateInPacketsPerSec)
+								.averageTransferRate(averageRateInKiloBitsPerSec)
+								.currentPacketLossRate(currentPacketLossRateInPacketsPerSec)
+								.currentTransferRate(currentRateInKiloBitsPerSec)
+								.build();
+				sendStreamReport(streamReportMessage);
 			}
 		}
-
-		private void reportPacketLost(double packetLostAverageRate, double packetLostInstantRate) {
-			System.out.println("[Packet Lost] " + String.format("%.2f", packetLostAverageRate) + " " + packetLostInstantRate);
-		}
-
-		private void reportTransportationRate(double averageRate, double instantRate) {
-			double averageRateInKiloBitsPerSec = averageRate / 128;
-			double instantRateInKiloBitsPerSec = instantRate / 128;
-			System.out.println("[RATE in KBits per sec]" + " " + (averageRateInKiloBitsPerSec) + " " + (instantRateInKiloBitsPerSec));
-			
-			NodeType nodeType = getNodeType();
-			System.out.println("NodeType:" + nodeType);
-			String fromPath = getNodeId()
-					+ "/progress-report";
-			if (nodeType == NodeType.SINK) {
-				SinkReportMessage msg = new SinkReportMessage();
-				msg.setEventType(EventType.PROGRESS_REPORT);
-				msg.setStreamId(NodeRunnable.this.getStreamId());
-				msg.setDestinationNodeId(getUpStreamId());
-				msg.setAverageRate("" + averageRateInKiloBitsPerSec);
-				msg.setCurrentRate("" + instantRateInKiloBitsPerSec);
-				try {
-					msgBusClient.sendToMaster(fromPath,
-							"/sink_report", "POST", msg);
-				} catch (MessageBusException e) {
-					e.printStackTrace();
-				}
-			} else if (nodeType == NodeType.PROC) {
-				ProcReportMessage msg = new ProcReportMessage();
-				msg.setEventType(EventType.PROGRESS_REPORT);
-				msg.setStreamId(NodeRunnable.this.getStreamId());
-				msg.setDestinationNodeId(getUpStreamId());
-				msg.setAverageRate("" + averageRateInKiloBitsPerSec);
-				msg.setCurrentRate("" + instantRateInKiloBitsPerSec);
-				try {
-					msgBusClient.sendToMaster(fromPath,
-							"/processing_report", "POST", msg);
-				} catch (MessageBusException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-
-		// TODO: Add Node Type instead of using the parser
-		private NodeType getNodeType() {
-			String nodeTypeStr = getNodeId().split(":")[1];
-			nodeTypeStr = nodeTypeStr.substring(0, nodeTypeStr.length() - 1);
-			if (nodeTypeStr.toLowerCase().equals("sink")) {
-				return NodeType.SINK;
-			} else if (nodeTypeStr.toLowerCase().equals("processing")) {
-				return NodeType.PROC;
-			} else if (nodeTypeStr.toLowerCase().equals("source")) {
-				return NodeType.SOURCE;
-			} else {
-				return NodeType.UNDEF;
-			}
-		}
-		
 	}
 }

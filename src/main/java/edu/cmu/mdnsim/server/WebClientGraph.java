@@ -38,6 +38,7 @@ public class WebClientGraph {
 		public static final String SRC_RGB = "rgb(0,204,0)";
 		public static final String SINK_RGB = "rgb(0,204,204)";
 		public static final String PROC_RGB = "rgb(204,204,0)";
+		public static final String RELAY_RGB = "rgb(204,0,204)";
 
 		public static final String SRC_MSG = "This is a Source Node";
 		public static final String SINK_MSG = "This is a Sink Node";
@@ -231,7 +232,7 @@ public class WebClientGraph {
 				new Node("","",WorkConfig.PROC_NODE_TYPE_INPUT,Node.PROC_RGB,
 						Node.NODE_SIZE_IN_GRAPH,Node.PROC_MSG));
 		defaultNodeProperties.put(WorkConfig.RELAY_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.RELAY_NODE_TYPE_INPUT,Node.PROC_RGB,
+				new Node("","",WorkConfig.RELAY_NODE_TYPE_INPUT,Node.RELAY_RGB,
 						Node.NODE_SIZE_IN_GRAPH,Node.RELAY_MSG));
 		defaultNodeProperties.put(WorkConfig.SINK_NODE_TYPE_INPUT, 
 				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,Node.SINK_RGB,
@@ -413,7 +414,6 @@ public class WebClientGraph {
 					this.getNode(parentNodeId).addChild(this.getNode(nodeId));
 			}
 		}
-		logger.debug(String.format("%s,%s",nodeId,parentNodeId));
 	}
 	/**
 	 * Returns true if Node with id=nodeId is child of Node with id = parentNodeId 	
@@ -467,8 +467,6 @@ public class WebClientGraph {
 			n.x = this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;	
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
-
-		logger.debug(String.format("%s,%s,%s",n.id,n.x,n.y));
 	}
 	public void updateNode(String nodeId, String nodeMsg) {
 		Node n = this.getNode(nodeId);

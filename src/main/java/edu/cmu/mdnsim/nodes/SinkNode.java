@@ -12,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
@@ -21,17 +20,13 @@ import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.SinkReportMessage;
-import edu.cmu.util.Utility;
+import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 
 public class SinkNode extends AbstractNode{
-
-	//	private Map<String, DatagramSocket> streamIdToSocketMap = new HashMap<String, DatagramSocket>();
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
 	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
-
 	public SinkNode() throws UnknownHostException {
 		super();
 	}
@@ -40,18 +35,18 @@ public class SinkNode extends AbstractNode{
 	@Override
 	public void executeTask(Message request, Stream stream) {
 
-		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG]SinkNode.executeTask(): Sink received a StreamSpec.");
-		}
+		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		Integer port = this.getAvailablePort(flow.getStreamId());
-		lanchReceiveRunnable(stream);
-		//Send the stream spec to upstream uri
-		Map<String, String> upstreamNodePropertiesMap = flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-		upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, super.getHostAddr().getHostAddress()+":"+port);
+		lanchReceiveRunnable(stream, flow);
+		//Send the stream spec to upstream node
+		Map<String, String> upstreamNodePropertiesMap = 
+				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+		upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
+				super.getHostAddr().getHostAddress()+":"+port);
 		try {
 			msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 					nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
@@ -64,8 +59,8 @@ public class SinkNode extends AbstractNode{
 	 * Create and Launch a ReceiveRunnable thread & record it in the map
 	 * @param streamId
 	 */
-	public void lanchReceiveRunnable(Stream stream){
-		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream);
+	public void lanchReceiveRunnable(Stream stream, Flow flow){
+		ReceiveRunnable rcvRunnable = new ReceiveRunnable(stream, flow);
 		Future rcvFuture = ThreadPool.executeAfter(new MDNTask(rcvRunnable), 0);
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
 	}
@@ -130,8 +125,14 @@ public class SinkNode extends AbstractNode{
 
 		private DatagramSocket receiveSocket;
 		private DatagramPacket packet;
-		public ReceiveRunnable(Stream stream) {
+		/**
+		 * The flow for which the Sink is receiving data. 
+		 * Each Sink Node will have only 1 flow associated with 1 stream.
+		 */
+		private Flow flow;
+		public ReceiveRunnable(Stream stream, Flow flow) {
 			super(stream, msgBusClient, getNodeId());
+			this.flow = flow;
 		}
 
 		@Override
@@ -145,7 +146,7 @@ public class SinkNode extends AbstractNode{
 					Integer.parseInt(this.getStream().getKiloBitRate()), 
 					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
 
-			long startedTime = 0;
+//			long startedTime = 0;
 			boolean isFinalWait = false;			
 			ReportTaskHandler reportTaksHandler = null;
 
@@ -173,9 +174,13 @@ public class SinkNode extends AbstractNode{
 				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
 
 				if(reportTaksHandler == null){
-					startedTime = System.currentTimeMillis();
+//					startedTime = System.currentTimeMillis();
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
-					report(startedTime, -1, getTotalBytesTranfered(), EventType.RECEIVE_START);
+					StreamReportMessage streamReportMessage = 
+							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
+									.flowId(flow.getFlowId())
+									.build();
+					this.sendStreamReport(streamReportMessage);
 				}
 
 				if(nodePacket.isLast()){
@@ -203,8 +208,13 @@ public class SinkNode extends AbstractNode{
 			 * report to Master that it is going to end.
 			 * 
 			 */
-			long endTime= System.currentTimeMillis();
-			report(startedTime, endTime, getTotalBytesTranfered(), EventType.RECEIVE_END);
+			StreamReportMessage streamReportMessage = 
+					new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
+							.flowId(flow.getFlowId())
+							.totalBytesTransferred(this.getTotalBytesTranfered())
+							.build();
+			this.sendStreamReport(streamReportMessage);
+			
 			packetLostTracker.updatePacketLostForLastTime();
 
 			if (isUpstreamDone()) { //Simulation completes as informed by upstream.
@@ -242,6 +252,7 @@ public class SinkNode extends AbstractNode{
 			}
 
 		}
+		
 
 		/**
 		 * Initialize the receive socket and the DatagramPacket 
@@ -281,37 +292,37 @@ public class SinkNode extends AbstractNode{
 			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
-		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
-			System.out.println("[SINK] Reporting to master StreamId:" + getStreamId());
-			SinkReportMessage sinkReportMsg = new SinkReportMessage();
-			sinkReportMsg.setStreamId(getStreamId());
-			sinkReportMsg.setTotalBytes(totalBytes);
-			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
-			sinkReportMsg.setDestinationNodeId(this.getUpStreamId());
-			sinkReportMsg.setEventType(eventType);
-
-			String fromPath = SinkNode.super.getNodeId() + "/finish-rcv";
-
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG]SinkNode.ReceiveThread.report(): Sink sends report to master.");
-			}
-
-			try {
-				msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
-			} catch (MessageBusException e) {
-				//TODO: add exception handler
-				e.printStackTrace();
-			}
-
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " 
-						+ "Sink finished receiving data at Stream-ID " 
-						+ sinkReportMsg.getStreamId()
-						+ " Total bytes " + sinkReportMsg.getTotalBytes() 
-						+ " Total Time:" + ((endTime - startTime) / 1000)
-						+ "(sec)");
-			}
-		}
+//		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
+//			System.out.println("[SINK] Reporting to master StreamId:" + getStreamId());
+//			SinkReportMessage sinkReportMsg = new SinkReportMessage();
+//			sinkReportMsg.setStreamId(getStreamId());
+//			sinkReportMsg.setTotalBytes(totalBytes);
+//			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
+//			sinkReportMsg.setDestinationNodeId(this.getUpStreamId());
+//			sinkReportMsg.setEventType(eventType);
+//
+//			String fromPath = SinkNode.super.getNodeId() + "/finish-rcv";
+//
+//			if (ClusterConfig.DEBUG) {
+//				System.out.println("[DEBUG]SinkNode.ReceiveThread.report(): Sink sends report to master.");
+//			}
+//
+//			try {
+//				msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
+//			} catch (MessageBusException e) {
+//				//TODO: add exception handler
+//				e.printStackTrace();
+//			}
+//
+//			if (ClusterConfig.DEBUG) {
+//				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " 
+//						+ "Sink finished receiving data at Stream-ID " 
+//						+ sinkReportMsg.getStreamId()
+//						+ " Total bytes " + sinkReportMsg.getTotalBytes() 
+//						+ " Total Time:" + ((endTime - startTime) / 1000)
+//						+ "(sec)");
+//			}
+//		}
 
 		private void clean() {
 			if(receiveSocket != null && !receiveSocket.isClosed()){
