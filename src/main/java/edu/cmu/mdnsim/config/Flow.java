@@ -288,4 +288,17 @@ public class Flow extends MbMessage {
 		}
 		return sb.toString();
 	}
+
+	public static String extractLastNodeId(String flowId) {
+		if(flowId != null){
+			String flowIdWithoutStream = flowId.substring(flowId.indexOf("-") + 1);
+			return flowIdWithoutStream.substring(0, flowIdWithoutStream.indexOf("-"));
+		}
+		return null;
+	}
+	public static String extractFirstNodeId(String flowId) {
+		if(flowId != null)
+			return flowId.substring(flowId.lastIndexOf("-")+1);
+		return null;
+	}
 }

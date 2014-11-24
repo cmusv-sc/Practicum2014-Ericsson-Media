@@ -8,4 +8,10 @@ package edu.cmu.util;
  */
 public class HtmlTags {
 	public static final String BR = "<br>";
+	public static final String TABLE_BEGIN = "<table  cellpadding=10>";
+	public static final String TABLE_END = "</table>";
+	public static final String TR_BEGIN = "<tr>";
+	public static final String TR_END = "</tr>";
+	public static final String TD_BEGIN = "<td>";
+	public static final String TD_END = "</td>";	
 }
