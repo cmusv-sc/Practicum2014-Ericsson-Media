@@ -169,20 +169,20 @@ function refreshGraph(updated_data){
  */
 function startSimulation(){
 	console.log("startSimulation");
-	Warp.send({to: "warp://embedded:mdn-manager/start_simulation",data: "start"});
+	Warp.send({to: "warp://embedded:mdn-manager/start_simulation", data: "start"});
 }
 /**
- * Called on click of stop button
+ * Called on "reset" button
  */
-function stopSimulation(){
-	console.log("stopSimulation");
-	Warp.send({to: "warp://embedded:mdn-manager/simulations",data: "stop"});
+function resetSimulation(){
+	console.log("Reset Simulation");
+	Warp.send({to: "warp://embedded:mdn-manager/simulations", method: "DELETE", data: "reset"});
 }
 /**
  * Whenever new input file is selected, it asks Master to create/update the simulation parameters
  * @param evt
  */
-function handleWsFileSelect(evt) {
+function handleWsFileSelect(evt, action) {
 	var files = evt.target.files; // FileList object
 	// Loop through the FileList 
 	for (var i = 0, f; f = files[i]; i++) {
@@ -190,8 +190,13 @@ function handleWsFileSelect(evt) {
 		// Closure to capture the file information.
 		reader.onload = (function(theFile) {
 			return function(e) {
-				Warp.send({to: "warp://embedded:mdn-manager/work_config", data: e.target.result});
-				console.log("Hello from handleWsFileSelect");
+				if (action == 'Start') {
+					Warp.send({to: "warp://embedded:mdn-manager/work_config", data: e.target.result});
+					console.log("Start flows");
+				} else if (action == 'Stop') {
+					Warp.send({to: "warp://embedded:mdn-manager/work_config", method: "DELETE", data: e.target.result});
+					console.log("Stop flows");
+				}
 			};
 		})(f);
 		//Read the file
@@ -257,17 +262,51 @@ function initWarp(){
  * Init function
  */
 $(document).ready(function() {
-	initWarp();
-	$("#btnStart").click(function(e){
-		startSimulation();
-	});	
-	$("#btnStop").click(function(e){
-		stopSimulation();
-	});	
-	document.getElementById('wsinput').onchange = function(event) {
-		handleWsFileSelect(event);
-	};
+	initWarp();	
+	$("#btnReset").click(function(e){
+		resetSimulation();
+	});
+	$("#flowaction").on('click', 'li a', function(event) {
+		   var $target = $( event.currentTarget );
+		   $target.closest( '.btn-group' )
+		      .find( '[data-bind="flowactionlabel"]' ).text( $target.text() )
+		         .end()
+		      .children( '.dropdown-toggle' ).dropdown( 'toggle' );
+			/*
+			 * After the file is read, the file input element does not
+			 * trigger the onchange handler if the same file is selected.
+			 * To enable us to use the same file for both starting and 
+			 * stopping a flow, we reset the file input (wsinput) every time 
+			 * the flow action is changed. This will,
+			 * 1) Prevent uploading same file twice for an action selected
+			 * 2) Allows use of same file when action is changed
+			 */
+			var fileInputElement = $("#wsinput");
+			fileInputElement.replaceWith(fileInputElement = fileInputElement.clone(true));
+			console.log('Reset wsinput');
+		   return false;
+	});
+	
+	/*
+	 * When the input file element is reset when flow action is changed, the event handlers
+	 * for the input file element is lost. But, if we add the event handler on a parent 
+	 * element (the span for the input file element), the handler wont be lost.
+	 */
+	$("#wsinputspan").on("change", "#wsinput", function(event) {
+		var span = document.getElementById('flowactionspan');
+		var action = '';
+		if (span.innerText == 'Start Flows') {
+			action = 'Start';
+		} else if (span.innerText == 'Stop Flows') {
+			action = 'Stop';
+		} else {
+			$("#messages").prepend("Please Select Flow Action and upload Work Specification<br/>");
+			return;
+		}
+		handleWsFileSelect(event, action);
+	});
 });
+
 /**
  * Escapes the special characters reserved by jquery 
  * @param myid
