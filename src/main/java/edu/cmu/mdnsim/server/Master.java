@@ -369,7 +369,36 @@ public class Master {
 	 * Reset the entire system
 	 */
 	public synchronized void resetSimulation() {
+		/*
+		 * Delete all the nodes on the NodeContainer's
+		 */
 		removeAllNodes();
+		/*
+		 * Reset all the Data Structures on the master node that maintains the state of the 
+		 * simulation except the NodeContainer state
+		 */
+		nodeNameToURITbl.clear();
+		nodeURIToNameTbl.clear();
+		streamMap.clear();
+		flowMap.clear();
+		runningFlowMap.clear();
+		flowsInNodeMap.clear();
+		startTimeMap.clear();
+		nodesToInstantiate.clear();
+		streamIdToStreamLatencyTracker.clear();
+		
+		/* reset the WebClientGraph */
+		WebClientUpdateMessage resetMsg = webClientGraph.resetWebClientGraph();
+		if (webClientURI != null) {
+			try {
+				msgBusSvr.send("/", webClientURI.toString(), "DELETE", resetMsg);
+			} catch (MessageBusException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		logger.debug("[DEBUG] MDNManager.resetSimulation(): Reset Complete");
 	}
 
 	/**
@@ -602,12 +631,12 @@ public class Master {
 	private void stopStream(Stream stream) {
 
 		for (Flow flow : stream.getFlowList()) {
-			stopFlow(flow);
+			stopFlow(flow, stream.getStreamId());
 		}
 
 	}
 
-	private void stopFlow(Flow flow) {
+	private void stopFlow(Flow flow, String streamId) {
 
 		/*
 		 * A flow switch is required here as some fields of the flow submitted 
@@ -615,6 +644,7 @@ public class Master {
 		 * which contains complete node map
 		 * 
 		 */
+		flow.setStreamId(streamId);
 		String flowId = flow.generateFlowId();
 
 		/* Flow is replaced with one in running map */
