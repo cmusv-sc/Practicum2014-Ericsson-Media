@@ -348,18 +348,12 @@ public class Master {
 	 */
 	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
 		if (nodeContainerTbl.containsKey(req.getLabel())) {
-			if (ClusterConfig.DEBUG) {
-				logger.debug("[DEBUG] MDNManager.registerNodeContainer(): "
-						+ "NodeContainer with label " + req.getLabel() 
+				logger.info("NodeContainer with label " + req.getLabel() 
 						+ " already exists");
-			}
 		} else {
 			nodeContainerTbl.put(req.getLabel(), req.getNcURI());
-			if (ClusterConfig.DEBUG) {
-				logger.debug("[DEBUG] MDNManager.registerNodeContainer(): "
-						+ "Register new node container label:" 
+				logger.info("Register new node container label:" 
 						+ req.getLabel() + " from " + req.getNcURI());
-			}
 		}
 	}
 
