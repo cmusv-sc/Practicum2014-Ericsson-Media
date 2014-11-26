@@ -245,7 +245,13 @@ function initWarp(){
 		},
 		message: function(m) {
 			console.log("Got uncaught message: " + m.text); 			
-		}		
+		},
+		delete: function(m) {
+			if(s != null) {		
+				s.graph.clear();
+				s.refresh();
+			}
+		}
 	});
 	/**
 	 * Create Resource Handler - used to initialize the graph object 

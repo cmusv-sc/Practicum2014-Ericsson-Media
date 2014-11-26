@@ -610,4 +610,16 @@ public class WebClientGraph {
 			n.updateToolTip(streamId, latency);			
 		}
 	}
+	public synchronized WebClientUpdateMessage resetWebClientGraph() {
+		nodesMap.clear();
+		edgesMap.clear();
+		defaultNodeProperties.clear();
+		
+		root = new Node("","Virtual Root Node","","",0,"");
+		nodesMap.put(root.id, root);
+		
+		init();
+		
+		return new WebClientUpdateMessage();
+	}
 }

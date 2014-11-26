@@ -135,6 +135,7 @@ public class NodeContainer {
 	public void stopNode(String nodeId) {
 		AbstractNode node = nodeMap.get(nodeId);
 		node.reset();
+		nodeMap.remove(nodeId);
 	}
 	
 	
