@@ -486,7 +486,7 @@ public class Master {
 	 */
 	public void registerWebClient(Message request, String webClientUri) {
 		webClientURI = webClientUri;
-		logger.debug("Web client URI is "+webClientURI.toString());
+		logger.info("Web client URI is "+webClientURI.toString());
 	}
 
 	/**
