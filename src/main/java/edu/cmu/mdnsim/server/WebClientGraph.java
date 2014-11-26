@@ -137,6 +137,9 @@ public class WebClientGraph {
 			}
 			reportToolTip.streamStatus = eventType.toString();
 			this.tag = reportToolTip.buildTag(streamId);
+//			for(Map.Entry<String,ReportToolTip> entries : this.streamIdToReportToolTip.entrySet()){
+//				this.tag += entries.getValue().buildTag(entries.getKey());
+//			}
 			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
 		}
 
@@ -148,6 +151,9 @@ public class WebClientGraph {
 			}
 			reportToolTip.latency = String.valueOf(latency);
 			this.tag = reportToolTip.buildTag(streamId);
+//			for(Map.Entry<String,ReportToolTip> entries : this.streamIdToReportToolTip.entrySet()){
+//				this.tag += entries.getValue().buildTag(entries.getKey());
+//			}
 			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
 		}
 	}

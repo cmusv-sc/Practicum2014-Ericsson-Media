@@ -91,19 +91,28 @@ function attachNodeEvents(){
 		var nodeId = $(this)[0].attributes["data-node-id"].value;
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
+				
 		if(s.graph.nodes(nodeId).tag){
-			$("<p id=p"+nodeId+" class='tag'></p>")
+			$("<div id=d"+nodeId+" class='tag'></div>")
 			.html(s.graph.nodes(nodeId).tag)
 			.appendTo('body')
-			.fadeIn('fast');
-			$('#p' + jq(nodeId)).css({ top: y, left: x, opacity:1 });
+			.fadeIn('slow');
+			$('#d' + jq(nodeId)).css({ top: y, left: x, opacity:1 });
 		}
+		
+		self.updateNodeTag = function() {
+			$(".tag").html(s.graph.nodes(nodeId).tag);
+		}
+		
 	},function(e){
 		var nodeId = $(this)[0].attributes["data-node-id"].value;
-		$('#p' + jq(nodeId)).remove();
+		$('#d' + jq(nodeId)).remove();
+		delete self.updateNodeTag;
 	}
 	);   
 }
+
+
 /**
  * Attaches event handlers for all Events (currently mouse over and out) for each Edge in the graph
  * TODO: Find a way to increase width of edges
@@ -117,15 +126,15 @@ function attachEdgeEvents(){
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
 		if(s.graph.edges(lineId).tag){			
-			$("<p id=p"+lineId+" class='tag'></p>")
+			$("<div id=d"+lineId+" class='tag'></div>")
 			.html(s.graph.edges(lineId).tag)
 			.appendTo('body')
 			.fadeIn('fast');
-			$('#p' + jq(lineId)).css({ top: y, left: x, opacity:1 });
+			$('#d' + jq(lineId)).css({ top: y, left: x, opacity:1 });
 		}
 	},function(e){
 		var lineId = $(this)[0].attributes["data-edge-id"].value;
-		$('#p' + jq(lineId)).remove();
+		$('#d' + jq(lineId)).remove();
 	}
 	);
 }
@@ -142,6 +151,21 @@ function refreshGraph(updated_data){
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
 	if(s != null){		
+		/*if(s.graph.nodes().length == nodes.length){
+			for(var i=0; i<nodes.length; i++){			
+				//s.graph.addNode(nodes[i]);
+				//Find the node, update its tag and then call updateNodeTag
+			}		
+			for(var i=0; i<edges.length; i++){			
+//				s.graph.addEdge(edges[i]);
+//				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
+//				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
+			}	
+		}else{
+			//Clear the graph and add new nodes and edges. 
+			//Use lastHoveredElement variable for displaying hover 
+		}*/
+			
 		s.graph.clear();
 		for(var i=0; i<nodes.length; i++){			
 			s.graph.addNode(nodes[i]);

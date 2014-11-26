@@ -14,11 +14,11 @@
 				{
 				  "NodeType":"SinkNode",
 				  "NodeId":"apple:sink1",
-				  "UpstreamId":"tomato:processing1"
+				  "UpstreamId":"tomato:relay1"
 				},
 				{
-				  "NodeType":"ProcessingNode",
-				  "NodeId":"tomato:processing1",
+				  "NodeType":"RelayNode",
+				  "NodeId":"tomato:relay1",
 				  "UpstreamId":"orange:source1",
 				  "ProcessingLoop":"100000",
 				  "ProcessingMemory":"1000"

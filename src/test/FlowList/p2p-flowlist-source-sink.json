@@ -1,0 +1,52 @@
+{
+"SimId":"sim1",
+"StreamList":
+  [
+	{
+	  "StreamId":"stream1",
+	  "DataSize":"200000",
+	  "KiloBitRate":"60",
+	  "FlowList":
+	  [
+		  {
+		    "NodeList":
+			  [
+				{
+				  "NodeType":"SinkNode",
+				  "NodeId":"tomato:sink1",
+				  "UpstreamId":"orange:source1"
+				},
+				{
+				  "NodeType":"SourceNode",
+				  "NodeId":"orange:source1",
+				  "UpstreamId":"NULL"
+				}
+			  ]
+		  }		  
+	  ]
+	},
+	{
+	  "StreamId":"stream2",
+	  "DataSize":"200000",
+	  "KiloBitRate":"60",
+	  "FlowList":
+	  [
+		  {
+		    "NodeList":
+			  [
+				{
+				  "NodeType":"SinkNode",
+				  "NodeId":"orange:sink1",
+				  "UpstreamId":"tomato:source1"
+				},
+				{
+				  "NodeType":"SourceNode",
+				  "NodeId":"tomato:source1",
+				  "UpstreamId":"NULL"
+				}
+			  ]
+		  }		  
+	  ]
+	}
+  ]
+}

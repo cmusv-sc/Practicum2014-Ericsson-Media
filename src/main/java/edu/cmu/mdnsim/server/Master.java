@@ -48,6 +48,8 @@ import edu.cmu.util.Utility;
  *
  */
 public class Master {
+	private static final double PACKET_LOSS_THRESHOLD = 3;
+
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 
 	/**
@@ -240,9 +242,7 @@ public class Master {
 		String containerLabel = req.getNcLabel();
 		String ncURI = nodeContainerTbl.get(containerLabel);
 
-		if (ClusterConfig.DEBUG) {
-			logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
-		}
+		logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
 
 		try {
 			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
@@ -267,10 +267,8 @@ public class Master {
 		String nodeName = registMsg.getNodeName();
 		nodeNameToURITbl.put(nodeName, registMsg.getURI());
 		nodeURIToNameTbl.put(registMsg.getURI(), nodeName);
-		if (ClusterConfig.DEBUG) {
-			logger.debug("[DEBUG] MDNManager.registerNode(): Register new "
+		logger.debug("[DEBUG] MDNManager.registerNode(): Register new "
 					+ "node:" + nodeName + " from " + registMsg.getURI());
-		}
 		try {
 			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
 		} catch (MessageBusException e) {
@@ -679,6 +677,9 @@ public class Master {
 			logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			if(reportMsg.getAveragePacketLossRate() > PACKET_LOSS_THRESHOLD){
+				edgeColor = "rgb(255,0,0)";
+			}
 			break;
 		case RECEIVE_START:
 			logMsg = nodeMsg = edgeMsg = "Started receiving data for stream " + streamId;
@@ -713,18 +714,7 @@ public class Master {
 		default:
 			break;
 		}
-		/*//TODO: Change node and edge messages to have a table with different streams and their status
-		if(srcMsg.getEventType() == EventType.SEND_START){
-			//TODO: Change the logic for calculating latency
-			putStartTime(srcMsg.getStreamId(), srcMsg.getTime());
-			logMsg = nodeMsg = "Started sending data for stream " + srcMsg.getStreamId() ;
-			edgeColor = "rgb(0,255,0)";
-			edgeMsg = "Started Stream Id: " + srcMsg.getStreamId();
-		} else { //SEND_END event
-			logMsg  = nodeMsg = "Done sending data for stream " + srcMsg.getStreamId() ;
-			edgeColor = "rgb(0,0,0)";
-			edgeMsg = "Ended Stream Id: " + srcMsg.getStreamId();
-		}*/
+		
 		logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 
 //		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
