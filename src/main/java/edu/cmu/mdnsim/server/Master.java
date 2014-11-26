@@ -686,9 +686,11 @@ public class Master {
 			}
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_START);
 			logMsg = nodeMsg = edgeMsg = "Started sending data for stream " + streamId;
+			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case SEND_END:
 			logMsg = nodeMsg = edgeMsg = "Stopped sending data for stream " + streamId;
+			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case PROGRESS_REPORT:
 			nodeMsg = edgeMsg = "Stream Id: " + streamId + HtmlTags.BR + 
@@ -703,6 +705,8 @@ public class Master {
 			destinationNodeId = nodeIdOfReportSender;
 			if(reportMsg.getAveragePacketLossRate() > PACKET_LOSS_THRESHOLD){
 				edgeColor = "rgb(255,0,0)";
+			}else{
+				edgeColor = "rgb(0,255,0)";
 			}
 			break;
 		case RECEIVE_START:
@@ -710,6 +714,7 @@ public class Master {
 			edgeColor = "rgb(0,255,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
@@ -734,12 +739,13 @@ public class Master {
 			edgeColor = "rgb(0,0,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		default:
 			break;
 		}
 		
-		logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+		
 
 //		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
 		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
