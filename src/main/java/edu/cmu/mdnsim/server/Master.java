@@ -716,6 +716,7 @@ public class Master {
 			}else{
 				edgeColor = "rgb(0,255,0)";
 			}
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		case RECEIVE_START:
 			logMsg = nodeMsg = edgeMsg = "Started receiving data for stream " + streamId;
@@ -723,6 +724,7 @@ public class Master {
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
@@ -748,6 +750,7 @@ public class Master {
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		default:
 			break;
@@ -756,7 +759,7 @@ public class Master {
 		
 
 //		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
-		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 
 		updateWebClient(webClientGraph.getUpdateMessage());
 	}
