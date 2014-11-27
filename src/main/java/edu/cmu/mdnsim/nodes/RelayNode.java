@@ -61,7 +61,7 @@ public class RelayNode extends AbstractNode{
 
 			if(streamIdToRunnableMap.get(stream.getStreamId()) != null){
 				//Add new flow to the stream object maintained by NodeRunable
-				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.getStream().mergeFlow(flow);
+				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.getStream().replaceFlow(flow);
 				//A new downstream node is connected to relay, just add it to existing runnable
 				streamIdToRunnableMap.get(stream.getStreamId()).streamTask.addNewDestination(downStreamUri, destAddress, destPort);
 			}else{

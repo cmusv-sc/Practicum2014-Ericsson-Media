@@ -37,7 +37,9 @@ public class SinkNode extends AbstractNode{
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
+		
 		Flow flow = stream.findFlow(this.getFlowId(request));
+		System.out.println("[DELETE]SinkNode.executeTask(): flowID = " + this.getFlowId(request) + "  Is the flow == null:" + (flow == null));
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		Integer port = this.getAvailablePort(flow.getStreamId());
