@@ -651,7 +651,7 @@ public class Master {
 		}
 	}
 
-	public void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
+	public synchronized void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
 		String nodeIdOfReportSender = getNodeId(request);		
 		String streamId = getStreamId(request);
 		//logger.debug("[Stream Report] Source NodeId: " + nodeIdOfReportSender + ", Destination NodeId:"  + reportMsg.getDestinationNodeId());

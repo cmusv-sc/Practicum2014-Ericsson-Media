@@ -212,7 +212,11 @@ public class RelayNode extends AbstractNode{
 					logger.error(e.toString());
 					break;
 				} 
+				setTotalBytesTranfered(getTotalBytesTranfered() + receivedPacket.getLength());
 
+				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+				
 				if(reportTaskHandler == null) {
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
@@ -223,7 +227,7 @@ public class RelayNode extends AbstractNode{
 					this.sendStreamReport(streamReportMessage);
 				}
 
-				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
+				//NodePacket nodePacket = new NodePacket(receivedPacket.getData());
 
 				//Send data to all destination nodes
 				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);				
@@ -238,7 +242,10 @@ public class RelayNode extends AbstractNode{
 						logger.error(e.toString());
 					}
 				}
-
+				if(nodePacket.isLast()){
+					super.setUpstreamDone();
+					break;
+				}
 			}
 
 			/*
@@ -271,7 +278,7 @@ public class RelayNode extends AbstractNode{
 								.build();
 				this.sendStreamReport(streamReportMessage);
 			}
-
+			packetLostTracker.updatePacketLostForLastTime();
 			if (isUpstreamDone()) { //Simulation completes
 				/*
 				 * Processing node should actively tell downstream its has sent out all
