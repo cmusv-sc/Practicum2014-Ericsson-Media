@@ -32,7 +32,8 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.NodeContainer;
-import edu.cmu.util.HtmlTags;
+import edu.cmu.mdnsim.reporting.StreamLatencyTracker;
+import edu.cmu.mdnsim.reporting.WebClientGraph;
 import edu.cmu.util.Utility;
 /**
  * It represents the Master Node of the Simulator.
@@ -649,7 +650,15 @@ public class Master extends TimerTask {
 			logger.debug("Failed to send stop control message to sink node(" + flow.getSindNodeId() + ")");
 		}
 	}
-
+	/**
+	 * Method Listener for stream_report resource.
+	 * All the reports sent by reports related to stream will be handled by this function,
+	 * It updates the appropriate nodes and edges of webclientgraph object
+	 * It does not update the web client immediately. It is done by separate thread.
+	 * @param request
+	 * @param reportMsg
+	 * @throws MessageBusException
+	 */
 	public synchronized void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
 		String nodeIdOfReportSender = getNodeId(request);		
 		String streamId = getStreamId(request);
@@ -657,14 +666,13 @@ public class Master extends TimerTask {
 		String sourceNodeId  = nodeIdOfReportSender;
 		String destinationNodeId = reportMsg.getDestinationNodeId();
 		String edgeColor = null;
-		String edgeMsg = null;
 		String logMsg = null;
 		switch(reportMsg.getEventType()){
 		case SEND_START:
 			if(reportMsg.getFlowId() != null){
 				String firstNodeId = Flow.extractFirstNodeId(reportMsg.getFlowId());
 				if(firstNodeId.equals(nodeIdOfReportSender)){
-					//Indicates begining of flow
+					//Indicates start of flow
 					StreamLatencyTracker streamLatencyTracker = this.streamIdToStreamLatencyTracker.get(streamId); 
 					if(streamLatencyTracker != null){
 						if(streamLatencyTracker.getStartTime() == null){
@@ -684,21 +692,18 @@ public class Master extends TimerTask {
 			}
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_START);
 			logMsg = "Started sending data for stream " + streamId;
-			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case SEND_END:
 			logMsg = "Stopped sending data for stream " + streamId;
-			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case PROGRESS_REPORT:
-			edgeMsg = "Stream Id: " + streamId + HtmlTags.BR + 
-			"Transfer Rate (Average, Current) = " + 
-			String.format("%.2f",reportMsg.getAverageTransferRate()) + "," + 
-			String.format("%.2f",reportMsg.getCurrentTransferRate()) + HtmlTags.BR +	 
-			"Packet Loss Rate (Average, Current) = " 
-			+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
-			String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
-			logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
+			logMsg = "Stream Id: " + streamId +"\t" + 
+					"Transfer Rate (Average, Current) = " + 
+					String.format("%.2f",reportMsg.getAverageTransferRate()) + "," + 
+					String.format("%.2f",reportMsg.getCurrentTransferRate()) + "\t" +	 
+					"Packet Loss Rate (Average, Current) = " 
+					+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
+					String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
 
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
@@ -708,16 +713,17 @@ public class Master extends TimerTask {
 				edgeColor = "rgb(255,0,0)";
 			}else{
 				edgeColor = "rgb(0,255,0)";
-			}
-			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+			}			
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, streamId, edgeColor,
+					reportMsg.getAveragePacketLossRate(), reportMsg.getCurrentPacketLossRate(),
+					reportMsg.getAverageTransferRate(), reportMsg.getCurrentTransferRate());
 			break;
 		case RECEIVE_START:
-			logMsg = edgeMsg = "Started receiving data for stream " + streamId;
+			logMsg = "Started receiving data for stream " + streamId;
 			edgeColor = "rgb(0,255,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
-			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
-			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId,streamId, edgeColor, EventType.RECEIVE_START);
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
@@ -738,22 +744,17 @@ public class Master extends TimerTask {
 				}
 			}
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_END);
-			logMsg = edgeMsg = "Stopped receiving data for stream " + streamId;
+			logMsg = "Stopped receiving data for stream " + streamId;
 			edgeColor = "rgb(0,0,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
-			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
-			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId,streamId, edgeColor, EventType.RECEIVE_END);
 			break;
 		default:
 			break;
 		}
 
 		logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
-
-		//		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
-		//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
-
 	}
 	/**
 	 * Update the WebClientGraph periodically every second
@@ -778,16 +779,17 @@ public class Master extends TimerTask {
 	}
 
 	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
-//		double packetLossThreshHold = Master.PACKET_LOSS_THRESHOLD;
-//		try{
-//			packetLossThreshHold = Double.parseDouble(args[0]);
-//		}catch(Exception e){
-//			logger.error(e.toString());
-//		}
+		//		double packetLossThreshHold = Master.PACKET_LOSS_THRESHOLD;
+		//		try{
+		//			packetLossThreshHold = Double.parseDouble(args[0]);
+		//		}catch(Exception e){
+		//			logger.error(e.toString());
+		//		}
 		Master mdnDomain = new Master();
 		mdnDomain.init();
-		Timer timer = new Timer();
-		timer.scheduleAtFixedRate(mdnDomain, 0, 1000);
+		//Timer used to update the web client every 1 sec
+		Timer reportTimer = new Timer();
+		reportTimer.scheduleAtFixedRate(mdnDomain, 0, 1000);
 	}
 
 }

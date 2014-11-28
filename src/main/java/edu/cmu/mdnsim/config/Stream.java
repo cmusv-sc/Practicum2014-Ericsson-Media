@@ -127,7 +127,7 @@ public class Stream extends MbMessage {
 	 */
 	public boolean containsFlowID(String flowId) {
 		for (Flow existedFlow : flowList) {
-			if (existedFlow.equals(flowId)) {
+			if (existedFlow.getFlowId().equals(flowId)) {
 				return true;
 			}
 		}

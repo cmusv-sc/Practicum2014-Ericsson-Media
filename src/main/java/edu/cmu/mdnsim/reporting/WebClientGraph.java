@@ -1,4 +1,4 @@
-package edu.cmu.mdnsim.server;
+package edu.cmu.mdnsim.reporting;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,10 +24,9 @@ import edu.cmu.util.HtmlTags;
  * 	but none of the add/remove methods provided by this class are synchronized 
  * 	=> Thread safety is same as guaranteed by ConcurrentHashMap  
  * 
+ * @author Jigar Patel
  * @author Jeremy Fu
  * @author Vinay Kumar Vavili
- * @author Jigar Patel
- * @author Hao Wang
  */
 public class WebClientGraph {
 
@@ -46,7 +45,7 @@ public class WebClientGraph {
 		public static final String SINK_MSG = "This is a Sink Node";
 		public static final String PROC_MSG = "This is a Processing Node";
 		public static final String RELAY_MSG = "This is a Relay Node";
-		
+
 		public static final int NODE_SIZE_IN_GRAPH = 6;
 
 		/**
@@ -81,8 +80,10 @@ public class WebClientGraph {
 		 * List of downstream nodes
 		 */
 		private List<Node> children;
-		
-		private Map<String, ReportToolTip> streamIdToReportToolTip = new HashMap<String, ReportToolTip>();
+		/**
+		 * Key = Stream Id, Value = Metrics for that stream
+		 */
+		private Map<String, NodeMetrics> streamMetricsMap = new HashMap<String, NodeMetrics>();
 		/**
 		 * The type of node - Source/Sink/Processing/Relay etc.
 		 */
@@ -128,36 +129,79 @@ public class WebClientGraph {
 			Node otherNode = (Node)other;
 			return this.id.equals(otherNode.id);
 		}
-
+		/**
+		 * Updates the status of given stream in Tooltip table shown on hover of node
+		 * @param streamId
+		 * @param eventType
+		 */
 		public void updateToolTip(String streamId, EventType eventType) {
-			ReportToolTip reportToolTip = this.streamIdToReportToolTip.get(streamId);
-			if(reportToolTip == null){
-				reportToolTip = new ReportToolTip();
-				this.streamIdToReportToolTip.put(streamId, reportToolTip);
+			NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
+			if(nodeMetrics == null){
+				nodeMetrics = new NodeMetrics();
+				this.streamMetricsMap.put(streamId, nodeMetrics);
 			}
-			reportToolTip.streamStatus = eventType.toString();
-			this.tag = reportToolTip.buildTag(streamId);
-//			for(Map.Entry<String,ReportToolTip> entries : this.streamIdToReportToolTip.entrySet()){
-//				this.tag += entries.getValue().buildTag(entries.getKey());
-//			}
-			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
+			nodeMetrics.streamStatus = eventType.toString();
+			this.tag = this.buildTagHtml();
 		}
-
+		/**
+		 * Updates the latency (for the given stream) in Tooltip table shown on hover of node 
+		 * @param streamId
+		 * @param latency
+		 */
 		public void updateToolTip(String streamId, long latency) {
-			ReportToolTip reportToolTip = this.streamIdToReportToolTip.get(streamId);
-			if(reportToolTip == null){
-				reportToolTip = new ReportToolTip();
-				this.streamIdToReportToolTip.put(streamId, reportToolTip);
+			NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
+			if(nodeMetrics == null){
+				nodeMetrics = new NodeMetrics();
+				this.streamMetricsMap.put(streamId, nodeMetrics);
 			}
-			reportToolTip.latency = String.valueOf(latency);
-			this.tag = reportToolTip.buildTag(streamId);
-//			for(Map.Entry<String,ReportToolTip> entries : this.streamIdToReportToolTip.entrySet()){
-//				this.tag += entries.getValue().buildTag(entries.getKey());
-//			}
-			//logger.debug("[Update Tool Tip] StreamId " + streamId + " tag: " + tag);
+			nodeMetrics.latency = String.valueOf(latency);
+			this.tag = this.buildTagHtml();
+		}
+		/**
+		 * Builds HTML table to be shown on hover of node 
+		 * @return String containing full HTML table element
+		 */
+		private String buildTagHtml(){
+			StringBuilder sb = new StringBuilder();
+			sb.append(HtmlTags.TABLE_BEGIN);
+			sb.append(generateHeaderRow());
+			for(Map.Entry<String, NodeMetrics> entry : streamMetricsMap.entrySet()){
+				sb.append(HtmlTags.TR_BEGIN);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getKey()); //Stream Id
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().streamStatus);
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				if(entry.getValue().latency != null){
+					sb.append(entry.getValue().latency);
+				}
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TR_END);
+			}
+			sb.append(HtmlTags.TABLE_END);
+			return sb.toString();			
+		}
+		/**
+		 * Generates Header Row for tool tip table 
+		 * @return String containing HTML TR element 
+		 */
+		private String generateHeaderRow() {
+			StringBuilder sb = new StringBuilder();
+			sb.append(HtmlTags.TR_BEGIN);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TR_END);
+			return sb.toString();
 		}
 	}
-
+	/**
+	 * Represents teh Edge between two nodes shown in graph
+	 * @author Jigar
+	 *
+	 */
 	public class Edge{
 		/**
 		 * Unique value representing Edge. Generated by combining the source and target nodes.
@@ -192,9 +236,11 @@ public class WebClientGraph {
 		public static final String EDGE_COLOR = "rgb(84,84,84)"; //Grey
 
 		public static final int EDGE_SIZE_IN_GRAPH = 5;
-		
-		private Map<String, ReportToolTip> streamIdToReportToolTip = new HashMap<String, ReportToolTip>();
-		
+		/**
+		 * Key = StreamId, Value = Metrics to be shown in tool tip for that edge
+		 */
+		private Map<String, EdgeMetrics> streamMetricsMap = new HashMap<String, EdgeMetrics>();
+
 		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
 			this.id = id;
 			this.source = source;
@@ -219,83 +265,97 @@ public class WebClientGraph {
 			Edge otherEdge = (Edge)other;
 			return this.id.equals(otherEdge.id);
 		}
-	}
-	class ReportToolTip{
-		public String streamStatus = null;
-		public String latency = null;
-		public String avergaePacketLoss = null;
-		public String currentPacketLoss = null;
-		public String avergaeTransferRate = null;
-		public String currentTransferRate = null;
 		/**
-		 * Builds the HTML required for displaying tooltip
+		 * Updates the status of given stream in Tooltip table shown on hover of edge
 		 * @param streamId
-		 * @return
+		 * @param eventType
 		 */
-		public String buildTag(String streamId){
+		public void updateToolTip(String streamId, EventType eventType) {
+			EdgeMetrics edgeMetrics = this.streamMetricsMap.get(streamId);
+			if(edgeMetrics == null){
+				edgeMetrics = new EdgeMetrics();
+				this.streamMetricsMap.put(streamId, edgeMetrics);
+			}
+			edgeMetrics.streamStatus = eventType.toString();
+			this.tag = this.buildTagHtml();
+		}
+		/**
+		 * Updates the different metrics of given stream in Tooltip table shown on hover of edge
+		 * @param streamId
+		 * @param averagePacketLoss
+		 * @param currentPacketLoss
+		 * @param averageTransferRate
+		 * @param currentTransferRate
+		 */
+		public void updateToolTip(String streamId, String averagePacketLoss, String currentPacketLoss,
+				String averageTransferRate, String currentTransferRate) {
+			EdgeMetrics edgeMetrics = this.streamMetricsMap.get(streamId);
+			if(edgeMetrics == null){
+				edgeMetrics = new EdgeMetrics();
+				this.streamMetricsMap.put(streamId, edgeMetrics);
+			}
+			edgeMetrics.averagePacketLoss = averagePacketLoss;
+			edgeMetrics.currentPacketLoss = currentPacketLoss;
+			edgeMetrics.averageTransferRate = averageTransferRate;
+			edgeMetrics.currentTransferRate = currentTransferRate;
+			this.tag = this.buildTagHtml();
+		}
+		/**
+		 * Builds HTML table to be shown on hover of edge 
+		 * @return String containing full HTML table element
+		 */
+		private String buildTagHtml(){
 			StringBuilder sb = new StringBuilder();
 			sb.append(HtmlTags.TABLE_BEGIN);
-				generateHeaderRow(streamId, sb);
+			sb.append(generateHeaderRow());
+			for(Map.Entry<String, EdgeMetrics> entry : streamMetricsMap.entrySet()){
 				sb.append(HtmlTags.TR_BEGIN);
-					sb.append(HtmlTags.TD_BEGIN);
-						sb.append(streamId);
-					sb.append(HtmlTags.TD_END);
-					if(this.streamStatus != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.streamStatus);
-						sb.append(HtmlTags.TD_END);
-					}
-					if(this.latency != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.latency);
-						sb.append(HtmlTags.TD_END);
-					}
-					if(this.avergaePacketLoss != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.avergaePacketLoss);
-						sb.append(HtmlTags.TD_END);
-					}
-					if(this.currentPacketLoss != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.currentPacketLoss);
-						sb.append(HtmlTags.TD_END);
-					}
-					if(this.avergaeTransferRate != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.avergaeTransferRate);
-						sb.append(HtmlTags.TD_END);
-					}
-					if(this.currentTransferRate != null){
-						sb.append(HtmlTags.TD_BEGIN);
-							sb.append(this.currentTransferRate);
-						sb.append(HtmlTags.TD_END);
-					}
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getKey()); //Stream Id
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().streamStatus);
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().averagePacketLoss);
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().currentPacketLoss);
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().averageTransferRate);
+				sb.append(HtmlTags.TD_END);
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().currentTransferRate);
+				sb.append(HtmlTags.TD_END);
 				sb.append(HtmlTags.TR_END);
-				sb.append(HtmlTags.TABLE_END);
-				return sb.toString();
+			}
+			sb.append(HtmlTags.TABLE_END);
+			return sb.toString();			
 		}
-		private void generateHeaderRow(String streamId, StringBuilder sb) {
+		/**
+		 * Builds HTML table to be shown on hover of node 
+		 * @return String containing full HTML table element
+		 */
+		private String generateHeaderRow() {
+			StringBuilder sb = new StringBuilder();
 			sb.append(HtmlTags.TR_BEGIN);
-				sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
-				if(this.streamStatus != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
-				}
-				if(this.latency != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
-				}
-				if(this.avergaePacketLoss != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Packet Loss");sb.append(HtmlTags.TD_END);
-				}
-				if(this.currentPacketLoss != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Current Packet Loss");sb.append(HtmlTags.TD_END);
-				}
-				if(this.avergaeTransferRate != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Transfer Rate");sb.append(HtmlTags.TD_END);
-				}
-				if(this.currentTransferRate != null){
-					sb.append(HtmlTags.TD_BEGIN);sb.append("Current Transfer Rate");sb.append(HtmlTags.TD_END);
-				}
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Packet Loss");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Current Packet Loss");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Transfer Rate");sb.append(HtmlTags.TD_END);
+			sb.append(HtmlTags.TD_BEGIN);sb.append("Current Transfer Rate");sb.append(HtmlTags.TD_END);
 			sb.append(HtmlTags.TR_END);
+			return sb.toString();
+		}
+		/**
+		 * Gets Stream Status (One of {@link}edu.cmu.mdnsim.messagebus.message.EventType) values
+		 * @param streamId
+		 * @return String format of the EventType value
+		 */
+		public String getStreamStatus(String streamId) {
+			return this.streamMetricsMap.get(streamId).streamStatus;
 		}
 	}
 	/**
@@ -331,6 +391,7 @@ public class WebClientGraph {
 		defaultNodeProperties = new HashMap<String,Node>();
 		init();
 	};	
+
 	/**
 	 * Whenever a new Node Type is added, make changes here to set 
 	 * 	default color,size other properties of that node type
@@ -579,25 +640,26 @@ public class WebClientGraph {
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
 	}
-	public void updateNode(String nodeId, String nodeMsg) {
-		Node n = this.getNode(nodeId);
-		if(n != null) {
-			n.tag = nodeMsg;
-		}
-	}
-	public void updateEdge(String nodeId, String destinationNodeId,
-			String edgeMsg, String edgeColor) {
+	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
+			String edgeColor, double averagePacketLoss, double currentPacketLoss,
+			double averageTransferRate, double currentTransferRate) {
 		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
 		if (e != null) {
-			if(edgeColor != null)
+			//Update the Edge only if the receiving node is not done receiving
+			if(!e.getStreamStatus(streamId).equals(EventType.RECEIVE_END.toString())){
 				e.color = edgeColor;
-			if(edgeMsg != null)
-				e.tag = edgeMsg;
+				e.updateToolTip(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
+						String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate));
+			}
 		}
 	}
-	public void updateEdge(String nodeId, String destinationNodeId,
-			String edgeMsg) {
-		this.updateEdge(nodeId,destinationNodeId,edgeMsg,null);
+	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
+			String edgeColor,EventType eventType) {
+		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
+		if (e != null) {
+			e.color = edgeColor;
+			e.updateToolTip(streamId, eventType);
+		}
 	}
 	public void updateNode(String nodeId, String streamId,
 			EventType eventType) {
@@ -616,13 +678,13 @@ public class WebClientGraph {
 	public synchronized WebClientUpdateMessage resetWebClientGraph() {
 		nodesMap.clear();
 		edgesMap.clear();
-		defaultNodeProperties.clear();
-		
+
 		root = new Node("","Virtual Root Node","","",0,"");
 		nodesMap.put(root.id, root);
-		
+
 		init();
-		
+
 		return new WebClientUpdateMessage();
 	}
+
 }

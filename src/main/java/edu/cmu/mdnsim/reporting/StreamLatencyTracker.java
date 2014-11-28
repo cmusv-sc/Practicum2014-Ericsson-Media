@@ -1,13 +1,12 @@
 /**
  * 
  */
-package edu.cmu.mdnsim.server;
+package edu.cmu.mdnsim.reporting;
 
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.util.Utility;
 
 /**
