@@ -132,12 +132,18 @@ function attachEdgeEvents(){
 			.fadeIn('fast');
 			$('#d' + jq(lineId)).css({ top: y, left: x, opacity:1 });
 		}
+		
+		self.updateEdgeTag = function() {
+			$(".tag").html(s.graph.edges(lineId).tag);
+		}
 	},function(e){
 		var lineId = $(this)[0].attributes["data-edge-id"].value;
 		$('#d' + jq(lineId)).remove();
+		delete self.updateEdgeTag;
 	}
 	);
 }
+
 /**
  * Refreshes the graph based on updated JSON
  * @param updated_data Graph JSON
@@ -151,34 +157,53 @@ function refreshGraph(updated_data){
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
 	if(s != null){		
-		/*if(s.graph.nodes().length == nodes.length){
-			for(var i=0; i<nodes.length; i++){			
-				//s.graph.addNode(nodes[i]);
-				//Find the node, update its tag and then call updateNodeTag
-			}		
-			for(var i=0; i<edges.length; i++){			
-//				s.graph.addEdge(edges[i]);
-//				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
-//				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
-			}	
+		if(s.graph.nodes().length == nodes.length){
+			//Create a HashMap of updated nodes
+			var nodesMap = {};			
+			for(var i=0; i<nodes.length; i++){
+				nodesMap[nodes[i].id] = nodes[i];
+			}
+			//Update the graph nodes with new values for color, size and tooltip (tag)
+			for(var i=0; i<s.graph.nodes().length; i++){
+				var graphNode = s.graph.nodes()[i];
+				graphNode.color = nodesMap[graphNode.id].color;
+				graphNode.size = nodesMap[graphNode.id].size;
+				graphNode.tag = nodesMap[graphNode.id].tag;
+			}
+			if(self.updateNodeTag)
+				self.updateNodeTag();
+			//Same things for updating edges. But in edges, we need to manually change the color and size
+			var edgesMap = {};
+			for(var i=0; i<edges.length; i++){
+				edgesMap[edges[i].id] = edges[i];
+			}
+			for(var i=0; i<s.graph.edges().length; i++){
+				var graphEdge = s.graph.edges()[i];
+				graphEdge.color = edgesMap[graphEdge.id].color;
+				graphEdge.size = edgesMap[graphEdge.id].size;
+				graphEdge.tag = edgesMap[graphEdge.id].tag;
+				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke",graphEdge.color);
+				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke-width",graphEdge.size);	
+			}
+			if(self.updateEdgeTag)
+				self.updateEdgeTag();
 		}else{
 			//Clear the graph and add new nodes and edges. 
-			//Use lastHoveredElement variable for displaying hover 
-		}*/
-			
-		s.graph.clear();
-		for(var i=0; i<nodes.length; i++){			
-			s.graph.addNode(nodes[i]);
+			//we can use lastHoveredElement variable for displaying hover 
+			s.graph.clear();
+			for(var i=0; i<nodes.length; i++){			
+				s.graph.addNode(nodes[i]);
+			}		
+			for(var i=0; i<edges.length; i++){			
+				s.graph.addEdge(edges[i]);
+				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
+				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
+			}
+			//s.graph.read(updated_data);		
+			//s.refresh();   
+			attachNodeEvents();
+			attachEdgeEvents();
 		}		
-		for(var i=0; i<edges.length; i++){			
-			s.graph.addEdge(edges[i]);
-			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
-			$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
-		}
-		//s.graph.read(updated_data);		
-		//s.refresh();   
-		attachNodeEvents();
-		attachEdgeEvents();
 	}else{
 		updated_data = {"nodes":nodes,"edges":edges};
 		createGraph(updated_data);
@@ -274,9 +299,9 @@ function initWarp(){
 	 * Log Resource Handler - used to display log messages
 	 */
 	loggerResource.onmessage = function(m){
-		console.log(m);
+		//console.log(m);
 		var entries = JSON.parse(m.dataAsString);
-		console.log(entries);
+		//console.log(entries);
 		for(var i=0; i<entries.length; i++){			
 			if(entries[i].logger === "webclientgraph" || entries[i].logger === "master")
 				$("#messages").prepend(entries[i].message + "<br/>");

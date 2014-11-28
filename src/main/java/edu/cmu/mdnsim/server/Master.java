@@ -86,8 +86,6 @@ public class Master {
 	 */
 	private Map<String, ArrayList<Flow>> flowsInNodeMap = new ConcurrentHashMap<String, ArrayList<Flow>>();
 
-	private Map<String, String> startTimeMap = new ConcurrentHashMap<String, String>();
-
 	/**
 	 * Map of NodeId to node type. Used in instantiateNodes function to find class
 	 * implementing the node
@@ -375,7 +373,6 @@ public class Master {
 		flowMap.clear();
 		runningFlowMap.clear();
 		flowsInNodeMap.clear();
-		startTimeMap.clear();
 		nodesToInstantiate.clear();
 		streamIdToStreamLatencyTracker.clear();
 		
@@ -595,14 +592,6 @@ public class Master {
 		return nodeId;
 	}
 
-
-	public void putStartTime(String flowId, String startTime) {
-		this.startTimeMap.put(flowId, startTime);
-	}
-	public String getStartTimeForFlow(String flowId) {
-		return this.startTimeMap.get(flowId);
-	}
-
 	/**
 	 * Stop Simulation request
 	 * @throws MessageBusException
@@ -700,9 +689,11 @@ public class Master {
 					"Packet Loss Rate (Average, Current) = " 
 						+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
 							String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
-			logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
+			//logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			//Make the edge red when packet loss rate is higher than a certain threshold
+			//And turn is back green when it is below
 			if(reportMsg.getAveragePacketLossRate() > PACKET_LOSS_THRESHOLD){
 				edgeColor = "rgb(255,0,0)";
 			}else{
