@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -47,7 +49,7 @@ import edu.cmu.util.Utility;
  * @author Hao Wang
  *
  */
-public class Master {
+public class Master extends TimerTask {
 	private static final double PACKET_LOSS_THRESHOLD = 3;
 
 	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
@@ -752,7 +754,17 @@ public class Master {
 		//		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
 		//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 
-		updateWebClient(webClientGraph.getUpdateMessage());
+	}
+	/**
+	 * Update the WebClientGraph periodically every second
+	 */
+	@Override
+	public void run() {
+		try {
+			updateWebClient(webClientGraph.getUpdateMessage());
+		} catch (MessageBusException e) {
+			e.printStackTrace();
+		}
 	}
 	/**
 	 * StreamId needs to be after last "/" in request.from
@@ -774,7 +786,8 @@ public class Master {
 //		}
 		Master mdnDomain = new Master();
 		mdnDomain.init();
+		Timer timer = new Timer();
+		timer.scheduleAtFixedRate(mdnDomain, 0, 1000);
 	}
-
 
 }

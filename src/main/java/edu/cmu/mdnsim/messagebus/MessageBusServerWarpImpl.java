@@ -8,6 +8,8 @@ import com.ericsson.research.trap.utils.JDKLoggerConfig;
 import com.ericsson.research.warp.api.Notifications;
 import com.ericsson.research.warp.api.Notifications.Listener;
 import com.ericsson.research.warp.api.Warp;
+import com.ericsson.research.warp.api.WarpApplication;
+import com.ericsson.research.warp.api.WarpContext;
 import com.ericsson.research.warp.api.WarpDomain;
 import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.api.WarpInit.DomainInit;
@@ -24,10 +26,8 @@ import edu.cmu.mdnsim.server.WebClient;
 public class MessageBusServerWarpImpl implements MessageBusServer {
 
 	private static WarpDomain _warpDomain;
-
-
-
 	private static WarpService _svc;
+	private static WarpApplication _warpAppl;
 
 	@Override
 	public void config() throws MessageBusException {
@@ -54,13 +54,12 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	@Override
 	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
-
+		WarpContext.setApplication(_warpAppl);
 		try {
 			Warp.send(fromPath, WarpURI.create(dstURI), method, JSON.toJSON(msg).getBytes());
 		} catch (WarpException e) {
 			throw new MessageBusException(e);
 		}
-
 	}
 
 	@Override
@@ -113,6 +112,8 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 		} catch (WarpException e) {
 			throw new MessageBusException(e);
 		}
+		
+		_warpAppl = WarpContext.getApplication();
 	}
 
 }
