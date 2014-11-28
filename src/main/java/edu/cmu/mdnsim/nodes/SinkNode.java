@@ -97,17 +97,16 @@ public class SinkNode extends AbstractNode{
 	}
 
 	@Override
-	public void reset() {
+	public synchronized void reset() {
 
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 
 			streamTask.reset();
 			while(!streamTask.isDone());
-			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream:" + streamTask.getStreamId());
+			streamTask.clean();
 
 		}
-
+		
 		msgBusClient.removeResource("/" + getNodeId());
 
 	}
@@ -331,9 +330,12 @@ public class SinkNode extends AbstractNode{
 			if(receiveSocket != null && !receiveSocket.isClosed()){
 				receiveSocket.close();
 			}
+
 			if(streamIdToSocketMap.containsKey(getStreamId())){
 				streamIdToSocketMap.remove(getStreamId());
 			}
+			
+			streamIdToRunnableMap.remove(getStreamId());
 		}
 
 		private class ReportTaskHandler {

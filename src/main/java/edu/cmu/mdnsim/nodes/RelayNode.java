@@ -143,12 +143,11 @@ public class RelayNode extends AbstractNode{
 	}
 
 	@Override
-	public void reset() {
+	public synchronized void reset() {
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			streamIdToRunnableMap.remove(streamTask.getStreamId());
 			logger.debug(this.getNodeId() + " [DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
 		}
 
@@ -323,9 +322,10 @@ public class RelayNode extends AbstractNode{
 			try {
 				sendingChannel.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				
 			}
 			streamIdToSocketMap.remove(getStreamId());
+			streamIdToRunnableMap.remove(getStreamId());
 		}
 		/**
 		 * Adds new downstream node to relay

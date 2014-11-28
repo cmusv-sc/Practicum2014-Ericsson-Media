@@ -581,16 +581,19 @@ public class WebClientGraph {
 	}
 	public void updateNode(String nodeId, String nodeMsg) {
 		Node n = this.getNode(nodeId);
-		if(n != null)
-			n.tag = nodeMsg;		
+		if(n != null) {
+			n.tag = nodeMsg;
+		}
 	}
 	public void updateEdge(String nodeId, String destinationNodeId,
 			String edgeMsg, String edgeColor) {
 		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
-		if(edgeColor != null)
-			e.color = edgeColor;
-		if(edgeMsg != null)
-			e.tag = edgeMsg;
+		if (e != null) {
+			if(edgeColor != null)
+				e.color = edgeColor;
+			if(edgeMsg != null)
+				e.tag = edgeMsg;
+		}
 	}
 	public void updateEdge(String nodeId, String destinationNodeId,
 			String edgeMsg) {

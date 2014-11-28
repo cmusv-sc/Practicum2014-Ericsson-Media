@@ -135,13 +135,12 @@ public class ProcessingNode extends AbstractNode{
 	}
 
 	@Override
-	public void reset() {
+	public synchronized void reset() {
 
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			streamIdToRunnableMap.remove(streamTask.getStreamId());
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());
@@ -415,6 +414,7 @@ public class ProcessingNode extends AbstractNode{
 				sendSocket.close();
 			}
 			streamIdToSocketMap.remove(getStreamId());
+			streamIdToRunnableMap.remove(getStreamId());
 		}
 
 
