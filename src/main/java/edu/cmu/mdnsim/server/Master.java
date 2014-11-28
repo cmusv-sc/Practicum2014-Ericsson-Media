@@ -50,7 +50,7 @@ import edu.cmu.util.Utility;
 public class Master {
 	private static final double PACKET_LOSS_THRESHOLD = 3;
 
-	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
+	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 
 	/**
 	 * The Message Bus Server is part of the master node and is started along with master
@@ -266,7 +266,7 @@ public class Master {
 		nodeNameToURITbl.put(nodeName, registMsg.getURI());
 		nodeURIToNameTbl.put(registMsg.getURI(), nodeName);
 		logger.debug("[DEBUG] MDNManager.registerNode(): Register new "
-					+ "node:" + nodeName + " from " + registMsg.getURI());
+				+ "node:" + nodeName + " from " + registMsg.getURI());
 		try {
 			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
 		} catch (MessageBusException e) {
@@ -346,12 +346,12 @@ public class Master {
 	 */
 	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
 		if (nodeContainerTbl.containsKey(req.getLabel())) {
-				logger.info("NodeContainer with label " + req.getLabel() 
-						+ " already exists");
+			logger.info("NodeContainer with label " + req.getLabel() 
+					+ " already exists");
 		} else {
 			nodeContainerTbl.put(req.getLabel(), req.getNcURI());
-				logger.info("Register new node container label:" 
-						+ req.getLabel() + " from " + req.getNcURI());
+			logger.info("Register new node container label:" 
+					+ req.getLabel() + " from " + req.getNcURI());
 		}
 	}
 
@@ -375,7 +375,7 @@ public class Master {
 		flowsInNodeMap.clear();
 		nodesToInstantiate.clear();
 		streamIdToStreamLatencyTracker.clear();
-		
+
 		/* reset the WebClientGraph */
 		WebClientUpdateMessage resetMsg = webClientGraph.resetWebClientGraph();
 		if (webClientURI != null) {
@@ -386,7 +386,7 @@ public class Master {
 				e.printStackTrace();
 			}
 		}
-		
+
 		logger.debug("[DEBUG] MDNManager.resetSimulation(): Reset Complete");
 	}
 
@@ -654,7 +654,6 @@ public class Master {
 		//logger.debug("[Stream Report] Source NodeId: " + nodeIdOfReportSender + ", Destination NodeId:"  + reportMsg.getDestinationNodeId());
 		String sourceNodeId  = nodeIdOfReportSender;
 		String destinationNodeId = reportMsg.getDestinationNodeId();
-		String nodeMsg = null;
 		String edgeColor = null;
 		String edgeMsg = null;
 		String logMsg = null;
@@ -682,22 +681,23 @@ public class Master {
 				}
 			}
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_START);
-			logMsg = nodeMsg = edgeMsg = "Started sending data for stream " + streamId;
+			logMsg = "Started sending data for stream " + streamId;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case SEND_END:
-			logMsg = nodeMsg = edgeMsg = "Stopped sending data for stream " + streamId;
+			logMsg = "Stopped sending data for stream " + streamId;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
 			break;
 		case PROGRESS_REPORT:
-			nodeMsg = edgeMsg = "Stream Id: " + streamId + HtmlTags.BR + 
-					"Transfer Rate (Average, Current) = " + 
-						String.format("%.2f",reportMsg.getAverageTransferRate()) + "," + 
-						String.format("%.2f",reportMsg.getCurrentTransferRate()) + HtmlTags.BR +	 
-					"Packet Loss Rate (Average, Current) = " 
-						+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
-							String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
-			//logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
+			edgeMsg = "Stream Id: " + streamId + HtmlTags.BR + 
+			"Transfer Rate (Average, Current) = " + 
+			String.format("%.2f",reportMsg.getAverageTransferRate()) + "," + 
+			String.format("%.2f",reportMsg.getCurrentTransferRate()) + HtmlTags.BR +	 
+			"Packet Loss Rate (Average, Current) = " 
+			+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
+			String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
+			logMsg = edgeMsg.replace(HtmlTags.BR, "\t");
+
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			//Make the edge red when packet loss rate is higher than a certain threshold
@@ -710,7 +710,7 @@ public class Master {
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		case RECEIVE_START:
-			logMsg = nodeMsg = edgeMsg = "Started receiving data for stream " + streamId;
+			logMsg = edgeMsg = "Started receiving data for stream " + streamId;
 			edgeColor = "rgb(0,255,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
@@ -736,7 +736,7 @@ public class Master {
 				}
 			}
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_END);
-			logMsg = nodeMsg = edgeMsg = "Stopped receiving data for stream " + streamId;
+			logMsg = edgeMsg = "Stopped receiving data for stream " + streamId;
 			edgeColor = "rgb(0,0,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
@@ -746,11 +746,11 @@ public class Master {
 		default:
 			break;
 		}
-		
-		
 
-//		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
-//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+		logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+
+		//		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
+		//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 
 		updateWebClient(webClientGraph.getUpdateMessage());
 	}
@@ -766,6 +766,12 @@ public class Master {
 	}
 
 	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
+//		double packetLossThreshHold = Master.PACKET_LOSS_THRESHOLD;
+//		try{
+//			packetLossThreshHold = Double.parseDouble(args[0]);
+//		}catch(Exception e){
+//			logger.error(e.toString());
+//		}
 		Master mdnDomain = new Master();
 		mdnDomain.init();
 	}

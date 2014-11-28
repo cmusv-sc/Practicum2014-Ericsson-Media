@@ -170,6 +170,7 @@ function refreshGraph(updated_data){
 				graphNode.size = nodesMap[graphNode.id].size;
 				graphNode.tag = nodesMap[graphNode.id].tag;
 			}
+			//This function will update the hover if it is currently being displayed
 			if(self.updateNodeTag)
 				self.updateNodeTag();
 			//Same things for updating edges. But in edges, we need to manually change the color and size

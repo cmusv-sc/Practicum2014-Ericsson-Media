@@ -1,6 +1,5 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.util.Utility;
 
 /**
@@ -38,10 +37,10 @@ public class StreamReportMessage extends MbMessage{
 	/**
 	 * Following fields are used by all nodes which receive some data. 
 	 */
-	private double averagePacketLossRate;
-	private double currentPacketLossRate;
-	private double averageTransferRate;
-	private double currentTransferRate;
+	private double averagePacketLossRate = 0.0;
+	private double currentPacketLossRate= 0.0;
+	private double averageTransferRate= 0.0;
+	private double currentTransferRate= 0.0;
 	
 	public StreamReportMessage(){
 		super();		
