@@ -90,13 +90,19 @@ public class Stream extends MbMessage {
 
 	public Flow findFlow(String flowId) {
 		for (Flow flow : flowList) {
+			System.out.println("[DELETE-JEREMY]Stream.findFlow(): Scan flowId=" + flow.getFlowId());
 			if(flow.getFlowId().equals(flowId))
 				return flow;
 		}
 		return null;
 	}
 	
-	public void mergeFlow(Flow flow){
+	/**
+	 * Replace the existed flow with a new flow of same flowId.
+	 * 
+	 * @param flow
+	 */
+	public void replaceFlow(Flow flow){
 		int oldFlowIdx = -1;
 		for (Flow oldFlow : this.flowList) {
 			if (oldFlow.getFlowId().equals(flow.getFlowId())) {
@@ -111,5 +117,20 @@ public class Stream extends MbMessage {
 		}
 		this.flowList.remove(oldFlowIdx);
 		this.flowList.add(flow);
+	}
+	
+	/**
+	 * Check if the stream has contained a flow with same flow ID as parameters
+	 * 
+	 * @param flow
+	 * @return
+	 */
+	public boolean containsFlowID(String flowId) {
+		for (Flow existedFlow : flowList) {
+			if (existedFlow.equals(flowId)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

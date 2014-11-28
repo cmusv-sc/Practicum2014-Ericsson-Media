@@ -461,10 +461,7 @@ public class Master extends TimerTask {
 				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);
 				}
-				System.out.println("Flow: " +  flow);
-				/* If the flow is ready to run, i.e. all the nodes in the flow
-				 * are registered with the master, then start the flow
-				 */
+
 				if (flow.canRun())
 					this.runFlow(flow);
 			}
@@ -472,8 +469,19 @@ public class Master extends TimerTask {
 			if (!streamMap.containsKey(streamId)) {
 				streamMap.put(streamId, stream);
 			} else {
-				//TODO: change to checked exception
-				//throw new RuntimeException("Duplicate stream ID");
+				Stream existedStream = streamMap.get(streamId);
+				for (Flow uploadedFlow : stream.getFlowList()) {
+					if (!existedStream.containsFlowID(uploadedFlow.getFlowId())) {
+						//TODO: This is just a simple addition.
+						/*
+						 * More strict validation is required to the added flows, such as:
+						 * [1] Are bit rate and data size the same?
+						 * [2] Is the added flow correctly attached to some relay the existed stream
+						 */
+						existedStream.addFlow(uploadedFlow);
+					}
+
+				}
 			}
 		}
 		//Generate locations for all the nodes
@@ -710,6 +718,7 @@ public class Master extends TimerTask {
 			}else{
 				edgeColor = "rgb(0,255,0)";
 			}
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		case RECEIVE_START:
 			logMsg = nodeMsg = edgeMsg = "Started receiving data for stream " + streamId;
@@ -717,6 +726,7 @@ public class Master extends TimerTask {
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
@@ -742,6 +752,7 @@ public class Master extends TimerTask {
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			logger.info(Utility.getFormattedLogMessage(logMsg, nodeIdOfReportSender));
+			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 			break;
 		default:
 			break;
@@ -750,7 +761,7 @@ public class Master extends TimerTask {
 		
 
 //		webClientGraph.updateNode(nodeIdOfReportSender, nodeMsg);
-		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
+//		webClientGraph.updateEdge(sourceNodeId,destinationNodeId, edgeMsg, edgeColor);
 
 	}
 	/**

@@ -37,7 +37,9 @@ public class SinkNode extends AbstractNode{
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
+		
 		Flow flow = stream.findFlow(this.getFlowId(request));
+		System.out.println("[DELETE]SinkNode.executeTask(): flowID = " + this.getFlowId(request) + "  Is the flow == null:" + (flow == null));
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		Integer port = this.getAvailablePort(flow.getStreamId());
@@ -95,17 +97,16 @@ public class SinkNode extends AbstractNode{
 	}
 
 	@Override
-	public void reset() {
+	public synchronized void reset() {
 
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 
 			streamTask.reset();
 			while(!streamTask.isDone());
-			streamIdToRunnableMap.remove(streamTask.getStreamId());
-			System.out.println("[DEBUG]SinkNode.cleanUp(): Stops NodeRunnable for stream:" + streamTask.getStreamId());
+			streamTask.clean();
 
 		}
-
+		
 		msgBusClient.removeResource("/" + getNodeId());
 
 	}
@@ -329,9 +330,12 @@ public class SinkNode extends AbstractNode{
 			if(receiveSocket != null && !receiveSocket.isClosed()){
 				receiveSocket.close();
 			}
+
 			if(streamIdToSocketMap.containsKey(getStreamId())){
 				streamIdToSocketMap.remove(getStreamId());
 			}
+			
+			streamIdToRunnableMap.remove(getStreamId());
 		}
 
 		private class ReportTaskHandler {
