@@ -2,13 +2,37 @@
 	"SimId":"demo",
 	"StreamList":
 	[
-
 	{
 		"StreamId":"demo-stream-1",
 		"DataSize":"40000",
-		"KiloBitRate":"20",
+		"KiloBitRate":"10",
 		"FlowList":
 		[
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink4",
+				"UpstreamId":"orange:relay3"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay3",
+				"UpstreamId":"orange:relay1"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay1",
+				"UpstreamId":"lemon:source1"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
 		{
 			"NodeList":
 			[
