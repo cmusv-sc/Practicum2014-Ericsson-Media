@@ -4,16 +4,13 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ericsson.research.warp.api.message.Message;
-import com.ericsson.research.warp.api.rest.PUT;
-import com.ericsson.research.warp.api.rest.Path;
-import com.ericsson.research.warp.api.rest.PathParam;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
@@ -32,7 +29,7 @@ public abstract class AbstractNode {
 	
 	private boolean registered = false;
 
-	protected Map<String, DatagramSocket> streamIdToSocketMap = new HashMap<String, DatagramSocket>();
+	protected Map<String, DatagramSocket> streamIdToSocketMap = new ConcurrentHashMap<String, DatagramSocket>();
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 	

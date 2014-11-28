@@ -6,9 +6,9 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ericsson.research.trap.utils.Future;
 import com.ericsson.research.trap.utils.ThreadPool;
@@ -24,7 +24,7 @@ import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 
 public class SourceNode extends AbstractNode {
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
 
 	public SourceNode() throws UnknownHostException {
 		super();
@@ -104,15 +104,15 @@ public class SourceNode extends AbstractNode {
 	}
 
 	@Override
-	public void reset() {
+	public synchronized void reset() {
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 
 			while(!streamTask.isDone());
 
 			streamTask.clean();
-			streamIdToRunnableMap.remove(streamTask.getStreamId());
 		}
+		
 		msgBusClient.removeResource("/" + getNodeId());
 	}
 

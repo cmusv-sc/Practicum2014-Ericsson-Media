@@ -14,7 +14,7 @@
 			[
 			{
 				"NodeType":"SinkNode",
-				"NodeId":"tomato:sink5",
+				"NodeId":"tomato:sink4",
 				"UpstreamId":"orange:relay3"
 			},
 			{
