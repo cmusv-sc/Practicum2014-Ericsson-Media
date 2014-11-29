@@ -9,9 +9,8 @@ import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 
-import com.ericsson.research.trap.utils.Future;
-import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -68,7 +67,7 @@ public class SourceNode extends AbstractNode {
 	 */
 	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate, Flow flow){
 		SendRunnable sendRunnable = new SendRunnable(stream, destAddrStr, destPort, bytesToTransfer, rate, flow);
-		Future sendFuture = ThreadPool.executeAfter(new MDNTask(sendRunnable), 0);
+		Future<?> sendFuture = NodeContainer.ThreadPool.submit(new MDNTask(sendRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(sendFuture, sendRunnable));
 	}
 	/**
@@ -276,10 +275,10 @@ public class SourceNode extends AbstractNode {
 	}
 
 	private class StreamTaskHandler {
-		private Future streamFuture;
+		private Future<?> streamFuture;
 		private SendRunnable streamTask;
 
-		public StreamTaskHandler(Future streamFuture, SendRunnable streamTask) {
+		public StreamTaskHandler(Future<?> streamFuture, SendRunnable streamTask) {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}

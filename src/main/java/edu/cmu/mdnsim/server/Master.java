@@ -247,7 +247,7 @@ public class Master extends TimerTask {
 		try {
 			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
 		} catch (MessageBusException e) {
-			logger.error(e.toString());
+			//logger.error(Utility.getFormattedErrorMessage(e));
 		}
 
 	}

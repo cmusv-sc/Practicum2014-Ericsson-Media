@@ -9,9 +9,8 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Future;
 
-import com.ericsson.research.trap.utils.Future;
-import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -93,7 +92,7 @@ public class ProcessingNode extends AbstractNode{
 			InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
 		ProcessRunnable procRunnable = 
 				new ProcessRunnable(stream, totalData, destAddress, destPort, processingLoop, processingMemory, rate);
-		Future procFuture = ThreadPool.executeAfter(new MDNTask(procRunnable), 0);
+		Future<?> procFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(procFuture, procRunnable));
 	}
 
@@ -187,9 +186,7 @@ public class ProcessingNode extends AbstractNode{
 		@Override
 		public void run() {
 
-			PacketLostTracker packetLostTracker = 
-					new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,0);
-
+			PacketLostTracker packetLostTracker = null;
 			if(!initializeSocketAndPacket()){
 				return;
 			}
@@ -235,10 +232,6 @@ public class ProcessingNode extends AbstractNode{
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
-				int packetId = nodePacket.getMessageId();
-
-				packetLostTracker.updatePacketLost(packetId);
-
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
 				/*
@@ -246,13 +239,17 @@ public class ProcessingNode extends AbstractNode{
 				 * received.
 				 */
 				if(reportTask == null) {
+					packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
 					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 									.build();
 					this.sendStreamReport(streamReportMessage);
+					
+					
+					
 				}
-
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);
@@ -363,7 +360,7 @@ public class ProcessingNode extends AbstractNode{
 
 		private ReportTaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
 			ReportRateRunnable reportRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
-			Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportRateRunnable), 0);
+			Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportRateRunnable));
 			return new ReportTaskHandler(reportFuture, reportRateRunnable);
 		}
 
@@ -375,7 +372,8 @@ public class ProcessingNode extends AbstractNode{
 		private void sendPacket(DatagramPacket packet, NodePacket nodePacket){
 			packet.setData(nodePacket.serialize());	
 			packet.setAddress(dstAddress);
-			packet.setPort(dstPort);					
+			packet.setPort(dstPort);
+			System.out.println("[DELETE-JEREMY]ProcNode.Runnable.sendPacket(): send packet to port" + dstPort);
 			try {
 				sendSocket.send(packet);
 			} catch (IOException e) {
@@ -420,10 +418,10 @@ public class ProcessingNode extends AbstractNode{
 
 		private class ReportTaskHandler {
 
-			Future reportFuture;
+			Future<?> reportFuture;
 			ReportRateRunnable reportRunnable;
 
-			public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
+			public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
 				this.reportFuture = future;
 				reportRunnable = runnable;
 			}
@@ -460,10 +458,10 @@ public class ProcessingNode extends AbstractNode{
 	 */
 
 	private class StreamTaskHandler {
-		private Future streamFuture;
+		private Future<?> streamFuture;
 		private ProcessRunnable streamTask;
 
-		public StreamTaskHandler(Future streamFuture, ProcessRunnable streamTask) {
+		public StreamTaskHandler(Future<?> streamFuture, ProcessRunnable streamTask) {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}

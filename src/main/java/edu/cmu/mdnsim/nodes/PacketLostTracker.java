@@ -10,20 +10,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PacketLostTracker {
 	
 	private AtomicInteger lostPacketNum;
-	
+	private AtomicInteger highestPacketId;
+
 	private int expectedMaxPacketId;
 	private int packetNumInAWindow;
 	private int lowPacketIdBoundry;
 	private int highPacketIdBoundry;
 	private int receivedPacketNumInAWindow;
 	private boolean finished;
-	
-	private final int totalData;
-	private final int rate;
-	private final int packetLength;
-	private final int timeout;
-	private final int beginId;
-
 
 	/**
 	 * 
@@ -38,13 +32,7 @@ public class PacketLostTracker {
 		if(totalData < 0 || rate < 0 || packetLength < 0 || timeout < 0 || beginId < 0){
 			throw new IllegalArgumentException();
 		}
-		
-		this.totalData = totalData;
-		this.rate = rate;
-		this.packetLength = packetLength;
-		this.timeout = timeout;
-		this.beginId = beginId;
-		
+
 		lostPacketNum = new AtomicInteger(0);
 		expectedMaxPacketId = (int) Math.ceil(totalData * 1.0 / packetLength) - 1;
 		double packetNumPerSecond = rate * 1.0 / packetLength;
@@ -52,6 +40,7 @@ public class PacketLostTracker {
 		lowPacketIdBoundry = beginId;
 		highPacketIdBoundry = Math.min(beginId + packetNumInAWindow - 1, expectedMaxPacketId);
 		receivedPacketNumInAWindow = 0;
+		highestPacketId = new AtomicInteger(-1);
 		
 		finished = false;
 	}
@@ -78,6 +67,8 @@ public class PacketLostTracker {
 		} else if(packetId >= lowPacketIdBoundry && packetId <= highPacketIdBoundry){
 			receivedPacketNumInAWindow++;
 		}
+		
+		setHighestPacketId(Math.max(getHighestPacketId(), packetId));
 	}
 	
 	/**
@@ -97,5 +88,13 @@ public class PacketLostTracker {
 
 	public void setLostPacketNum(int lostPacketNum) {
 		this.lostPacketNum.set(lostPacketNum);
+	}
+	
+	public int getHighestPacketId() {
+		return highestPacketId.get();
+	}
+
+	public void setHighestPacketId(int highestPacketId) {
+		this.highestPacketId.set(highestPacketId);
 	}
 }

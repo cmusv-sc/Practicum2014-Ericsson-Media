@@ -35,8 +35,10 @@ public class Utility {
 		Date date = new Date();
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS", Locale.US);
 		StringBuilder sb = new StringBuilder();
-		sb.append("["); sb.append(dateFormat.format(date));sb.append("]["); sb.append(nodeId); 
-		sb.append("]["); sb.append(message); sb.append("]");
+		sb.append("["); sb.append(dateFormat.format(date));
+		sb.append("]["); sb.append(nodeId); 
+		sb.append("]["); sb.append(message);
+		sb.append("]");
 		return sb.toString();
 	}
 }
