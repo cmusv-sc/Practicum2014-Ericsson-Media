@@ -5,10 +5,12 @@
 
 	{
 		"StreamId":"demo-stream-1",
-		"DataSize":"40000",
-		"KiloBitRate":"10",
+		"DataSize":"20000000",
+		"KiloBitRate":"1000",
 		"FlowList":
 		[
+
+		
 		{
 			"NodeList":
 			[
@@ -72,6 +74,119 @@
 			{
 				"NodeType":"SourceNode",
 				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink4",
+				"UpstreamId":"orange:relay3"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay3",
+				"UpstreamId":"orange:relay1"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay1",
+				"UpstreamId":"lemon:source1"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink5",
+				"UpstreamId":"orange:relay3"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay3",
+				"UpstreamId":"orange:relay1"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay1",
+				"UpstreamId":"lemon:source1"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		}
+		]
+	},
+	{
+		"StreamId":"demo-stream-2",
+		"DataSize":"60000",
+		"KiloBitRate":"20",
+		"FlowList":
+		[
+
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink6",
+				"UpstreamId":"orange:relay5"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay5",
+				"UpstreamId":"apple:proc3"
+			},
+			{
+				"NodeType":"ProcessingNode",
+				"NodeId":"apple:proc3",
+				"UpstreamId":"lemon:source2",
+				"ProcessingLoop":"100000",
+				"ProcessingMemory":"1000"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source2",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink7",
+				"UpstreamId":"orange:relay5"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay5",
+				"UpstreamId":"apple:proc3"
+			},
+			{
+				"NodeType":"ProcessingNode",
+				"NodeId":"apple:proc3",
+				"UpstreamId":"lemon:source2",
+				"ProcessingLoop":"100000",
+				"ProcessingMemory":"1000"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source2",
 				"UpstreamId":"NULL"
 			}
 			]

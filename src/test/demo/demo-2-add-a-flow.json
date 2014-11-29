@@ -13,12 +13,19 @@
 			[
 			{
 				"NodeType":"SinkNode",
-				"NodeId":"tomato:sink4",
-				"UpstreamId":"orange:relay3"
+				"NodeId":"tomato:sink1",
+				"UpstreamId":"apple:proc1"
+			},
+			{
+				"NodeType":"ProcessingNode",
+				"NodeId":"apple:proc1",
+				"UpstreamId":"orange:relay2",
+				"ProcessingLoop":"100000",
+				"ProcessingMemory":"1000"
 			},
 			{
 				"NodeType":"RelayNode",
-				"NodeId":"orange:relay3",
+				"NodeId":"orange:relay2",
 				"UpstreamId":"orange:relay1"
 			},
 			{
@@ -33,31 +40,6 @@
 			}
 			]
 		},
-		{
-			"NodeList":
-			[
-			{
-				"NodeType":"SinkNode",
-				"NodeId":"tomato:sink5",
-				"UpstreamId":"orange:relay3"
-			},
-			{
-				"NodeType":"RelayNode",
-				"NodeId":"orange:relay3",
-				"UpstreamId":"orange:relay1"
-			},
-			{
-				"NodeType":"RelayNode",
-				"NodeId":"orange:relay1",
-				"UpstreamId":"lemon:source1"
-			},
-			{
-				"NodeType":"SourceNode",
-				"NodeId":"lemon:source1",
-				"UpstreamId":"NULL"
-			}
-			]
-		}
 		]
 	}
 	]
