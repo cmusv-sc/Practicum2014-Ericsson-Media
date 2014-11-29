@@ -709,7 +709,7 @@ public class Master extends TimerTask {
 			destinationNodeId = nodeIdOfReportSender;
 			//Make the edge red when packet loss rate is higher than a certain threshold
 			//And turn is back green when it is below
-			if(reportMsg.getAveragePacketLossRate() > PACKET_LOSS_THRESHOLD){
+			if(reportMsg.getCurrentPacketLossRate() > PACKET_LOSS_THRESHOLD){
 				edgeColor = "rgb(255,0,0)";
 			}else{
 				edgeColor = "rgb(0,255,0)";
