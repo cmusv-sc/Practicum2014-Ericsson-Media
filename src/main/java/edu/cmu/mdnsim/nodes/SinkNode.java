@@ -36,7 +36,7 @@ public class SinkNode extends AbstractNode{
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
-		
+
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
@@ -47,7 +47,7 @@ public class SinkNode extends AbstractNode{
 				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
 		upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
 				super.getHostAddr().getHostAddress()+":"+port);
-		
+
 		try {
 			msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 					nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
@@ -97,7 +97,7 @@ public class SinkNode extends AbstractNode{
 
 	@Override
 	public synchronized void reset() {
-				
+
 		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
 
 			streamTask.reset();
@@ -105,7 +105,7 @@ public class SinkNode extends AbstractNode{
 			streamTask.clean();
 
 		}
-		
+
 		msgBusClient.removeResource("/" + getNodeId());
 
 	}
@@ -141,15 +141,9 @@ public class SinkNode extends AbstractNode{
 			if(!initializeSocketAndPacket()){
 				return;
 			}
-			
-			
-			
-			
-			PacketLostTracker packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
-					Integer.parseInt(this.getStream().getKiloBitRate()), 
-					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
+			PacketLostTracker packetLostTracker = null;
 
-//			long startedTime = 0;
+			//			long startedTime = 0;
 			boolean isFinalWait = false;			
 			ReportTaskHandler reportTaksHandler = null;
 
@@ -176,17 +170,22 @@ public class SinkNode extends AbstractNode{
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
-				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+
 
 				if(reportTaksHandler == null){
-//					startedTime = System.currentTimeMillis();
+					//					startedTime = System.currentTimeMillis();
+					packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
+							Integer.parseInt(this.getStream().getKiloBitRate()),
+							NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
-									.flowId(flow.getFlowId())
-									.build();
+													.flowId(flow.getFlowId())
+													.build();
 					this.sendStreamReport(streamReportMessage);
+					
 				}
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
 
 				if(nodePacket.isLast()){
 					super.setUpstreamDone();
@@ -206,7 +205,7 @@ public class SinkNode extends AbstractNode{
 				/*
 				 * Wait for reportTask completely finished.
 				 */
-				
+
 				while (!reportTaksHandler.isDone());
 			}
 
@@ -217,11 +216,11 @@ public class SinkNode extends AbstractNode{
 			 */
 			StreamReportMessage streamReportMessage = 
 					new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
-							.flowId(flow.getFlowId())
-							.totalBytesTransferred(this.getTotalBytesTranfered())
-							.build();
+			.flowId(flow.getFlowId())
+			.totalBytesTransferred(this.getTotalBytesTranfered())
+			.build();
 			this.sendStreamReport(streamReportMessage);
-			
+
 			packetLostTracker.updatePacketLostForLastTime();
 
 			if (isUpstreamDone()) { //Simulation completes as informed by upstream.
@@ -259,7 +258,7 @@ public class SinkNode extends AbstractNode{
 			}
 
 		}
-		
+
 
 		/**
 		 * Initialize the receive socket and the DatagramPacket 
@@ -299,7 +298,6 @@ public class SinkNode extends AbstractNode{
 			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
-
 		private void clean() {
 			if(receiveSocket != null && !receiveSocket.isClosed()){
 				receiveSocket.close();
@@ -308,7 +306,7 @@ public class SinkNode extends AbstractNode{
 			if(streamIdToSocketMap.containsKey(getStreamId())){
 				streamIdToSocketMap.remove(getStreamId());
 			}
-			
+
 			streamIdToRunnableMap.remove(getStreamId());
 		}
 
@@ -357,7 +355,7 @@ public class SinkNode extends AbstractNode{
 		public boolean isDone() {
 			return streamFuture.isDone();
 		}
-		
+
 		public boolean isCanclled() {
 			return streamFuture.isCancelled();
 		}

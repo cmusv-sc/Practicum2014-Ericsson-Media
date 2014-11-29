@@ -188,10 +188,7 @@ public class RelayNode extends AbstractNode{
 			if(!initializeSocketAndPacket()){
 				return;
 			}		
-			PacketLostTracker packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
-					Integer.parseInt(this.getStream().getKiloBitRate()),
-					NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, 0);
-
+			PacketLostTracker packetLostTracker = null;
 			boolean isFinalWait = false;
 			ReportTaskHandler reportTaskHandler = null;
 			while (!isKilled()) {
@@ -216,9 +213,12 @@ public class RelayNode extends AbstractNode{
 				setTotalBytesTranfered(getTotalBytesTranfered() + receivedPacket.getLength());
 
 				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
-				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+				
 
 				if(reportTaskHandler == null) {
+					packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
+							Integer.parseInt(this.getStream().getKiloBitRate()),
+							NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
 					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
@@ -226,9 +226,11 @@ public class RelayNode extends AbstractNode{
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 					.build();
 					this.sendStreamReport(streamReportMessage);
+					
+					
 				}
 
-				//NodePacket nodePacket = new NodePacket(receivedPacket.getData());
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
 
 				//Send data to all destination nodes
 				DatagramPacket packet ;

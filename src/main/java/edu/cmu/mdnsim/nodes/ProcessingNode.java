@@ -186,9 +186,7 @@ public class ProcessingNode extends AbstractNode{
 		@Override
 		public void run() {
 
-			PacketLostTracker packetLostTracker = 
-					new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,0);
-
+			PacketLostTracker packetLostTracker = null;
 			if(!initializeSocketAndPacket()){
 				return;
 			}
@@ -234,10 +232,6 @@ public class ProcessingNode extends AbstractNode{
 
 				NodePacket nodePacket = new NodePacket(packet.getData());
 
-				int packetId = nodePacket.getMessageId();
-
-				packetLostTracker.updatePacketLost(packetId);
-
 				setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
 				/*
@@ -245,13 +239,17 @@ public class ProcessingNode extends AbstractNode{
 				 * received.
 				 */
 				if(reportTask == null) {
+					packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
 					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 									.build();
 					this.sendStreamReport(streamReportMessage);
+					
+					
+					
 				}
-
+				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
 				processNodePacket(nodePacket);
 
 				sendPacket(packet, nodePacket);

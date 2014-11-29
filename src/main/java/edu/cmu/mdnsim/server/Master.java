@@ -39,10 +39,9 @@ import edu.cmu.util.Utility;
  * It represents the Master Node of the Simulator.
  * Some of the major responsibilities include: 
  * 1. Communicating with WebClient - Parsing user input (work specification) and sending regular updates
- * 2. Keeping track of all active nodes in the system
- * 3. Keeping track of all Node Containers
- * 4. Naming of the nodes and mapping them to the names given by the user
- * 5. Staring Message Bus Server and registering resource for reporting
+ * 2. Creating and keeping track of all active nodes in the system
+ * 3. Creating and keeping track of all Node Containers
+ * 4. Staring Message Bus Server and registering resource for reporting
  * 
  * @author Jeremy Fu
  * @author Jigar Patel
@@ -248,7 +247,7 @@ public class Master extends TimerTask {
 		try {
 			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
 		} catch (MessageBusException e) {
-			e.printStackTrace();
+			//logger.error(Utility.getFormattedErrorMessage(e));
 		}
 
 	}
@@ -659,7 +658,7 @@ public class Master extends TimerTask {
 	 * @param reportMsg
 	 * @throws MessageBusException
 	 */
-	public synchronized void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
+	public void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
 		String nodeIdOfReportSender = getNodeId(request);		
 		String streamId = getStreamId(request);
 		//logger.debug("[Stream Report] Source NodeId: " + nodeIdOfReportSender + ", Destination NodeId:"  + reportMsg.getDestinationNodeId());

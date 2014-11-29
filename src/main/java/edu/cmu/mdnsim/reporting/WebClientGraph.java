@@ -159,6 +159,7 @@ public class WebClientGraph {
 		}
 		/**
 		 * Builds HTML table to be shown on hover of node 
+		 * Latency is shown only for sink nodes and status and id are shown for all nodes.
 		 * @return String containing full HTML table element
 		 */
 		private String buildTagHtml(){
@@ -173,11 +174,13 @@ public class WebClientGraph {
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().streamStatus);
 				sb.append(HtmlTags.TD_END);
-				sb.append(HtmlTags.TD_BEGIN);
-				if(entry.getValue().latency != null){
-					sb.append(entry.getValue().latency);
+				if(this.nodeType.toLowerCase().equals("sinknode")){
+					sb.append(HtmlTags.TD_BEGIN);
+					if(entry.getValue().latency != null){
+						sb.append(entry.getValue().latency);
+					}
+					sb.append(HtmlTags.TD_END);
 				}
-				sb.append(HtmlTags.TD_END);
 				sb.append(HtmlTags.TR_END);
 			}
 			sb.append(HtmlTags.TABLE_END);
@@ -192,7 +195,9 @@ public class WebClientGraph {
 			sb.append(HtmlTags.TR_BEGIN);
 			sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
 			sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
+			if(this.nodeType.toLowerCase().equals("sinknode")){
+				sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
+			}
 			sb.append(HtmlTags.TR_END);
 			return sb.toString();
 		}
@@ -355,7 +360,9 @@ public class WebClientGraph {
 		 * @return String format of the EventType value
 		 */
 		public String getStreamStatus(String streamId) {
-			return this.streamMetricsMap.get(streamId).streamStatus;
+			if(this.streamMetricsMap.get(streamId) != null)
+				return this.streamMetricsMap.get(streamId).streamStatus;
+			return null;
 		}
 	}
 	/**
@@ -640,39 +647,81 @@ public class WebClientGraph {
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
 	}
+	/**
+	 * Used to update the Edge Tooltip and color. This function is called for updating progress reports.
+	 * @param nodeId
+	 * @param destinationNodeId
+	 * @param streamId
+	 * @param edgeColor
+	 * @param averagePacketLoss
+	 * @param currentPacketLoss
+	 * @param averageTransferRate
+	 * @param currentTransferRate
+	 */
 	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
 			String edgeColor, double averagePacketLoss, double currentPacketLoss,
 			double averageTransferRate, double currentTransferRate) {
 		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
 		if (e != null) {
-			//Update the Edge only if the receiving node is not done receiving
-			if(!e.getStreamStatus(streamId).equals(EventType.RECEIVE_END.toString())){
-				e.color = edgeColor;
-				e.updateToolTip(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
-						String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate));
+			synchronized(e){
+				String streamStatus = e.getStreamStatus(streamId);
+				if(streamStatus != null){
+					//Update the Edge only if the receiving node is not done receiving
+					if(!streamStatus.equals(EventType.RECEIVE_END.toString())){
+						e.color = edgeColor;
+						e.updateToolTip(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
+								String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate));
+					}
+				}
 			}
 		}
 	}
+	/**
+	 * Used to update Edge Tooltip and color. Called when a node starts or stops receiving data
+	 * @param nodeId
+	 * @param destinationNodeId
+	 * @param streamId
+	 * @param edgeColor
+	 * @param eventType
+	 */
 	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
 			String edgeColor,EventType eventType) {
 		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
 		if (e != null) {
-			e.color = edgeColor;
-			e.updateToolTip(streamId, eventType);
+			synchronized(e){
+				e.color = edgeColor;
+				e.updateToolTip(streamId, eventType);
+			}
 		}
 	}
+	/**
+	 * Used to update Tooltip of the Node. Called when node start/stops sending/receiving data
+	 * @param nodeId
+	 * @param streamId
+	 * @param eventType
+	 */
 	public void updateNode(String nodeId, String streamId,
 			EventType eventType) {
 		Node n = this.getNode(nodeId);
 		if(n != null){
-			n.updateToolTip(streamId, eventType);			
+			synchronized(n){
+				n.updateToolTip(streamId, eventType);
+			}
 		}
 	}
+	/**
+	 * Used to update tooltop of the node. Called when node reports latency metrics
+	 * @param nodeId
+	 * @param streamId
+	 * @param latency
+	 */
 	public void updateNode(String nodeId, String streamId,
 			long latency) {
 		Node n = this.getNode(nodeId);
 		if(n != null){
-			n.updateToolTip(streamId, latency);			
+			synchronized(n){
+				n.updateToolTip(streamId, latency);
+			}
 		}
 	}
 	public synchronized WebClientUpdateMessage resetWebClientGraph() {

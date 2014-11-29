@@ -276,6 +276,7 @@ function initWarp(){
 			if(s != null) {		
 				s.graph.clear();
 				s.refresh();
+				$("#messages").html("");
 			}
 		}
 	});

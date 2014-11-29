@@ -23,14 +23,14 @@ public abstract class NodeRunnable implements Runnable {
 	private AtomicInteger lostPacketNum = new AtomicInteger(0);
 	private MessageBusClient msgBusClient;
 	private String nodeId;
-	
+
 	/**
 	 * Used to indicate NodeRunnable Thread to stop processing. Will be set to
 	 * true when Master sends Terminate message for the flow attached to this
 	 * NodeRunnable
 	 */
 	private boolean killed = false;
-	
+
 	/**
 	 * Used to indicate NodeRunnable thread is reset by Node thread.
 	 */
@@ -54,11 +54,11 @@ public abstract class NodeRunnable implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private String getNodeId() {
 		return nodeId;
 	}
-	
+
 	private String getResourceName() {
 		return "/" + getNodeId() + "/" + this.getStreamId();
 	}
@@ -107,11 +107,11 @@ public abstract class NodeRunnable implements Runnable {
 		this.killed = true;
 		this.reset = true;
 	}
-	
+
 	public synchronized boolean isReset() {
 		return this.reset;
 	}
-	
+
 	public synchronized void stop() {
 		stopped = true;
 	}
@@ -128,22 +128,22 @@ public abstract class NodeRunnable implements Runnable {
 		this.stream = stream;
 	}
 
-	
+
 	abstract protected void sendEndMessageToDownstream();
 
 	protected String getFromPath() {
 		return "/" + getNodeId() + "/" + this.getStreamId();
 
 	}
-	
+
 	protected void setUpstreamDone() {
 		this.upStreamDone = true;
 	}
-	
+
 	public boolean isUpstreamDone() {
 		return upStreamDone;
 	}
-	
+
 	/**
 	 * Gets up stream node id for the current node
 	 * @return null if not found
@@ -199,6 +199,7 @@ public abstract class NodeRunnable implements Runnable {
 	 */
 	protected class ReportRateRunnable implements Runnable {
 
+		private int lastRecordedHighestPacketId = 0;
 		private int lastRecordedTotalBytes = 0;
 
 		private int lastRecordedPacketLost = 0;
@@ -228,7 +229,7 @@ public abstract class NodeRunnable implements Runnable {
 		 */
 		@Override
 		public void run() {
-			
+
 			while (!killed) {
 				calculateAndReport();
 				try {
@@ -240,7 +241,7 @@ public abstract class NodeRunnable implements Runnable {
 			}
 			calculateAndReport();
 			System.out.println("ReportRateRunnable.run(): " + NodeRunnable.this.nodeId + " report thread has been interrupted.");
-			
+
 		}
 
 		public void kill() {
@@ -262,26 +263,26 @@ public abstract class NodeRunnable implements Runnable {
 			double transportationAverageRate = 
 					((double)localToTalBytesTransfered / totalTimeDiffInMillisecond) * 1000;
 
-			//int localPacketLostNum = getLostPacketNum();
 			int localPacketLostNum = packetLostTracker.getLostPacketNum();
 			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			double currentPacketLossRateInPacketsPerSec = lostDiff * 1.0 / timeDiffInMillisecond * 1000;
-			double averagePacketLossRateInPacketsPerSec = localPacketLostNum * 1.0 / totalTimeDiffInMillisecond * 1000;
-
+			int localHighestPacketId = packetLostTracker.getHighestPacketId();
+			int packetNumDiff = localHighestPacketId - lastRecordedHighestPacketId ;
+			double currentPacketLossRatio = packetNumDiff==0 ? 0 : (lostDiff * 1.0 / packetNumDiff);
+			double averagePacketLossRatio = packetLostTracker.getLostPacketNum() * 1.0 / packetLostTracker.getHighestPacketId();
 			lastRecordedTotalBytes = localToTalBytesTransfered;
-			lastRecordedPacketLost = localPacketLostNum;
 			lastRecordedTime = currentTime;
-
+			lastRecordedPacketLost = localPacketLostNum;
+			lastRecordedHighestPacketId = localHighestPacketId;
 			if (startedTime != 0) {
 				double averageRateInKiloBitsPerSec = transportationAverageRate / 128;
 				double currentRateInKiloBitsPerSec = transportationInstantRate / 128;
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, getUpStreamId())
-								.averagePacketLossRate(averagePacketLossRateInPacketsPerSec)
-								.averageTransferRate(averageRateInKiloBitsPerSec)
-								.currentPacketLossRate(currentPacketLossRateInPacketsPerSec)
-								.currentTransferRate(currentRateInKiloBitsPerSec)
-								.build();
+				.averagePacketLossRate(averagePacketLossRatio)
+				.averageTransferRate(averageRateInKiloBitsPerSec)
+				.currentPacketLossRate(currentPacketLossRatio)
+				.currentTransferRate(currentRateInKiloBitsPerSec)
+				.build();
 				sendStreamReport(streamReportMessage);
 			}
 		}

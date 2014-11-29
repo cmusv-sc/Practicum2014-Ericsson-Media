@@ -12,5 +12,10 @@ public class NodeMetrics {
 
 	public String streamStatus;
 	public String latency;
+	
+	public NodeMetrics(){
+		this.streamStatus = "NA"; //Not Available
+		this.latency = "";
+	}
 
 }

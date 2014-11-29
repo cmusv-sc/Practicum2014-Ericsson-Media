@@ -1,10 +1,8 @@
-/**
- * 
- */
 package edu.cmu.mdnsim.messagebus.message;
 
 /**
  * Indicates what type of event occurred & how to interpret Report Message
+ * @author Jigar Patel
  */
 public enum EventType {
 	/**
