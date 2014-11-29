@@ -90,7 +90,6 @@ public class Stream extends MbMessage {
 
 	public Flow findFlow(String flowId) {
 		for (Flow flow : flowList) {
-			System.out.println("[DELETE-JEREMY]Stream.findFlow(): Scan flowId=" + flow.getFlowId());
 			if(flow.getFlowId().equals(flowId))
 				return flow;
 		}

@@ -14,6 +14,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.util.Utility;
 
 public abstract class NodeRunnable implements Runnable {
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-runnable");
@@ -46,7 +47,6 @@ public abstract class NodeRunnable implements Runnable {
 		this.msgBusClient = msgBusClient;
 		this.nodeId = nodeId;
 		try {
-			System.err.println("Resource Name " + this.getResourceName());
 			msgBusClient.addMethodListener(getResourceName(),
 					"DELETE", this, "upStreamDoneSending");
 		} catch (MessageBusException e) {
@@ -188,6 +188,7 @@ public abstract class NodeRunnable implements Runnable {
 		try {
 			msgBusClient.sendToMaster(fromPath, "/stream_report", "POST", streamReportMessage);
 		} catch (MessageBusException e) {
+			e.printStackTrace();
 			logger.error(e.toString());
 		};
 	}
@@ -227,11 +228,13 @@ public abstract class NodeRunnable implements Runnable {
 		 */
 		@Override
 		public void run() {
+			
 			while (!killed) {
 				calculateAndReport();
 				try {
 					Thread.sleep(intervalInMillisecond);
 				} catch (InterruptedException e) {
+					e.printStackTrace();
 					continue;
 				}
 			}

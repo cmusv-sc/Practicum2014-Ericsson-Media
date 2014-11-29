@@ -8,14 +8,11 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 
-import com.ericsson.research.trap.utils.Future;
-import com.ericsson.research.trap.utils.ThreadPool;
 import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -33,7 +30,7 @@ import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
  */
 public class RelayNode extends AbstractNode{
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
 
 	public RelayNode() throws UnknownHostException {
 		super();
@@ -68,7 +65,7 @@ public class RelayNode extends AbstractNode{
 				//For the first time, create a new Runnable and send stream spec to upstream node
 				RelayRunnable relayRunnable = 
 						new RelayRunnable(stream,downStreamUri, destAddress, destPort);
-				Future relayFuture = ThreadPool.executeAfter(new MDNTask(relayRunnable), 0);
+				Future<?> relayFuture = NodeContainer.ThreadPool.submit(new MDNTask(relayRunnable));
 				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(relayFuture, relayRunnable));
 
 				Map<String, String> upstreamNodePropertiesMap = 
@@ -159,6 +156,7 @@ public class RelayNode extends AbstractNode{
 		private DatagramPacket receivedPacket;
 		private Map<String,InetSocketAddress> downStreamUriToReceiveSocketAddress ;
 		private DatagramChannel sendingChannel;
+		private DatagramSocket sendSocket;
 		/**
 		 * Create a new NodeRunnable object with given stream 
 		 * @param stream
@@ -215,32 +213,53 @@ public class RelayNode extends AbstractNode{
 
 				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
 				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
-				
+
 				if(reportTaskHandler == null) {
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
-					Future reportFuture = ThreadPool.executeAfter(new MDNTask(reportTransportationRateRunnable), 0);
+					Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
 					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
-									.build();
+					.build();
 					this.sendStreamReport(streamReportMessage);
 				}
 
 				//NodePacket nodePacket = new NodePacket(receivedPacket.getData());
 
 				//Send data to all destination nodes
-				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);				
+				DatagramPacket packet ;
 				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
+					byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+
+					packet = new DatagramPacket(buf, buf.length);
+					packet.setData(nodePacket.serialize());	
+					packet.setAddress(destination.getAddress());
+					packet.setPort(destination.getPort());
 					try {
-						buf.clear();
-						buf.put(nodePacket.serialize());
-						buf.flip();
-						int bytesSent = sendingChannel.send(buf, destination);
-						logger.debug(getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
+						sendSocket.send(packet);
 					} catch (IOException e) {
-						logger.error(e.toString());
+						e.printStackTrace();
 					}
 				}
+//				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);
+//				try {
+//					sendingChannel.configureBlocking(true);
+//				} catch (IOException e1) {
+//					// TODO Auto-generated catch block
+//					e1.printStackTrace();
+//				}
+//				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
+//					try {
+//						buf.clear();
+//						buf.put(nodePacket.serialize());
+//						buf.flip();
+//						int bytesSent = sendingChannel.send(buf, destination);
+//						System.out.println("[DELETE-JEREMY]RelayNode.Runnable.run():" + getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
+//						logger.debug(getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
+//					} catch (IOException e) {
+//						logger.error(e.toString());
+//					}
+//				}
 				if(nodePacket.isLast()){
 					super.setUpstreamDone();
 					break;
@@ -261,7 +280,7 @@ public class RelayNode extends AbstractNode{
 				 */
 				while(!reportTaskHandler.isDone());
 			}
-			
+
 			/*
 			 * No mater what final state is, the NodeRunnable should always
 			 * report to Master that it is going to end.
@@ -269,12 +288,12 @@ public class RelayNode extends AbstractNode{
 			 */
 			StreamReportMessage streamReportMessage = 
 					new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
-							.build();
+			.build();
 			this.sendStreamReport(streamReportMessage);
 			for(String downStreamId : this.getDownStreamIds()){
 				streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.SEND_END, downStreamId)
-								.build();
+				.build();
 				this.sendStreamReport(streamReportMessage);
 			}
 			packetLostTracker.updatePacketLostForLastTime();
@@ -322,7 +341,7 @@ public class RelayNode extends AbstractNode{
 			try {
 				sendingChannel.close();
 			} catch (IOException e) {
-				
+
 			}
 			streamIdToSocketMap.remove(getStreamId());
 			streamIdToRunnableMap.remove(getStreamId());
@@ -368,15 +387,22 @@ public class RelayNode extends AbstractNode{
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			
+			try {
+				sendSocket = new DatagramSocket();
+			} catch (SocketException se) {
+				logger.error(se.toString());
+				return false;
+			}
 			return true;
 		}
 	}
 	private class ReportTaskHandler {
 
-		Future reportFuture;
+		Future<?> reportFuture;
 		ReportRateRunnable reportRunnable;
 
-		public ReportTaskHandler(Future future, ReportRateRunnable runnable) {
+		public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
 			this.reportFuture = future;
 			reportRunnable = runnable;
 		}
@@ -391,10 +417,10 @@ public class RelayNode extends AbstractNode{
 
 	}
 	private class StreamTaskHandler {
-		private Future streamFuture;
+		private Future<?> streamFuture;
 		private RelayRunnable streamTask;
 
-		public StreamTaskHandler(Future streamFuture, RelayRunnable streamTask) {
+		public StreamTaskHandler(Future<?> streamFuture, RelayRunnable streamTask) {
 			this.streamFuture = streamFuture;
 			this.streamTask = streamTask;
 		}

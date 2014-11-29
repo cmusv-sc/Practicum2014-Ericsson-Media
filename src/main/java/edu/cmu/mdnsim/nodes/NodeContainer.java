@@ -5,6 +5,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.ericsson.research.trap.utils.PackageScanner;
 import com.ericsson.research.warp.api.rest.DELETE;
@@ -20,6 +22,8 @@ import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 
 public class NodeContainer {
+		
+	public static ExecutorService ThreadPool = Executors.newCachedThreadPool();
 	
 	public static final String NODE_COLLECTION_PATH = "/nodes";
 	
@@ -114,11 +118,12 @@ public class NodeContainer {
 			e.printStackTrace();
 		}
 		
+		
 		nodeMap.put(newNode.getNodeId(), newNode);
 		
 		if (ClusterConfig.DEBUG) {
-			System.out.println("[DEBUG] NodeContainer.createNode(): Instantiate"
-					+ " a new node " + objectiveNodeClass.getCanonicalName());
+			System.out.format("[DEBUG] NodeContainer.createNode(): Instantiate"
+					+ " a new node (param=%s; newNodeInfo=%s)\n", nodeId, newNode.getNodeId());
 		}
 		
 	}
@@ -126,13 +131,14 @@ public class NodeContainer {
 	@Path(NODE_COLLECTION_PATH)
 	@DELETE
 	public void reset() {
+		System.out.println("[DEBUG]NodeContainer.reset(): Total node number = " + nodeMap.size());
 		for (String nodeId : nodeMap.keySet()) {
-			System.out.println("[DEBUG]NodeContainer.cleanUpNodes(): Clean the " + nodeId);
+			System.out.println("[DEBUG]NodeContainer.reset(): Clean the " + nodeId);
 			stopNode(nodeId);
 		}
 	}
 	
-	public void stopNode(String nodeId) {
+	private void stopNode(String nodeId) {
 		AbstractNode node = nodeMap.get(nodeId);
 		node.reset();
 		nodeMap.remove(nodeId);
