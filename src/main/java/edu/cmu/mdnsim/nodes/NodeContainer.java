@@ -24,9 +24,14 @@ public class NodeContainer {
 	public static final String NODE_COLLECTION_PATH = "/nodes";
 	
 	private MessageBusClient msgBusClient;
-	
+	/**
+	 * Key = Node Id, Value = Node
+	 * This map stores all the nodes hosted by node container
+	 */
 	private Map<String, AbstractNode> nodeMap;
-	
+	/**
+	 * Label uniquely identifies a Node Container in entire simulation
+	 */
 	private String label;
 	
 	public NodeContainer() throws MessageBusException {
@@ -38,15 +43,15 @@ public class NodeContainer {
 	}
 	
 	public NodeContainer(String messageBusImpl, String label) throws MessageBusException {
-		
 		msgBusClient= instantiateMsgBusClient(messageBusImpl);
 		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
 		NodeContainer.this.label = label;
-		
 	}
-	
+	/**
+	 * Configure the message bus.
+	 * @throws MessageBusException
+	 */
 	public void config() throws MessageBusException {
-		
 		msgBusClient.config();
 
 		WarpRestConverter.convert(this, false);
@@ -55,7 +60,11 @@ public class NodeContainer {
 		
 		//msgBusClient.addMethodListener(NODE_COLLECTION_PATH, "DELETE", this, "cleanUpNodes");
 	}
-	
+	/**
+	 * Connects the Node Container to Master node
+	 * And sends a registration request to master which will help master node know URI of node container
+	 * @throws MessageBusException
+	 */
 	public void connect() throws MessageBusException {
 		
 		msgBusClient.connect();

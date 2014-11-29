@@ -4,7 +4,8 @@
 package edu.cmu.util;
 
 /**
- *
+ * Mostly used in building the report table
+ * Used to have all HTML tags at one place
  */
 public class HtmlTags {
 	public static final String BR = "<br>";

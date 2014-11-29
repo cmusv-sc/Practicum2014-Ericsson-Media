@@ -294,38 +294,6 @@ public class SinkNode extends AbstractNode{
 			return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
 		}
 
-//		private void report(long startTime, long endTime, int totalBytes, EventType eventType){
-//			System.out.println("[SINK] Reporting to master StreamId:" + getStreamId());
-//			SinkReportMessage sinkReportMsg = new SinkReportMessage();
-//			sinkReportMsg.setStreamId(getStreamId());
-//			sinkReportMsg.setTotalBytes(totalBytes);
-//			sinkReportMsg.setTime(Utility.millisecondTimeToString(endTime));
-//			sinkReportMsg.setDestinationNodeId(this.getUpStreamId());
-//			sinkReportMsg.setEventType(eventType);
-//
-//			String fromPath = SinkNode.super.getNodeId() + "/finish-rcv";
-//
-//			if (ClusterConfig.DEBUG) {
-//				System.out.println("[DEBUG]SinkNode.ReceiveThread.report(): Sink sends report to master.");
-//			}
-//
-//			try {
-//				msgBusClient.sendToMaster(fromPath, "/sink_report", "POST", sinkReportMsg);
-//			} catch (MessageBusException e) {
-//				//TODO: add exception handler
-//				e.printStackTrace();
-//			}
-//
-//			if (ClusterConfig.DEBUG) {
-//				System.out.println("[INFO]SinkNode.ReceiveDataThread.run(): " 
-//						+ "Sink finished receiving data at Stream-ID " 
-//						+ sinkReportMsg.getStreamId()
-//						+ " Total bytes " + sinkReportMsg.getTotalBytes() 
-//						+ " Total Time:" + ((endTime - startTime) / 1000)
-//						+ "(sec)");
-//			}
-//		}
-
 		private void clean() {
 			if(receiveSocket != null && !receiveSocket.isClosed()){
 				receiveSocket.close();

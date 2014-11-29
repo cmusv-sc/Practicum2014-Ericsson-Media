@@ -1,7 +1,5 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-import edu.cmu.mdnsim.nodes.NodeType;
-
 public class CreateNodeRequest extends MbMessage {
 	
 	private String nodeType;

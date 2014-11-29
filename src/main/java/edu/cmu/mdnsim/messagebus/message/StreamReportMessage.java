@@ -5,7 +5,9 @@ import edu.cmu.util.Utility;
 /**
  * Used for reporting Stream related metrics 
  * 	like packet loss, transfer rate, start of flow, end of flow
- * @author Jigar
+ * To create an object if this class, use the Builder class and call its build method.
+ * 	Or else use the setters
+ * @author Jigar Patel
  *
  */
 public class StreamReportMessage extends MbMessage{
@@ -57,174 +59,66 @@ public class StreamReportMessage extends MbMessage{
 		this.setCurrentPacketLossRate(builder.currentPacketLossRate);
 		this.setCurrentTransferRate(builder.currentTransferRate);
 	}
-	
-	
-
-
-	
-	
 	public String getFlowId() {
 		return flowId;
 	}
-
-
-
-
-
-
 	public void setFlowId(String flowId) {
 		this.flowId = flowId;
 	}
-
-
-
-
-
-
 	public String getDestinationNodeId() {
 		return destinationNodeId;
 	}
-
-
-
-
-
-
 	public void setDestinationNodeId(String destinationNodeId) {
 		this.destinationNodeId = destinationNodeId;
 	}
-
-
-
-
-
-
 	public EventType getEventType() {
 		return eventType;
 	}
-
-
-
-
-
-
 	public void setEventType(EventType eventType) {
 		this.eventType = eventType;
 	}
-
-
-
-
-
-
 	public String getEventTime() {
 		return eventTime;
 	}
-
-
-
-
-
-
 	public void setEventTime(String eventTime) {
 		this.eventTime = eventTime;
 	}
-
-
-
-
-
-
 	public int getTotalBytesTransferred() {
 		return totalBytesTransferred;
 	}
-
-
-
-
-
-
 	public void setTotalBytesTransferred(int totalBytesTransferred) {
 		this.totalBytesTransferred = totalBytesTransferred;
 	}
-
-
-
-
-
-
 	public double getAveragePacketLossRate() {
 		return averagePacketLossRate;
 	}
-
-
-
-
-
-
 	public void setAveragePacketLossRate(double averagePacketLossRate) {
 		this.averagePacketLossRate = averagePacketLossRate;
 	}
-
-
-
-
-
-
 	public double getCurrentPacketLossRate() {
 		return currentPacketLossRate;
 	}
-
-
-
-
-
-
 	public void setCurrentPacketLossRate(double currentPacketLossRate) {
 		this.currentPacketLossRate = currentPacketLossRate;
 	}
-
-
-
-
-
-
 	public double getAverageTransferRate() {
 		return averageTransferRate;
 	}
-
-
-
-
-
-
 	public void setAverageTransferRate(double averageTransferRate) {
 		this.averageTransferRate = averageTransferRate;
 	}
-
-
-
-
-
-
 	public double getCurrentTransferRate() {
 		return currentTransferRate;
 	}
-
-
-
-
-
-
 	public void setCurrentTransferRate(double currentTransferRate) {
 		this.currentTransferRate = currentTransferRate;
 	}
-
-
-
-
-
-
+	/**
+	 * Builder class used to build Stream Report Message
+	 * Use the build method of this class to get a new StreamReportMessage object.
+	 * @author Jigar Patel
+	 *
+	 */
 	public static class Builder{
 		
 		private String destinationNodeId;

@@ -12,7 +12,6 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.nodes.AbstractNode;
-import edu.cmu.mdnsim.nodes.NodeType;
 
 
 

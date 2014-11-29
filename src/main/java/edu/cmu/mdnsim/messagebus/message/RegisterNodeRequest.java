@@ -1,9 +1,5 @@
 package edu.cmu.mdnsim.messagebus.message;
 
-import edu.cmu.mdnsim.nodes.NodeType;
-
-
-
 public class RegisterNodeRequest extends MbMessage {
 	
 	private String _URI;
@@ -17,7 +13,7 @@ public class RegisterNodeRequest extends MbMessage {
 		_port = 1099;
 	}
 	
-	public RegisterNodeRequest(String uri, String ip, int port, NodeType type) {
+	public RegisterNodeRequest(String uri, String ip, int port) {
 		this._URI = uri;
 		this._nodeIP = ip;
 		this._port = port;
