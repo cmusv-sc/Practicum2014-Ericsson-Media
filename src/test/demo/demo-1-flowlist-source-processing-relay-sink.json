@@ -4,7 +4,7 @@
 	[
 
 	{
-		"StreamId":"demo-stream-1",
+		"StreamId":"Stream1",
 		"DataSize":"20000000",
 		"KiloBitRate":"1000",
 		"FlowList":
@@ -42,7 +42,7 @@
 				"UpstreamId":"lemon:source1"
 			},
 			{
-				"NodeType":"SinkNode",
+				"NodeType":"SourceNode",
 				"NodeId":"lemon:source1",
 				"UpstreamId":"NULL"
 			}
@@ -131,7 +131,7 @@
 		]
 	},
 	{
-		"StreamId":"demo-stream-2",
+		"StreamId":"Stream2",
 		"DataSize":"60000",
 		"KiloBitRate":"20",
 		"FlowList":

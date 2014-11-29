@@ -4,7 +4,7 @@
 	[
 
 	{
-		"StreamId":"demo-stream-3",
+		"StreamId":"Stream3",
 		"DataSize":"40000",
 		"KiloBitRate":"20",
 		"FlowList":
@@ -52,7 +52,7 @@
 		]
 	},
 	{
-		"StreamId":"demo-stream-4",
+		"StreamId":"Stream4",
 		"DataSize":"40000",
 		"KiloBitRate":"20",
 		"FlowList":
