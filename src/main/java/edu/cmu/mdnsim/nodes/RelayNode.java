@@ -10,6 +10,7 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.channels.DatagramChannel;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
@@ -24,11 +25,14 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
+import edu.cmu.util.Utility;
 
 /**
  * Relay Node can send data to multiple flows for the same stream 
  */
 public class RelayNode extends AbstractNode{
+	
+	private static Random randomGen = new Random();
 
 	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
 
@@ -154,7 +158,7 @@ public class RelayNode extends AbstractNode{
 	private class RelayRunnable extends NodeRunnable {
 		private DatagramSocket receiveSocket;
 		private DatagramPacket receivedPacket;
-		private Map<String,InetSocketAddress> downStreamUriToReceiveSocketAddress ;
+		private Map<String,InetSocketAddress> downStreamUriToReceiveSocketAddress;
 		private DatagramChannel sendingChannel;
 		private DatagramSocket sendSocket;
 		/**
@@ -235,10 +239,16 @@ public class RelayNode extends AbstractNode{
 					packet.setData(nodePacket.serialize());	
 					packet.setAddress(destination.getAddress());
 					packet.setPort(destination.getPort());
-					try {
-						sendSocket.send(packet);
-					} catch (IOException e) {
-						e.printStackTrace();
+					if (randomGen.nextDouble() > 0.1) {
+						try {
+							sendSocket.send(packet);
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						System.out.println(Utility.getFormattedLogMessage("Send a packet", nodeId));
+					} else {
+						logger.debug(Utility.getFormattedLogMessage("Drop a packet", nodeId));
+						System.out.println(Utility.getFormattedLogMessage("Drop a packet", nodeId));
 					}
 				}
 //				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);

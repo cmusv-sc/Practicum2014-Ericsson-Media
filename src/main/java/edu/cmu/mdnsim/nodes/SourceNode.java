@@ -172,15 +172,13 @@ public class SourceNode extends AbstractNode {
 						bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? 
 								new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 				packet.setData(nodePacket.serialize());
-				Random random = new Random();
+				
 				try {
-					//TODO: Remove Random - it is used only for testing Packet Loss
-					if(random.nextDouble() > 0.5){
-						sendSocket.send(packet);
-					}
-				} catch (IOException e) {
-					logger.error(e.toString());
+					sendSocket.send(packet);
+				} catch (IOException e1) {
+					break;
 				}
+				
 
 				bytesToTransfer -= packet.getLength();
 				setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
