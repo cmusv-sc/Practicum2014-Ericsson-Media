@@ -50,7 +50,7 @@ import edu.cmu.util.Utility;
  *
  */
 public class Master extends TimerTask {
-	private static final double PACKET_LOSS_THRESHOLD = 3;
+	private static final double PACKET_LOSS_THRESHOLD = 0.16;
 
 	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 
