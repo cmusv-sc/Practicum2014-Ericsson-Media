@@ -50,7 +50,9 @@ import edu.cmu.util.Utility;
  *
  */
 public class Master extends TimerTask {
+
 	private static final double PACKET_LOSS_THRESHOLD = 0.16;
+	private static final Object streamLatencyTrackerLock = new Object();
 
 	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 
@@ -669,20 +671,22 @@ public class Master extends TimerTask {
 		switch(reportMsg.getEventType()){
 		case SEND_START:
 			if(reportMsg.getFlowId() != null){
+				//If the node is first node in flow then capture the start time of stream. Used for latency calculation.		
 				String firstNodeId = Flow.extractFirstNodeId(reportMsg.getFlowId());
 				if(firstNodeId.equals(nodeIdOfReportSender)){
-					//Indicates start of flow
 					StreamLatencyTracker streamLatencyTracker = this.streamIdToStreamLatencyTracker.get(streamId); 
 					if(streamLatencyTracker != null){
 						if(streamLatencyTracker.getStartTime() == null){
 							streamLatencyTracker.setStartTime(reportMsg.getEventTime());
 							for(Map.Entry<String, String> flowIdToEndTime : streamLatencyTracker.getFlowIdToEndTime().entrySet()){
-								//Update all sink nodes with latency figures
+								//Sink nodes may have reported the end time for stream but as we have start time now,
+								//	we have to update graph with latency figures
 								webClientGraph.updateNode(Flow.extractLastNodeId(flowIdToEndTime.getKey()), streamId, 
 										streamLatencyTracker.getLatency(flowIdToEndTime.getKey()));
 							}
 						}
 					}else{
+						//Store the start time of the stream to track latency 		
 						streamLatencyTracker  = new StreamLatencyTracker();
 						streamLatencyTracker.setStartTime(reportMsg.getEventTime());
 						this.streamIdToStreamLatencyTracker.put(streamId, streamLatencyTracker);
@@ -694,6 +698,7 @@ public class Master extends TimerTask {
 			break;
 		case SEND_END:
 			logMsg = "Stopped sending data for stream " + streamId;
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_END);
 			break;
 		case PROGRESS_REPORT:
 			logMsg = "Stream Id: " + streamId +"\t" + 
@@ -712,7 +717,7 @@ public class Master extends TimerTask {
 				edgeColor = "rgb(255,0,0)";
 			}else{
 				edgeColor = "rgb(0,255,0)";
-			}			
+			}
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, streamId, edgeColor,
 					reportMsg.getAveragePacketLossRate(), reportMsg.getCurrentPacketLossRate(),
 					reportMsg.getAverageTransferRate(), reportMsg.getCurrentTransferRate());
@@ -722,31 +727,38 @@ public class Master extends TimerTask {
 			edgeColor = "rgb(0,255,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			//Mark the edge green to indicate end of flow
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId,streamId, edgeColor, EventType.RECEIVE_START);
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
+				//Get the End time of the flow if the reporting node is sink node (last node of flow)
 				String lastNodeId = Flow.extractLastNodeId(reportMsg.getFlowId());
 				if(lastNodeId.equals(nodeIdOfReportSender)){
-					//Indicates end of flow
-					StreamLatencyTracker streamLatencyTracker = this.streamIdToStreamLatencyTracker.get(streamId); 
-					if(streamLatencyTracker == null){
-						streamLatencyTracker  = new StreamLatencyTracker();
-						this.streamIdToStreamLatencyTracker.put(streamId, streamLatencyTracker);
-					}
-					streamLatencyTracker.addNewFlowId(reportMsg.getFlowId(), reportMsg.getEventTime());
-					if(streamLatencyTracker.getStartTime() != null){
-						//Update this sink node with latency figure
-						webClientGraph.updateNode(nodeIdOfReportSender, streamId, 
-								streamLatencyTracker.getLatency(reportMsg.getFlowId()));				
+					//Synchronization is required because multiple flows can update the end time simultaneously for same stream
+					synchronized(streamLatencyTrackerLock){
+						StreamLatencyTracker streamLatencyTracker = this.streamIdToStreamLatencyTracker.get(streamId); 
+						if(streamLatencyTracker == null){
+							streamLatencyTracker  = new StreamLatencyTracker();
+							this.streamIdToStreamLatencyTracker.put(streamId, streamLatencyTracker);
+						}
+						//Update the Latency Tracker with end time for the flow
+						streamLatencyTracker.addNewFlowId(reportMsg.getFlowId(), reportMsg.getEventTime());
+						if(streamLatencyTracker.getStartTime() != null){
+							//Update this sink node with latency figure only if we have start time available
+							webClientGraph.updateNode(nodeIdOfReportSender, streamId, 
+									streamLatencyTracker.getLatency(reportMsg.getFlowId()));				
+						}
 					}
 				}
 			}
+
 			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_END);
 			logMsg = "Stopped receiving data for stream " + streamId;
 			edgeColor = "rgb(0,0,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
+			//Mark the edge black to indicate end of flow
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId,streamId, edgeColor, EventType.RECEIVE_END);
 			break;
 		default:

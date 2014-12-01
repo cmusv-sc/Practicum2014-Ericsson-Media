@@ -6,6 +6,9 @@ import java.util.List;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 public class Stream extends MbMessage {
+	/**
+	 * Stream Id cannot contain hypen (-) as it is used to generate flow id
+	 */
 	private String streamId;
 	private String dataSize;
 	private String kiloBitRate;
@@ -21,7 +24,12 @@ public class Stream extends MbMessage {
 	public Stream() {
 		super();
 	}
-	
+	/**
+	 * 
+	 * @param streamId cannot contain hypen (-) as it is used to generate flow id
+	 * @param dataSize in bytes
+	 * @param kiloBitRate 
+	 */
 	public Stream(String streamId, String dataSize, String kiloBitRate) {
 		this.streamId = streamId;
 		this.dataSize = dataSize;
@@ -49,7 +57,10 @@ public class Stream extends MbMessage {
 		return streamId;
 	}
 
-	
+/**
+ * 
+ * @param streamId  cannot contain hypen (-) as it is used to generate flow id
+ */
 	public void setStreamId(String streamId) {
 		this.streamId = streamId;
 	}
@@ -79,6 +90,8 @@ public class Stream extends MbMessage {
 	 * @return
 	 */
 	public boolean isValidStream() {
+		if(this.streamId.contains("-"))
+			return false;
 		for (Flow flow : flowList) {
 			if (!flow.isValidFlow()) {
 				return false;

@@ -3,7 +3,7 @@
 	"StreamList":
 	[
 	{
-		"StreamId":"demo-stream-1",
+		"StreamId":"Stream1",
 		"DataSize":"40000",
 		"KiloBitRate":"10",
 		"FlowList":

@@ -131,7 +131,6 @@ public class Flow extends MbMessage {
 			sb.append(nodeMap.get(Flow.NODE_ID));
 		}
 		flowId = sb.toString();
-		System.out.println("Flow Id: " + flowId);
 		return flowId;
 	}
 	
@@ -288,7 +287,11 @@ public class Flow extends MbMessage {
 		}
 		return sb.toString();
 	}
-
+	/**
+	 * Returns last node of the flow - typically sink node
+	 * @param flowId in format specified by {@link Flow#generateFlowId()} 
+	 * @return null if input is null.
+	 */
 	public static String extractLastNodeId(String flowId) {
 		if(flowId != null){
 			String flowIdWithoutStream = flowId.substring(flowId.indexOf("-") + 1);
@@ -296,6 +299,11 @@ public class Flow extends MbMessage {
 		}
 		return null;
 	}
+	/**
+	 * Returns First Node of the flow - typically Source Node
+	 * @param flowId in format specified by {@link Flow#generateFlowId()} 
+	 * @return null if input is null.
+	 */
 	public static String extractFirstNodeId(String flowId) {
 		if(flowId != null)
 			return flowId.substring(flowId.lastIndexOf("-")+1);

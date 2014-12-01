@@ -6,6 +6,7 @@ package edu.cmu.mdnsim.reporting;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import edu.cmu.util.Utility;
 
@@ -18,13 +19,13 @@ import edu.cmu.util.Utility;
 public class StreamLatencyTracker {
 
 	/**
-	 * Start time is same for all flows => It is actually start time of stream (time of source send start event)
+	 * Start time is same for all flows => It is actually start time of stream (time of source send_start event)
 	 */
 	private String startTime = null;
 	private Map<String, String> flowIdToEndTime;
 
 	public StreamLatencyTracker(){
-		this.flowIdToEndTime = new HashMap<String,String>(); 
+		this.flowIdToEndTime = new ConcurrentHashMap<String,String>(); 
 	}
 	public String getStartTime() {
 		return startTime;
