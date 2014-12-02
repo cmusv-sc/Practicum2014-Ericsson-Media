@@ -2,6 +2,7 @@ package edu.cmu.mdnsim.reporting;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -615,7 +616,10 @@ public class WebClientGraph {
 	 */
 	public void setLocations(){
 		this.lastUsedXLocation = 0;
-		setLocations(root, 0);		
+		//Key = Node Id 
+		//Used to ensure that node's location is set only once esp. when node is part of multiple streams like in P2P case
+		Set<String> visitedNodes = new HashSet<String>();
+		setLocations(root, 0, visitedNodes);		
 	}
 	/**
 	 * Helper function which traverses the tree in DFS way setting x and y locations
@@ -627,13 +631,16 @@ public class WebClientGraph {
 	 * @param n Node
 	 * @param yLocation of the parent node
 	 */
-	private void setLocations(Node n, double yLocation) {
+	private void setLocations(Node n, double yLocation, Set<String> visitedNodes) {
+		
 		if(n == null) return;
 		n.y = yLocation + VERTICAL_DISTANCE_BETWEEN_NODES;
 
 		if(n.children.size() > 0){
-			for(Node child : n.children)
-				setLocations(child, n.y);
+			for(Node child : n.children){
+				if(!visitedNodes.contains(child.id))
+					setLocations(child, n.y,visitedNodes);
+			}
 			if(n.children.size() == 1){
 				//Place it just above the child
 				n.x = n.children.get(0).x;				
@@ -646,6 +653,7 @@ public class WebClientGraph {
 			n.x = this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;	
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
+		visitedNodes.add(n.id);
 	}
 	/**
 	 * Used to update the Edge Tooltip and color. This function is called for updating progress reports.

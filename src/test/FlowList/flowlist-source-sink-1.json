@@ -37,11 +37,11 @@
 				{
 				  "NodeType":"SinkNode",
 				  "NodeId":"tomato:sink5",
-				  "UpstreamId":"orange:source1"
+				  "UpstreamId":"orange:source2"
 				},
 				{
 				  "NodeType":"SourceNode",
-				  "NodeId":"orange:source1",
+				  "NodeId":"orange:source2",
 				  "UpstreamId":"NULL"
 				}
 			  ]

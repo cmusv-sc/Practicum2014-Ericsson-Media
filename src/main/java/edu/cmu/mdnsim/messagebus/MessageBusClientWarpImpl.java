@@ -42,7 +42,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 		try {
 			_client = Warp.init().client().setRemoteConfig(trapCfg)
 						.setAuth(new PlaintextAuthenticator(WarpURI.create("warp:anon/foo"), "secret"))
-						.setPolicy(ConnectionPolicy.CLOSE_ON_DISCONNECT)
+						.setPolicy(ConnectionPolicy.KEEP_ALIVE)
 						.createAnonymous();
 		} catch (WarpException e1) {
 			throw new MessageBusException(e1);
