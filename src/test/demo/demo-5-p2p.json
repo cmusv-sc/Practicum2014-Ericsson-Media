@@ -4,7 +4,7 @@
 	[
 
 	{
-		"StreamId":"Stream3",
+		"StreamId":"Stream1",
 		"DataSize":"40000",
 		"KiloBitRate":"20",
 		"FlowList":
@@ -52,7 +52,7 @@
 		]
 	},
 	{
-		"StreamId":"Stream4",
+		"StreamId":"Stream2",
 		"DataSize":"40000",
 		"KiloBitRate":"20",
 		"FlowList":
@@ -96,7 +96,77 @@
 				"UpstreamId":"NULL"
 			}
 			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"apple:sink3",
+				"UpstreamId":"orange:relay2"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay2",
+				"UpstreamId":"orange:source2"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"orange:source2",
+				"UpstreamId":"NULL"
+			}
+			]
 		}
+		
+		]
+	},
+	{
+		"StreamId":"Stream3",
+		"DataSize":"40000",
+		"KiloBitRate":"20",
+		"FlowList":
+		[		
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"orange:sink2",
+				"UpstreamId":"apple:relay3"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"apple:relay3",
+				"UpstreamId":"apple:source3"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"apple:source3",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"apple:sink3",
+				"UpstreamId":"apple:relay3"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"apple:relay3",
+				"UpstreamId":"apple:source3"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"apple:source3",
+				"UpstreamId":"NULL"
+			}
+			]
+		}
+		
 		]
 	}
 	]
