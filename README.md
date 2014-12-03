@@ -27,6 +27,12 @@ There are 3 majors components to start to make this application running.
 2. WebClient - Open any web browser (preferably Chrome) and go to http://localhost:8888/static/index.html (replace localhost by Master Node IP Address)
 3. NodeContainer(s) - Run the NodeContainer.java file with argument label:NodeContainerName 
 
+Once all the components are up, upload a simultion script as per format given in demo-1-flowlist-source-processing-relay-sink.json file (in test/demo folder) and select Start Flow (or post the json object to Start Flow API resource mentioned below)
+
+To stop a flow, upload the Json file in same format as used above. Just ensure that you have only those flows in the file which you want to stop. 
+
+For more details on file format, please refer to the Technical Report in docs folder.
+
 Note: We are in process of creating Runnable Jar files and docker file which will simplify starting of the simulator.
 
 Important APIs
@@ -45,3 +51,15 @@ Important APIs
     - **Purpose**: To reset the entire simulation.
     - **Method**: DELETE
     - **URL**: WebClientURI/simulations
+
+Dependencies
+===============================
+To run the system
+
+1. Java version 7 and above
+2. Browser with support for SVG rendering
+
+To extend the system
+
+1. Access to Ericsson Warp and Trap Libraries
+2. Maven
