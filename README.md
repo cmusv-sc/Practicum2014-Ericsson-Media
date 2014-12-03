@@ -19,5 +19,29 @@ Developers: Geng Fu (Jeremy-Fu), Jigar Patel (jigarbjpatel), Vinay Kumar Vavilli
 Contact: To contact developers, please use the github handle given in brackets and to contact advisors, please let any of the developer know.
 
 
-Installation
+How to Run?
 ===========================
+There are 3 majors components to start to make this application running.
+
+1. Master node - Run the Master.java file and when it says that it is registered then start the other two components.
+2. WebClient - Open any web browser (preferably Chrome) and go to http://localhost:8888/static/index.html (replace localhost by Master Node IP Address)
+3. NodeContainer(s) - Run the NodeContainer.java file with argument label:NodeContainerName 
+
+Note: We are in process of creating Runnable Jar files and docker file which will simplify starting of the simulator.
+
+Important APIs
+==============================
+1. <a name="1"></a>**START FLOW**
+    - **Purpose**: To start a new flow or add new flow to existing simulation.
+    - **Method**: POST
+    - **URL**: WebClientURI/work_config
+  
+2. <a name="2"></a>**STOP FLOW**
+    - **Purpose**: To stop existing flow.
+    - **Method**: DELETE
+    - **URL**: WebClientURI/work_config
+
+3. <a name="3"></a>**RESET SIMULATION**
+    - **Purpose**: To reset the entire simulation.
+    - **Method**: DELETE
+    - **URL**: WebClientURI/simulations
