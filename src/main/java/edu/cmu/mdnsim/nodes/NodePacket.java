@@ -3,10 +3,12 @@ package edu.cmu.mdnsim.nodes;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import edu.cmu.mdnsim.exception.DataAndLengthDoNotMatchException;
 import edu.cmu.mdnsim.exception.TotalLengthShorterThanHeaderException;
 
 /**
+ *	A packet that can hold a flag, packet id and data length fields as well as the payload.
+ *  The header of the packet takes 12 bytes. The total size of the packet is limited by PACKET_MAX_LENGTH.
+ *  That means the max size of payload is PACKET_MAX_LENGTH - HEADER_LENGTH
  *
  *       0               1               2               3
  *       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -37,6 +39,7 @@ public class NodePacket {
 		this.flag = flag;
 		this.packetId = packetId;
 		int dataLength = 0;
+		// To guarantee the total size is in range [HEADER_LENGTH, PACKET_MAX_LENGTH]
 		if(totalLength > HEADER_LENGTH){
 			dataLength = Math.min(totalLength - HEADER_LENGTH, PACKET_MAX_LENGTH - HEADER_LENGTH);
 		}
@@ -45,7 +48,7 @@ public class NodePacket {
 	}
 	
 	/**
-	 * Default data length with packet max length - header length
+	 * Initialize a NodePacket instance with default payload size, PACKET_MAX_LENGTH - HEADER_LENGTH
 	 * @param flag
 	 * @param packetId
 	 */
@@ -56,12 +59,19 @@ public class NodePacket {
 		data = new byte[dataLength];
 	}
 	
+	/**
+	 * Initialize an instance based on a byte array
+	 * @param rawData 
+	 */
 	public NodePacket(byte[] rawData){
 		this.deserialize(rawData);
 	}
 	
 	/**
+	 * Serialize the NodePacket object to a byte array.
 	 * @return serialized byte array of the Message
+	 * @throws BufferOverflowException - If the data size exceeds PACKET_MAX_LENGTH - HEADER_LENGTH.
+	 * If want to set a larger data into the instance, please first set the final variable  PACKET_MAX_LENGTH
 	 */
 	public byte[] serialize(){
 		ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_LENGTH + dataLength);
@@ -74,7 +84,8 @@ public class NodePacket {
 	}
 	
 	/**
-	 * Deserialize raw data to fill out Message object fields
+	 * Deserialize raw data to fill out variable fields. If the payload is larger than PACKET_MAX_LENGTH - HEADER_LENGTH,
+	 * the extra part will be discarded. Only the portion that can fit in the max payload will be saved.
 	 * @param rawData
 	 * @return length of the total length
 	 */
@@ -86,6 +97,9 @@ public class NodePacket {
 		flag = byteBuffer.getInt();
 		packetId = byteBuffer.getInt();
 		dataLength = byteBuffer.getInt();
+		if(dataLength >  PACKET_MAX_LENGTH - HEADER_LENGTH){
+			dataLength =  PACKET_MAX_LENGTH - HEADER_LENGTH;
+		}
 		data = Arrays.copyOfRange(rawData, HEADER_LENGTH, HEADER_LENGTH + dataLength);
 		return HEADER_LENGTH + dataLength;
 	}
@@ -118,6 +132,10 @@ public class NodePacket {
 		return data.clone();
 	}
 
+	/**
+	 * Defensive copy the input byte array to instant field.
+	 * @param data the source array that will be copied into the field
+	 */
 	public void setData(byte[] data) {
 		this.data = data.clone();
 		this.dataLength = data.length;
