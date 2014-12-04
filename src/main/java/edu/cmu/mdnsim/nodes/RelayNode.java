@@ -19,7 +19,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -96,7 +95,7 @@ public class RelayNode extends AbstractNode{
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
-			throw new TerminateTaskBeforeExecutingException();
+			throw new RuntimeException("Terminate task Before Executing");
 		}
 
 		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){ 
@@ -218,7 +217,7 @@ public class RelayNode extends AbstractNode{
 				if(reportTaskHandler == null) {
 					packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
 							Integer.parseInt(this.getStream().getKiloBitRate()),
-							NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+							NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 					Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
 					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
@@ -235,7 +234,7 @@ public class RelayNode extends AbstractNode{
 				//Send data to all destination nodes
 				DatagramPacket packet ;
 				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
-					byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+					byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 
 					packet = new DatagramPacket(buf, buf.length);
 					packet.setData(nodePacket.serialize());	
@@ -391,7 +390,7 @@ public class RelayNode extends AbstractNode{
 				return false;
 			} 
 
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+			byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 			receivedPacket = new DatagramPacket(buf, buf.length);
 
 			try {

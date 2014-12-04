@@ -15,7 +15,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
@@ -72,7 +71,7 @@ public class SinkNode extends AbstractNode{
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new RuntimeException("Terminate task before executing");
 		}
 		streamTaskHandler.kill();
 
@@ -176,7 +175,7 @@ public class SinkNode extends AbstractNode{
 					//					startedTime = System.currentTimeMillis();
 					packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
 							Integer.parseInt(this.getStream().getKiloBitRate()),
-							NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+							NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 					reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -279,7 +278,7 @@ public class SinkNode extends AbstractNode{
 				return false;
 			}
 
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+			byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 			packet = new DatagramPacket(buf, buf.length);
 
 			return true;

@@ -16,7 +16,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
@@ -101,7 +100,7 @@ public class ProcessingNode extends AbstractNode{
 
 		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getStreamId());
 		if(streamTask == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new RuntimeException("Terminate Task Before Executing");
 		}
 		streamTask.kill();
 
@@ -147,7 +146,6 @@ public class ProcessingNode extends AbstractNode{
 
 	}
 	/**
-	 * 
 	 * Each stream is received in a separate WarpPoolThread.
 	 * After receiving all packets from the source, this thread 
 	 * reports the total time and total number of bytes received by the 
@@ -239,7 +237,7 @@ public class ProcessingNode extends AbstractNode{
 				 * received.
 				 */
 				if(reportTask == null) {
-					packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
+					packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
 					reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 					StreamReportMessage streamReportMessage = 
 							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -347,7 +345,7 @@ public class ProcessingNode extends AbstractNode{
 				return false;
 			}
 
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+			byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 			packet = new DatagramPacket(buf, buf.length);
 
 			return true;
@@ -447,15 +445,6 @@ public class ProcessingNode extends AbstractNode{
 
 		}
 	}
-
-
-	/**
-	 * For packet lost statistical information:
-	 * When a new packet is received, there are three status:
-	 * - BEYOND_WINDOW, this packet is with the highest id among all the received packet
-	 * - IN_WINDOW, this packet is in the current window
-	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
-	 */
 
 	private class StreamTaskHandler {
 		private Future<?> streamFuture;

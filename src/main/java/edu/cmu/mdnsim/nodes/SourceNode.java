@@ -16,7 +16,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
@@ -77,7 +76,7 @@ public class SourceNode extends AbstractNode {
 	public void terminateTask(Flow flow) {
 		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
 		if(sendTaskHanlder == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new RuntimeException("Terminate task before executing");
 		}
 		sendTaskHanlder.kill();
 		releaseResource(flow);
@@ -154,7 +153,7 @@ public class SourceNode extends AbstractNode {
 				return;
 			}
 
-			double packetPerSecond = rate / NodePacket.PACKET_MAX_LENGTH;
+			double packetPerSecond = rate / NodePacket.MAX_PACKET_LENGTH;
 			long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
 			
 			StreamReportMessage streamReportMessage = 
@@ -169,7 +168,7 @@ public class SourceNode extends AbstractNode {
 				long begin = System.currentTimeMillis();
 
 				NodePacket nodePacket = 
-						bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? 
+						bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? 
 								new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 				packet.setData(nodePacket.serialize());
 				
@@ -242,7 +241,7 @@ public class SourceNode extends AbstractNode {
 				return false;
 			}
 
-			byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH];
+			byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH];
 			packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
 
 			return true;	
