@@ -6,6 +6,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class Utility {
 	
 	public static String currentTime(){

@@ -7,7 +7,11 @@ import edu.cmu.util.Utility;
  * 	like packet loss, transfer rate, start of flow, end of flow
  * To create an object if this class, use the Builder class and call its build method.
  * 	Or else use the setters
+ * 
+ * @author Geng Fu
  * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class StreamReportMessage extends MbMessage{

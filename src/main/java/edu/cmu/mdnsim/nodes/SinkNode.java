@@ -21,6 +21,14 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class SinkNode extends AbstractNode{
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 

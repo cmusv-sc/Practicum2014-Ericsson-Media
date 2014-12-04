@@ -3,6 +3,14 @@ package edu.cmu.mdnsim.nodes;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class SourceProcessAndSinkTest {
 
 	public static void main(String[] args) {

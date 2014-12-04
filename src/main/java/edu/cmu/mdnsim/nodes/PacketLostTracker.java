@@ -6,6 +6,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This class is not thread safe except get and set lostPacketNum
  * It is not supposed to be used at multithreading environment except get and set lostPacketNum
  *
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
  */
 public class PacketLostTracker {
 	

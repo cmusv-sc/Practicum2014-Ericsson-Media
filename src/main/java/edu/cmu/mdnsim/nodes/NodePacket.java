@@ -20,6 +20,10 @@ import edu.cmu.mdnsim.exception.TotalLengthShorterThanHeaderException;
  *      |                         Payload Data                          | ; Optional content, specified by Data Length. Payload begins at offset (in bytes) 12
  *      +---------------------------------------------------------------+
  * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class NodePacket {

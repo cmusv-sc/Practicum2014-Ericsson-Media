@@ -16,6 +16,14 @@ import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.util.Utility;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public abstract class NodeRunnable implements Runnable {
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-runnable");
 	private Stream stream;

@@ -4,6 +4,14 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.StopSimulationRequest;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class StopSimulationTestCase implements MessageBusTestCase {
 
 	private MessageBusClient msgBusClient;

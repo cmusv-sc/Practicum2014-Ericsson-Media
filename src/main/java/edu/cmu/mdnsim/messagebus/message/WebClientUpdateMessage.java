@@ -7,7 +7,11 @@ import edu.cmu.mdnsim.reporting.WebClientGraph.Node;
 /**
  * Represents sets of nodes and edges as required by the web client.
  * This class is used only for creating JSON message as required by the WebClient Node
+ * 
+ * @author Geng Fu
  * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  */
 public class WebClientUpdateMessage extends MbMessage {
 	

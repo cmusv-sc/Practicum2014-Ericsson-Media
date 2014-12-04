@@ -29,6 +29,11 @@ import edu.cmu.util.Utility;
 
 /**
  * Relay Node can send data to multiple flows for the same stream 
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  */
 public class RelayNode extends AbstractNode{
 	
