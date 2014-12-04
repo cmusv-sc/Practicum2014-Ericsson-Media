@@ -106,12 +106,12 @@ public class WebClient {
 		domain.getJSLibraryURI(true);
 		js = domain.getEmbeddedJSWithAuthToken(true, true);
 		
-		System.out.println(domain.addHostedObject(mainClientPage, "index.html"));
-		System.out.println(domain.addHostedObject(displayGraphJs, "js/displayGraph.js"));
-		System.out.println(domain.addHostedObject(sigmaJs, "js/sigma.min.js"));
-		System.out.println(domain.addHostedObject(sigmaJsonParserJs, "js/sigma.parsers.json.min.js"));
-		System.out.println(domain.addHostedObject(sigmaForceAtlas2Js, "js/sigma.layout.forceAtlas2.min.js"));
-		System.out.println(domain.addHostedObject(bootstrapMinJs, "js/bootstrap.min.js"));
-		System.out.println(domain.addHostedObject(bootstrapMinCss, "css/bootstrap.min.css"));
+		domain.addHostedObject(mainClientPage, "index.html");
+		domain.addHostedObject(displayGraphJs, "js/displayGraph.js");
+		domain.addHostedObject(sigmaJs, "js/sigma.min.js");
+		domain.addHostedObject(sigmaJsonParserJs, "js/sigma.parsers.json.min.js");
+		domain.addHostedObject(sigmaForceAtlas2Js, "js/sigma.layout.forceAtlas2.min.js");
+		domain.addHostedObject(bootstrapMinJs, "js/bootstrap.min.js");
+		domain.addHostedObject(bootstrapMinCss, "css/bootstrap.min.css");
 	}
 }

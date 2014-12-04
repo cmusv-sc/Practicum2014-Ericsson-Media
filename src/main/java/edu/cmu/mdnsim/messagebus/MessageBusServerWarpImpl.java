@@ -33,7 +33,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	public void config() throws MessageBusException {
 
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
-		JDKLoggerConfig.initForPrefixes(Level.WARNING, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
 		configDomain();
 
 		try {
@@ -96,7 +96,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 
 	private void configService() throws MessageBusException {
 
-		JDKLoggerConfig.initForPrefixes(Level.WARNING, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
 
 		try {
 			_svc=_warpDomain.createService("mdn-manager");
