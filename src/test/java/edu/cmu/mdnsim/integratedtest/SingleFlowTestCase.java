@@ -1,11 +1,5 @@
 package edu.cmu.mdnsim.integratedtest;
 
-import java.util.HashMap;
-
-import com.ericsson.research.warp.util.JSON;
-
-import edu.cmu.mdnsim.config.Flow;
-import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.integratedtest.WorkConfigFactory.Scenario;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;

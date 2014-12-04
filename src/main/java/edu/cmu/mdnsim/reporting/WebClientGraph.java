@@ -25,9 +25,10 @@ import edu.cmu.util.HtmlTags;
  * 	but none of the add/remove methods provided by this class are synchronized 
  * 	=> Thread safety is same as guaranteed by ConcurrentHashMap  
  * 
+ * @author Geng Fu
  * @author Jigar Patel
- * @author Jeremy Fu
  * @author Vinay Kumar Vavili
+ * @author Hao Wang
  */
 public class WebClientGraph {
 

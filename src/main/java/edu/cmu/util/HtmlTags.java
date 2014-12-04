@@ -6,6 +6,11 @@ package edu.cmu.util;
 /**
  * Mostly used in building the report table
  * Used to have all HTML tags at one place
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  */
 public class HtmlTags {
 	public static final String BR = "<br>";

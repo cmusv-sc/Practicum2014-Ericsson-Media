@@ -43,15 +43,17 @@ import edu.cmu.util.Utility;
  * 3. Creating and keeping track of all Node Containers
  * 4. Staring Message Bus Server and registering resource for reporting
  * 
- * @author Jeremy Fu
+ * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
  * @author Hao Wang
  *
  */
 public class Master extends TimerTask {
-	private static final double PACKET_LOSS_THRESHOLD = 0.15;
+
+	private static final double PACKET_LOSS_THRESHOLD = 0.16;
 	private static final Object streamLatencyTrackerLock = new Object();
+
 	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 
 	/**

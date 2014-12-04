@@ -5,6 +5,14 @@ import java.util.List;
 
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class Stream extends MbMessage {
 	/**
 	 * Stream Id cannot contain hypen (-) as it is used to generate flow id

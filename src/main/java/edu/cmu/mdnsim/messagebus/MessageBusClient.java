@@ -1,11 +1,16 @@
 package edu.cmu.mdnsim.messagebus;
 
-import com.ericsson.research.warp.api.resources.Resource;
-
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
-
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public interface MessageBusClient {
 	
 	/**

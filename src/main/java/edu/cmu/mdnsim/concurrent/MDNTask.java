@@ -8,7 +8,10 @@ import com.ericsson.research.warp.util.WarpTask;
  * sets the context for Warp, so that multi-threading library in Java can 
  * be used.
  * 
- * @author JeremyFu
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class MDNTask extends WarpTask {

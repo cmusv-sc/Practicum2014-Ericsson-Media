@@ -20,7 +20,10 @@ import edu.cmu.mdnsim.nodes.AbstractNode;
  * node and simulates different kinds of simulation request. It is regarded as a
  * proxy of web client.
  * 
- * @author JeremyFu
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class Stimulus extends AbstractNode {

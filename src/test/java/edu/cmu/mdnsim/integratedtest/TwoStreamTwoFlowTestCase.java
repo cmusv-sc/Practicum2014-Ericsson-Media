@@ -5,6 +5,14 @@ import edu.cmu.mdnsim.integratedtest.WorkConfigFactory.Scenario;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class TwoStreamTwoFlowTestCase implements MessageBusTestCase {
 
 	private MessageBusClient msgBusClient;

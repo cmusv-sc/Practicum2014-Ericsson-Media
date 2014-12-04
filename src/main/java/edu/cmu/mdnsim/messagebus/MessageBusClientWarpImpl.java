@@ -20,7 +20,14 @@ import com.ericsson.research.warp.util.JSON;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
-
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class MessageBusClientWarpImpl implements MessageBusClient {
 
 	

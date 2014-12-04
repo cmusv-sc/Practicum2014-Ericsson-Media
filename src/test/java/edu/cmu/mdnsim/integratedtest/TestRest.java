@@ -15,6 +15,14 @@ import edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class TestRest extends AbstractNode {
 	
 	/**

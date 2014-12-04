@@ -12,8 +12,12 @@ import com.ericsson.research.warp.api.WarpException;
 import com.ericsson.research.warp.util.StringUtil;
 
 /**
- * Used to host the different files (html,js) required by the WebClient 
- * @author CMU-SV Ericsson Media Team
+ * Used to host the different files (html,js) required by the WebClient
+ *  
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class WebClient {
