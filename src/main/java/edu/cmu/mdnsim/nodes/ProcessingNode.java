@@ -20,6 +20,7 @@ import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
  * 
@@ -421,27 +422,6 @@ public class ProcessingNode extends AbstractNode{
 			}
 			streamIdToSocketMap.remove(getStreamId());
 			streamIdToRunnableMap.remove(getStreamId());
-		}
-
-
-		private class ReportTaskHandler {
-
-			Future<?> reportFuture;
-			ReportRateRunnable reportRunnable;
-
-			public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
-				this.reportFuture = future;
-				reportRunnable = runnable;
-			}
-
-			public void kill() {
-				reportRunnable.kill();
-			}
-
-			public boolean isDone() {
-				return reportFuture.isDone();
-			}
-
 		}
 
 		@Override

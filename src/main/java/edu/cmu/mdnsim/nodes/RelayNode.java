@@ -25,6 +25,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
+import edu.cmu.mdnsim.reporting.PacketLostTracker;
 import edu.cmu.util.Utility;
 
 /**
@@ -258,25 +259,7 @@ public class RelayNode extends AbstractNode{
 						System.out.println(Utility.getFormattedLogMessage("Drop a packet", nodeId));
 					}
 				}
-//				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);
-//				try {
-//					sendingChannel.configureBlocking(true);
-//				} catch (IOException e1) {
-//					// TODO Auto-generated catch block
-//					e1.printStackTrace();
-//				}
-//				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
-//					try {
-//						buf.clear();
-//						buf.put(nodePacket.serialize());
-//						buf.flip();
-//						int bytesSent = sendingChannel.send(buf, destination);
-//						System.out.println("[DELETE-JEREMY]RelayNode.Runnable.run():" + getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
-//						logger.debug(getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
-//					} catch (IOException e) {
-//						logger.error(e.toString());
-//					}
-//				}
+
 				if(nodePacket.isLast()){
 					super.setUpstreamDone();
 					break;
@@ -414,25 +397,7 @@ public class RelayNode extends AbstractNode{
 			return true;
 		}
 	}
-	private class ReportTaskHandler {
-
-		Future<?> reportFuture;
-		ReportRateRunnable reportRunnable;
-
-		public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
-			this.reportFuture = future;
-			reportRunnable = runnable;
-		}
-
-		public void kill() {
-			reportRunnable.kill();
-		}
-
-		public boolean isDone() {
-			return reportFuture.isDone();
-		}
-
-	}
+	
 	private class StreamTaskHandler {
 		private Future<?> streamFuture;
 		private RelayRunnable streamTask;

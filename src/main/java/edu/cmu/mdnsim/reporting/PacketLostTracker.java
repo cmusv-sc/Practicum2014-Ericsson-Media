@@ -1,4 +1,4 @@
-package edu.cmu.mdnsim.nodes;
+package edu.cmu.mdnsim.reporting;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
