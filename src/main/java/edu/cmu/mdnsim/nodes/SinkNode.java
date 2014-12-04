@@ -12,7 +12,6 @@ import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
-import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
@@ -27,7 +26,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	/**
 	 *  Key: FlowId; Value: ReceiveThread 
 	 */
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler<SinkRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SinkRunnable>>();
 	
 	public SinkNode() throws UnknownHostException {
 		super();
@@ -46,7 +45,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 		DatagramSocket receiveSocket = getAvailablePort(flow.getStreamId());
 		SinkRunnable rcvRunnable = new SinkRunnable(stream, flow, msgBusClient, nodeId, this, receiveSocket);
 		Future<?> rcvFuture = NodeContainer.ThreadPool.submit(new MDNTask(rcvRunnable));
-		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(rcvFuture, rcvRunnable));
+		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SinkRunnable>(rcvFuture, rcvRunnable));
 		//Send the stream spec to upstream node
 		Map<String, String> upstreamNodePropertiesMap = 
 				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
@@ -64,7 +63,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public void terminateTask(Flow flow) {
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<SinkRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){
 			throw new TerminateTaskBeforeExecutingException();
@@ -84,7 +83,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public void releaseResource(Flow flow) {
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<SinkRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 		streamTaskHandler.clean();
 		streamIdToRunnableMap.remove(flow.getStreamId());
@@ -93,7 +92,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public synchronized void reset() {
 
-		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+		for (StreamTaskHandler<SinkRunnable> streamTask : streamIdToRunnableMap.values()) {
 
 			streamTask.reset();
 			while(!streamTask.isDone());
@@ -105,42 +104,6 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 
 	}
 
-	
-
-
-	private class StreamTaskHandler {
-		private Future<?> streamFuture;
-		private SinkRunnable streamTask;
-
-		public StreamTaskHandler(Future<?> streamFuture, SinkRunnable streamTask) {
-			this.streamFuture = streamFuture;
-			this.streamTask = streamTask;
-		}
-
-		public void kill() {
-			streamTask.kill();
-		}
-
-		public boolean isDone() {
-			return streamFuture.isDone();
-		}
-
-		public boolean isCanclled() {
-			return streamFuture.isCancelled();
-		}
-
-		public void reset() {
-			streamTask.reset();
-		}
-
-		public void clean() {
-			streamTask.clean();
-		}
-
-		public String getStreamId() {
-			return streamTask.getStreamId();
-		}
-	}
 
 
 

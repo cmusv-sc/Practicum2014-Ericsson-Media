@@ -25,7 +25,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
  */
 public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler<RelayRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<RelayRunnable>>();
 
 	public RelayNode() throws UnknownHostException {
 		super();
@@ -65,7 +65,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 				RelayRunnable relayRunnable = 
 						new RelayRunnable(stream,downStreamUri, destAddress, destPort, msgBusClient, getNodeId(), this, receiveSocket);
 				Future<?> relayFuture = NodeContainer.ThreadPool.submit(new MDNTask(relayRunnable));
-				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(relayFuture, relayRunnable));
+				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<RelayRunnable>(relayFuture, relayRunnable));
 
 				Map<String, String> upstreamNodePropertiesMap = 
 						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
@@ -88,7 +88,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
 		logger.debug( this.getNodeId() + " Trying to terminate flow: " +  flow.getFlowId());
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<RelayRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
 			throw new TerminateTaskBeforeExecutingException();
@@ -125,7 +125,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 	public void releaseResource(Flow flow) {
 
 		logger.debug("%s [DEBUG]RelayNode.releaseResource(): try to release flow %s\n", this.getNodeId(), flow.getFlowId());
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<RelayRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
 		streamTaskHandler.clean();
@@ -140,7 +140,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
 	@Override
 	public synchronized void reset() {
-		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+		for (StreamTaskHandler<RelayRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
@@ -151,40 +151,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
 	}
 	
-	
-	private class StreamTaskHandler {
-		private Future<?> streamFuture;
-		private RelayRunnable streamTask;
 
-		public StreamTaskHandler(Future<?> streamFuture, RelayRunnable streamTask) {
-			this.streamFuture = streamFuture;
-			this.streamTask = streamTask;
-		}
-
-		public void kill() {
-			streamTask.kill();
-		}
-
-		public boolean isDone() {
-			return streamFuture.isDone();
-		}
-
-		/**
-		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
-		 * and set reset flag as actions for clean up is different from being killed.
-		 */
-		public void reset() {
-			streamTask.reset();
-		}
-
-		public void clean() {
-			streamTask.clean();
-		}
-
-		public String getStreamId() {
-			return streamTask.getStreamId();
-		}
-	}
 
 
 	@Override

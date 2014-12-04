@@ -210,6 +210,10 @@ public abstract class NodeRunnable implements Runnable {
 			logger.error(e.toString());
 		};
 	}
+	
+	abstract void clean();
+	
+//	abstract int getDownstreamCount();
 	/**
 	 * Package private class could not be accessed by outside subclasses
 	 * 

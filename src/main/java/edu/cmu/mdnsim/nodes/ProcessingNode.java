@@ -1,11 +1,7 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,9 +14,6 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
-import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
  * 
@@ -32,7 +25,7 @@ import edu.cmu.mdnsim.reporting.PacketLostTracker;
  */
 public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler<ProcessRunnable>> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler<ProcessRunnable>>();
 
 	public ProcessingNode() throws UnknownHostException {	
 		super();
@@ -72,7 +65,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				ProcessRunnable procRunnable = 
 						new ProcessRunnable(stream, Integer.valueOf(stream.getDataSize()), InetAddress.getByName(addressAndPort[0]), Integer.valueOf(addressAndPort[1]), processingLoop, processingMemory, rate, msgBusClient, nodeId, this, receiveSocket);
 				Future<?> procFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
-				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(procFuture, procRunnable));
+				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<ProcessRunnable>(procFuture, procRunnable));
 
 				//Send the stream specification to upstream node
 				Map<String, String> upstreamNodePropertiesMap = 
@@ -110,7 +103,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public void terminateTask(Flow flow) {
 
-		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<ProcessRunnable> streamTask = streamIdToRunnableMap.get(flow.getStreamId());
 		if(streamTask == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -130,7 +123,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
 		logger.debug(this.getNodeId() + " received clean resource request.");
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<ProcessRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
 		streamTaskHandler.clean();
@@ -147,7 +140,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public synchronized void reset() {
 
-		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+		for (StreamTaskHandler<ProcessRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
@@ -166,38 +159,6 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 * - IN_WINDOW, this packet is in the current window
 	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
 	 */
-
-	private class StreamTaskHandler {
-		private Future<?> streamFuture;
-		private ProcessRunnable streamTask;
-
-		public StreamTaskHandler(Future<?> streamFuture, ProcessRunnable streamTask) {
-			this.streamFuture = streamFuture;
-			this.streamTask = streamTask;
-		}
-
-		public void kill() {
-			streamTask.kill();
-		}
-
-		public boolean isDone() {
-			return streamFuture.isDone();
-		}
-
-		public void reset() {
-
-			streamTask.reset();
-
-		}
-
-		public void clean() {
-			streamTask.clean();
-		}
-
-		public String getStreamId() {
-			return streamTask.getStreamId();
-		}
-	}
 
 
 	@Override

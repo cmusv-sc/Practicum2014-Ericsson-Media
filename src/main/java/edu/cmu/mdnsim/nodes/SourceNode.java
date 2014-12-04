@@ -24,7 +24,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
  */
 public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler<SourceRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SourceRunnable>>();
 
 	public SourceNode() throws UnknownHostException {
 		super();
@@ -69,14 +69,14 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate, Flow flow){
 		SourceRunnable sendRunnable = new SourceRunnable(stream, destAddrStr, destPort, bytesToTransfer, rate, flow, msgBusClient, getNodeId(), this);
 		Future<?> sendFuture = NodeContainer.ThreadPool.submit(new MDNTask(sendRunnable));
-		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(sendFuture, sendRunnable));
+		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SourceRunnable>(sendFuture, sendRunnable));
 	}
 	/**
 	 * For Source Node, stopping flow and stopping stream is same thing.
 	 */
 	@Override
 	public void terminateTask(Flow flow) {
-		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<SourceRunnable> sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
 		if(sendTaskHanlder == null){
 			throw new TerminateTaskBeforeExecutingException();
 		}
@@ -88,7 +88,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	 */
 	@Override
 	public void releaseResource(Flow flow) {
-		StreamTaskHandler sndThread = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<SourceRunnable> sndThread = streamIdToRunnableMap.get(flow.getStreamId());
 
 		while (!sndThread.isDone());
 
@@ -105,7 +105,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 
 	@Override
 	public synchronized void reset() {
-		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+		for (StreamTaskHandler<SourceRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 
 			while(!streamTask.isDone());
@@ -114,42 +114,6 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		}
 		
 		msgBusClient.removeResource("/" + getNodeId());
-	}
-
-	
-
-	private class StreamTaskHandler {
-		private Future<?> streamFuture;
-		private SourceRunnable streamTask;
-
-		public StreamTaskHandler(Future<?> streamFuture, SourceRunnable streamTask) {
-			this.streamFuture = streamFuture;
-			this.streamTask = streamTask;
-		}
-
-		/**
-		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
-		 * and set reset flag as actions for clean up is different from being killed.
-		 */
-		public void reset() {
-			streamTask.reset();
-		}
-
-		public void kill() {
-			streamTask.kill();
-		}
-
-		public boolean isDone() {
-			return streamFuture.isDone();
-		}
-
-		public void clean() {
-			streamTask.clean();
-		}
-
-		public String getStreamId() {
-			return streamTask.getStreamId();
-		}
 	}
 
 
