@@ -36,14 +36,8 @@ public abstract class AbstractNode {
 	InetAddress hostAddr;
 	
 	private boolean registered = false;
-
-	protected Map<String, DatagramSocket> streamIdToSocketMap = new ConcurrentHashMap<String, DatagramSocket>();
 	
 	public static final int MILLISECONDS_PER_SECOND = 1000;
-	
-	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 1000;
-	
-	public static final int INTERVAL_IN_MILLISECOND = 1000;
 
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
 	
@@ -166,37 +160,22 @@ public abstract class AbstractNode {
 	 * @param streamId
 	 * @return -1 if socket is not created successfully
 	 */
-	public int getAvailablePort(String streamId) {
-
-		if (streamIdToSocketMap.containsKey(streamId)) {
-			// TODO handle potential error condition. We may consider throw this exception
-			if (ClusterConfig.DEBUG) {
-				System.out.println("[DEBUG] SinkeNode.bindAvailablePortToStream():" + "[Exception]Attempt to add a socket mapping to existing stream!");
-			}
-			return streamIdToSocketMap.get(streamId).getPort();
-		} else {
-
-			DatagramSocket udpSocket = null;
-			for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
-				try {
-					udpSocket = new DatagramSocket(0, getHostAddr());
-				} catch (SocketException e) {
-					if (ClusterConfig.DEBUG) {
-						System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
-					}
-					e.printStackTrace();
-					continue;
+	public DatagramSocket getAvailablePort(String streamId) {
+		
+		DatagramSocket udpSocket = null;
+		for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
+			try {
+				udpSocket = new DatagramSocket(0, getHostAddr());
+			} catch (SocketException e) {
+				if (ClusterConfig.DEBUG) {
+					System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
 				}
-				break;
+				e.printStackTrace();
+				continue;
 			}
-
-			if(udpSocket == null){
-				return -1;
-			}
-
-			streamIdToSocketMap.put(streamId, udpSocket);
-			return udpSocket.getLocalPort();
+			break;
 		}
+		return udpSocket;
 	}
 	/**
 	 * The from property of message should contain flow id at the end

@@ -26,13 +26,21 @@ import edu.cmu.util.Utility;
  *
  */
 public abstract class NodeRunnable implements Runnable {
+	
+	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 1000;
+	
+	public static final int INTERVAL_IN_MILLISECOND = 1000;
+	
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-runnable");
 	private Stream stream;
 	private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
 	private AtomicInteger lostPacketNum = new AtomicInteger(0);
-	private MessageBusClient msgBusClient;
+	MessageBusClient msgBusClient;
 	private String nodeId;
+	NodeRunnableCleaner cleaner;
 
+	
+	
 	/**
 	 * Used to indicate NodeRunnable Thread to stop processing. Will be set to
 	 * true when Master sends Terminate message for the flow attached to this
@@ -51,7 +59,7 @@ public abstract class NodeRunnable implements Runnable {
 
 	private volatile boolean upStreamDone = false;
 
-	public NodeRunnable(Stream stream, MessageBusClient msgBusClient, String nodeId) {
+	public NodeRunnable(Stream stream, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner) {
 		this.stream = stream;
 		this.msgBusClient = msgBusClient;
 		this.nodeId = nodeId;
@@ -62,9 +70,10 @@ public abstract class NodeRunnable implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		this.cleaner = cleaner;
 	}
 
-	private String getNodeId() {
+	String getNodeId() {
 		return nodeId;
 	}
 
