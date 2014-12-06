@@ -3,7 +3,6 @@ package edu.cmu.mdnsim.nodes;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import edu.cmu.mdnsim.exception.DataAndLengthDoNotMatchException;
 import edu.cmu.mdnsim.exception.TotalLengthShorterThanHeaderException;
 
 /**
