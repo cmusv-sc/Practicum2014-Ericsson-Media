@@ -1,6 +1,11 @@
 package edu.cmu.mdnsim.messagebus.message;
 
+import edu.cmu.mdnsim.server.Master;
+import edu.cmu.mdnsim.nodes.*;
 /**
+ * 
+ * This message is instantiated by instances of subclasses of {@link AbstractNode}
+ * and sent to {@link Master} to register an instance of subclass of {@link AbstractNode}
  * 
  * @author Geng Fu
  * @author Jigar Patel

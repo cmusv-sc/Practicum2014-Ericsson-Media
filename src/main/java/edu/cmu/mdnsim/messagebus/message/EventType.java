@@ -2,6 +2,7 @@ package edu.cmu.mdnsim.messagebus.message;
 
 /**
  * Indicates what type of event occurred & how to interpret Report Message
+ * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
