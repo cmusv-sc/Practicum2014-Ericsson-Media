@@ -3,6 +3,12 @@ package edu.cmu.mdnsim.reporting;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+<<<<<<< HEAD:src/main/java/edu/cmu/mdnsim/nodes/PacketLostTracker.java
+ * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
+ * 
+ * This class is not thread safe except getter and setter of lostPacketNum and highestPacketId.
+ * All applicable methods throw a NullPointerException if null is passed in any parameter
+=======
  * This class is not thread safe except get and set lostPacketNum
  * It is not supposed to be used at multithreading environment except get and set lostPacketNum
  *
@@ -11,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Vinay Kumar Vavili
  * @author Hao Wang
  *
+>>>>>>> 55be833d3a608808c505353959976ee46eb88350:src/main/java/edu/cmu/mdnsim/reporting/PacketLostTracker.java
  */
 public class PacketLostTracker {
 	
@@ -25,7 +32,7 @@ public class PacketLostTracker {
 	private boolean finished;
 
 	/**
-	 * 
+	 * Construct an instance based on five parameters.
 	 * @param totalData, total data for this flow in byte
 	 * @param rate, transfer rate of the flow in byte
 	 * @param packetLength, length of the packet for transfer
@@ -53,15 +60,15 @@ public class PacketLostTracker {
 	/**
 	 * Judge the status of the packet based on id and update the packet lost according to 3 situations
 	 * @param packetId, equal or above 0 and equal or lower than max expected id
-	 * @throws IllegalArgumentException if packetId is not in valid range
+	 * @throws IllegalArgumentException if packetId is not in valid range which is [0, expectedMaxPacketId]
 	 * @throws IllegalStateException if called after timeout
 	 */
 	public void updatePacketLost(int packetId){
+		if(packetId < 0 || packetId > expectedMaxPacketId){
+			throw new IllegalArgumentException("packet id " + packetId + " is out of valid range [0," + expectedMaxPacketId +"]");
+		}
 		if(finished){
 			throw new IllegalStateException("Timeout has happened.");
-		}
-		if(packetId > expectedMaxPacketId){
-			throw new IllegalArgumentException();
 		}
 		
 		if(packetId > highPacketIdBoundry){
@@ -77,7 +84,7 @@ public class PacketLostTracker {
 	}
 	
 	/**
-	 * When timeout, update the packet lost for the last time for this flow
+	 * Update the packet lost for the last time. Timeout and last packet is received can lead this method being called. 
 	 */
 	public void updatePacketLostForLastTime(){
 		int lostPacketNumInCurrentWindow = highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow;

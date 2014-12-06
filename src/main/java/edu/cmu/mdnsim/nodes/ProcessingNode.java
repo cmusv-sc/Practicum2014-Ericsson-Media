@@ -12,7 +12,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
@@ -105,7 +104,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
 		StreamTaskHandler<ProcessRunnable> streamTask = streamIdToRunnableMap.get(flow.getStreamId());
 		if(streamTask == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new IllegalStateException("Terminate Task Before Executing");
 		}
 		streamTask.kill();
 
@@ -150,15 +149,6 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
 
 	}
-	
-
-	/**
-	 * For packet lost statistical information:
-	 * When a new packet is received, there are three status:
-	 * - BEYOND_WINDOW, this packet is with the highest id among all the received packet
-	 * - IN_WINDOW, this packet is in the current window
-	 * - BEHIND_WINDOW, this packet is regarded as a lost packet
-	 */
 
 
 	@Override

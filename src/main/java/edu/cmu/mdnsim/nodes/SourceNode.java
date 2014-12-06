@@ -11,7 +11,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
@@ -78,7 +77,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	public void terminateTask(Flow flow) {
 		StreamTaskHandler<SourceRunnable> sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
 		if(sendTaskHanlder == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new IllegalStateException("Terminate task before executing");
 		}
 		sendTaskHanlder.kill();
 		releaseResource(flow);
@@ -99,6 +98,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		try {
 			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
+			
 			e.printStackTrace();
 		}
 	}
@@ -115,8 +115,6 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		
 		msgBusClient.removeResource("/" + getNodeId());
 	}
-
-
 
 	@Override
 	public void removeNodeRunnable(String streamId) {

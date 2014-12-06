@@ -11,7 +11,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
@@ -31,7 +30,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	public SinkNode() throws UnknownHostException {
 		super();
 	}
-
+	
 
 	@Override
 	public void executeTask(Message request, Stream stream) {
@@ -66,7 +65,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 		StreamTaskHandler<SinkRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){
-			throw new TerminateTaskBeforeExecutingException();
+			throw new IllegalStateException("Terminate task before executing");
 		}
 		streamTaskHandler.kill();
 
@@ -104,14 +103,9 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 
 	}
 
-
-
-
-
 	@Override
 	public void removeNodeRunnable(String streamId) {
 		
 		this.streamIdToRunnableMap.remove(streamId);
-		
 	}
 }

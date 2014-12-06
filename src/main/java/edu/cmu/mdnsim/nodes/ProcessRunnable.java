@@ -113,7 +113,7 @@ class ProcessRunnable extends NodeRunnable {
 			 * received.
 			 */
 			if(reportTask == null) {
-				packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
+				packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
 				reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -217,7 +217,7 @@ class ProcessRunnable extends NodeRunnable {
 			return false;
 		}
 
-		byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 		packet = new DatagramPacket(buf, buf.length);
 
 		return true;

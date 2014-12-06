@@ -12,7 +12,6 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.exception.TerminateTaskBeforeExecutingException;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
@@ -91,7 +90,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		StreamTaskHandler<RelayRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
-			throw new TerminateTaskBeforeExecutingException();
+			throw new IllegalStateException("Terminate task Before Executing");
 		}
 
 		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){ 
@@ -148,11 +147,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());
-
 	}
-	
-
-
 
 	@Override
 	public void removeNodeRunnable(String streamId) {
@@ -160,5 +155,4 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		this.streamIdToRunnableMap.remove(streamId);
 		
 	}
-
 }

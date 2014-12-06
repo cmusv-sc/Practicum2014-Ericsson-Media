@@ -53,7 +53,7 @@ class SourceRunnable extends NodeRunnable {
 			return;
 		}
 
-		double packetPerSecond = rate / NodePacket.PACKET_MAX_LENGTH;
+		double packetPerSecond = rate / NodePacket.MAX_PACKET_LENGTH;
 		long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
 		
 		StreamReportMessage streamReportMessage = 
@@ -68,7 +68,7 @@ class SourceRunnable extends NodeRunnable {
 			long begin = System.currentTimeMillis();
 
 			NodePacket nodePacket = 
-					bytesToTransfer <= NodePacket.PACKET_MAX_LENGTH ? 
+					bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? 
 							new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
 			packet.setData(nodePacket.serialize());
 			
@@ -141,7 +141,7 @@ class SourceRunnable extends NodeRunnable {
 			return false;
 		}
 
-		byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH];
+		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH];
 		packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
 
 		return true;	
