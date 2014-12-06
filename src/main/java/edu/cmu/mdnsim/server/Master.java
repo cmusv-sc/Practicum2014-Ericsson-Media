@@ -790,12 +790,7 @@ public class Master extends TimerTask {
 	}
 
 	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
-		//		double packetLossThreshHold = Master.PACKET_LOSS_THRESHOLD;
-		//		try{
-		//			packetLossThreshHold = Double.parseDouble(args[0]);
-		//		}catch(Exception e){
-		//			logger.error(e.toString());
-		//		}
+	
 		Master mdnDomain = new Master();
 		mdnDomain.init();
 		//Timer used to update the web client every 1 sec
