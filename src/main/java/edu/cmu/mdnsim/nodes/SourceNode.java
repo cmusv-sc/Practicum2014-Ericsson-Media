@@ -7,7 +7,6 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
@@ -76,7 +75,7 @@ public class SourceNode extends AbstractNode {
 	public void terminateTask(Flow flow) {
 		StreamTaskHandler sendTaskHanlder = streamIdToRunnableMap.get(flow.getStreamId());
 		if(sendTaskHanlder == null){
-			throw new RuntimeException("Terminate task before executing");
+			throw new IllegalStateException("Terminate task before executing");
 		}
 		sendTaskHanlder.kill();
 		releaseResource(flow);
@@ -97,6 +96,7 @@ public class SourceNode extends AbstractNode {
 		try {
 			msgBusClient.send("/tasks", nodeMap.get(Flow.DOWNSTREAM_URI) + "/tasks", "DELETE", flow);
 		} catch (MessageBusException e) {
+			
 			e.printStackTrace();
 		}
 	}

@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
  * 
  * This class is not thread safe except getter and setter of lostPacketNum and highestPacketId.
+ * All applicable methods throw a NullPointerException if null is passed in any parameter
  */
 public class PacketLostTracker {
 	

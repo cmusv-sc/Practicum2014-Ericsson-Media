@@ -28,7 +28,7 @@ public class SinkNode extends AbstractNode{
 	public SinkNode() throws UnknownHostException {
 		super();
 	}
-
+	
 
 	@Override
 	public void executeTask(Message request, Stream stream) {
@@ -71,7 +71,7 @@ public class SinkNode extends AbstractNode{
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){
-			throw new RuntimeException("Terminate task before executing");
+			throw new IllegalStateException("Terminate task before executing");
 		}
 		streamTaskHandler.kill();
 

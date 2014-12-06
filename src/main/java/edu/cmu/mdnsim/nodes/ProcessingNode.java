@@ -100,7 +100,7 @@ public class ProcessingNode extends AbstractNode{
 
 		StreamTaskHandler streamTask = streamIdToRunnableMap.get(flow.getStreamId());
 		if(streamTask == null){
-			throw new RuntimeException("Terminate Task Before Executing");
+			throw new IllegalStateException("Terminate Task Before Executing");
 		}
 		streamTask.kill();
 

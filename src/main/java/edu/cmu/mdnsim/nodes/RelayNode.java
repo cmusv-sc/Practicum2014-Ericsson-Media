@@ -95,7 +95,7 @@ public class RelayNode extends AbstractNode{
 		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
-			throw new RuntimeException("Terminate task Before Executing");
+			throw new IllegalStateException("Terminate task Before Executing");
 		}
 
 		if(streamTaskHandler.streamTask.getDownStreamCount() == 1){ 
