@@ -5,6 +5,9 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * 
+ * This interface defines the way that how {@link edu.cmu.mdnsim.server.Master} 
+ * can communicate with other components in the system.
+ * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili

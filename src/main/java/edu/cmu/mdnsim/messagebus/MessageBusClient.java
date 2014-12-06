@@ -5,6 +5,12 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * 
+ * This Interface defines the way that how {@link edu.cmu.mdnsim.nodes.NodeContainer}
+ * {@link edu.cmu.mdnsim.nodes.AbstractNode} and 
+ * {@link edu.cmu.mdnsim.nodes.NodeRunnable} can communicate with 
+ * {@link edu.cmu.mdnsim.server.Master}
+ * and each other.
+ * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili

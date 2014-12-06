@@ -22,6 +22,8 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * 
+ * This is the implementation of {@link MessageBusClient} by using Warp library. 
+ * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
