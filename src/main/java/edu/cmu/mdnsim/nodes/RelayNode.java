@@ -1,16 +1,9 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.nio.channels.DatagramChannel;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
@@ -19,21 +12,19 @@ import com.ericsson.research.warp.api.message.Message;
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
-import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
-import edu.cmu.util.Utility;
 
 /**
  * Relay Node can send data to multiple flows for the same stream 
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  */
-public class RelayNode extends AbstractNode{
-	
-	private static Random randomGen = new Random();
+public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
-	private Map<String, StreamTaskHandler> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler>();
+	private Map<String, StreamTaskHandler<RelayRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<RelayRunnable>>();
 
 	public RelayNode() throws UnknownHostException {
 		super();
@@ -49,7 +40,11 @@ public class RelayNode extends AbstractNode{
 		//Get the relay node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		//Open a socket for receiving data only if it is not already open
-		int receivingPort  = this.getAvailablePort(flow.getStreamId());
+		DatagramSocket receiveSocket = this.getAvailablePort(flow.getStreamId());
+		if (receiveSocket == null) {
+			//TODO: this is an exception
+			return;
+		}
 
 		String[] destinationAddressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 		InetAddress destAddress = null;
@@ -67,14 +62,14 @@ public class RelayNode extends AbstractNode{
 			}else{
 				//For the first time, create a new Runnable and send stream spec to upstream node
 				RelayRunnable relayRunnable = 
-						new RelayRunnable(stream,downStreamUri, destAddress, destPort);
+						new RelayRunnable(stream,downStreamUri, destAddress, destPort, msgBusClient, getNodeId(), this, receiveSocket);
 				Future<?> relayFuture = NodeContainer.ThreadPool.submit(new MDNTask(relayRunnable));
-				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler(relayFuture, relayRunnable));
+				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<RelayRunnable>(relayFuture, relayRunnable));
 
 				Map<String, String> upstreamNodePropertiesMap = 
 						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
 				upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
-						super.getHostAddr().getHostAddress()+":"+receivingPort);
+						super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
 				try {
 					msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 							nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
@@ -92,7 +87,7 @@ public class RelayNode extends AbstractNode{
 
 		logger.debug( this.getNodeId() + " Trying to terminate flow: " +  flow.getFlowId());
 
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<RelayRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 
 		if(streamTaskHandler == null){ //terminate a task that hasn't been started. (before executeTask is executed).
 			throw new IllegalStateException("Terminate task Before Executing");
@@ -129,7 +124,7 @@ public class RelayNode extends AbstractNode{
 	public void releaseResource(Flow flow) {
 
 		logger.debug("%s [DEBUG]RelayNode.releaseResource(): try to release flow %s\n", this.getNodeId(), flow.getFlowId());
-		StreamTaskHandler streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
+		StreamTaskHandler<RelayRunnable> streamTaskHandler = streamIdToRunnableMap.get(flow.getStreamId());
 		while (!streamTaskHandler.isDone());
 
 		streamTaskHandler.clean();
@@ -144,7 +139,7 @@ public class RelayNode extends AbstractNode{
 
 	@Override
 	public synchronized void reset() {
-		for (StreamTaskHandler streamTask : streamIdToRunnableMap.values()) {
+		for (StreamTaskHandler<RelayRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
@@ -152,313 +147,12 @@ public class RelayNode extends AbstractNode{
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());
-
-	}
-	private class RelayRunnable extends NodeRunnable {
-		private DatagramSocket receiveSocket;
-		private DatagramPacket receivedPacket;
-		private Map<String,InetSocketAddress> downStreamUriToReceiveSocketAddress;
-		private DatagramChannel sendingChannel;
-		private DatagramSocket sendSocket;
-		/**
-		 * Create a new NodeRunnable object with given stream 
-		 * @param stream
-		 * @param downStreamUri 
-		 * @param destAddress
-		 * @param destPort
-		 */
-		public RelayRunnable(Stream stream, String downStreamUri, InetAddress destAddress, int destPort) {
-			super(stream, msgBusClient, getNodeId());
-			downStreamUriToReceiveSocketAddress  = new ConcurrentHashMap<String,InetSocketAddress>();
-			downStreamUriToReceiveSocketAddress.put(downStreamUri,
-					new InetSocketAddress(destAddress, destPort));
-		}
-
-		public void removeDownStream(String downStreamUri) {
-			this.downStreamUriToReceiveSocketAddress.remove(downStreamUri);
-		}
-
-		public synchronized int getDownStreamCount() {
-			return this.downStreamUriToReceiveSocketAddress.size();
-		}
-
-		@Override
-		public void run() {
-			if(!initializeSocketAndPacket()){
-				return;
-			}		
-			PacketLostTracker packetLostTracker = null;
-			boolean isFinalWait = false;
-			ReportTaskHandler reportTaskHandler = null;
-			while (!isKilled()) {
-				try {
-					receiveSocket.receive(receivedPacket);
-					logger.debug("[RELAY] Received Packet" );
-				} catch(SocketTimeoutException ste){
-					if(this.isUpstreamDone()){
-						if(!isFinalWait){
-							isFinalWait = true;
-							continue;
-						}else{
-							break;		
-						}
-					} else {
-						continue;
-					}
-				} catch (IOException e) {
-					logger.error(e.toString());
-					break;
-				} 
-				setTotalBytesTranfered(getTotalBytesTranfered() + receivedPacket.getLength());
-
-				NodePacket nodePacket = new NodePacket(receivedPacket.getData());
-				
-
-				if(reportTaskHandler == null) {
-					packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
-							Integer.parseInt(this.getStream().getKiloBitRate()),
-							NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
-					ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
-					Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
-					reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
-					StreamReportMessage streamReportMessage = 
-							new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
-					.build();
-					this.sendStreamReport(streamReportMessage);
-					
-					
-				}
-
-				packetLostTracker.updatePacketLost(nodePacket.getMessageId());
-
-				//Send data to all destination nodes
-				DatagramPacket packet ;
-				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
-					byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
-
-					packet = new DatagramPacket(buf, buf.length);
-					packet.setData(nodePacket.serialize());	
-					packet.setAddress(destination.getAddress());
-					packet.setPort(destination.getPort());
-					if (randomGen.nextDouble() > 0.1) {
-						try {
-							sendSocket.send(packet);
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						System.out.println(Utility.getFormattedLogMessage("Send a packet", nodeId));
-					} else {
-						logger.debug(Utility.getFormattedLogMessage("Drop a packet", nodeId));
-						System.out.println(Utility.getFormattedLogMessage("Drop a packet", nodeId));
-					}
-				}
-//				ByteBuffer buf = ByteBuffer.allocate(nodePacket.serialize().length);
-//				try {
-//					sendingChannel.configureBlocking(true);
-//				} catch (IOException e1) {
-//					// TODO Auto-generated catch block
-//					e1.printStackTrace();
-//				}
-//				for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
-//					try {
-//						buf.clear();
-//						buf.put(nodePacket.serialize());
-//						buf.flip();
-//						int bytesSent = sendingChannel.send(buf, destination);
-//						System.out.println("[DELETE-JEREMY]RelayNode.Runnable.run():" + getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
-//						logger.debug(getNodeId() + " sent " + bytesSent + " bytes to destination " + destination.toString());
-//					} catch (IOException e) {
-//						logger.error(e.toString());
-//					}
-//				}
-				if(nodePacket.isLast()){
-					super.setUpstreamDone();
-					break;
-				}
-			}
-
-			/*
-			 * ReportTaskHandler might be null as the thread might be killed
-			 * before the while loop. The report thread is started in the while
-			 * loop. Therefore, the reportTaskHandler might be null.
-			 * 
-			 */
-			if(reportTaskHandler != null){
-				reportTaskHandler.kill();
-
-				/*
-				 * Wait for report thread completes totally.
-				 */
-				while(!reportTaskHandler.isDone());
-			}
-
-			/*
-			 * No mater what final state is, the NodeRunnable should always
-			 * report to Master that it is going to end.
-			 * 
-			 */
-			StreamReportMessage streamReportMessage = 
-					new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
-			.build();
-			this.sendStreamReport(streamReportMessage);
-			for(String downStreamId : this.getDownStreamIds()){
-				streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.SEND_END, downStreamId)
-				.build();
-				this.sendStreamReport(streamReportMessage);
-			}
-			packetLostTracker.updatePacketLostForLastTime();
-			if (isUpstreamDone()) { //Simulation completes
-				/*
-				 * Processing node should actively tell downstream its has sent out all
-				 * data. This message should force the downstream stops the loop.
-				 * 
-				 */
-				sendEndMessageToDownstream();
-
-				clean();
-				logger.debug("Relay Runnbale is done for stream " + this.getStreamId());
-
-			} else if (isReset()) { //NodeRunnable is reset by Master Node
-				clean();
-				logger.debug("Relay Runnbale has been reset for stream " + this.getStreamId());
-
-			} else { //NodeRunnable is killed by Master Node
-				/*
-				 * Do nothing
-				 */
-				logger.debug("Relay Runnbale has been killed for stream " + this.getStreamId());
-			}
-
-		}
-
-		@Override
-		protected void sendEndMessageToDownstream() {
-			for(String downStreamURI : this.getDownStreamURIs()){
-				try {
-					msgBusClient.send(getFromPath(), downStreamURI + "/" + this.getStreamId(), 
-							"DELETE", this.getStream());
-				} catch (MessageBusException e) {
-					logger.error(e.toString());
-				}
-			}
-
-		}
-
-		public void clean() {
-			if (!receiveSocket.isClosed()) {
-				receiveSocket.close();
-			}
-			try {
-				sendingChannel.close();
-			} catch (IOException e) {
-
-			}
-			streamIdToSocketMap.remove(getStreamId());
-			streamIdToRunnableMap.remove(getStreamId());
-		}
-		/**
-		 * Adds new downstream node to relay
-		 * @param downStreamUri 
-		 * @param destAddress
-		 * @param destPort
-		 */
-		public void addNewDestination(String downStreamUri, InetAddress destAddress, int destPort) {
-			downStreamUriToReceiveSocketAddress.put(downStreamUri, 
-					new InetSocketAddress(destAddress, destPort));
-		}
-		/**
-		 * Initialize the receive DatagramSocket
-		 * @return true if succeed
-		 * 	       false if acquiring an non-exist socket
-		 * 					setting receive socket timeout encounters some exception
-		 * 					initialize send socket encounters some exception 
-		 */
-		private boolean initializeSocketAndPacket(){
-			if ((receiveSocket = streamIdToSocketMap.get(getStreamId())) == null) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("[DEBUG] RelayNode.RelayRunnable.initializeSocket():" 
-							+ "[Exception]Attempt to receive data for non existent stream");
-				}
-				return false;
-			}
-
-			try {
-				receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
-			} catch (SocketException e1) {
-				e1.printStackTrace();
-				return false;
-			} 
-
-			byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
-			receivedPacket = new DatagramPacket(buf, buf.length);
-
-			try {
-				sendingChannel = DatagramChannel.open();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
-			try {
-				sendSocket = new DatagramSocket();
-			} catch (SocketException se) {
-				logger.error(se.toString());
-				return false;
-			}
-			return true;
-		}
-	}
-	private class ReportTaskHandler {
-
-		Future<?> reportFuture;
-		ReportRateRunnable reportRunnable;
-
-		public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
-			this.reportFuture = future;
-			reportRunnable = runnable;
-		}
-
-		public void kill() {
-			reportRunnable.kill();
-		}
-
-		public boolean isDone() {
-			return reportFuture.isDone();
-		}
-
-	}
-	private class StreamTaskHandler {
-		private Future<?> streamFuture;
-		private RelayRunnable streamTask;
-
-		public StreamTaskHandler(Future<?> streamFuture, RelayRunnable streamTask) {
-			this.streamFuture = streamFuture;
-			this.streamTask = streamTask;
-		}
-
-		public void kill() {
-			streamTask.kill();
-		}
-
-		public boolean isDone() {
-			return streamFuture.isDone();
-		}
-
-		/**
-		 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
-		 * and set reset flag as actions for clean up is different from being killed.
-		 */
-		public void reset() {
-			streamTask.reset();
-		}
-
-		public void clean() {
-			streamTask.clean();
-		}
-
-		public String getStreamId() {
-			return streamTask.getStreamId();
-		}
 	}
 
+	@Override
+	public void removeNodeRunnable(String streamId) {
+		
+		this.streamIdToRunnableMap.remove(streamId);
+		
+	}
 }

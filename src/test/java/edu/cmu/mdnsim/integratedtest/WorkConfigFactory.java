@@ -7,6 +7,14 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.config.WorkConfig;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class WorkConfigFactory {
 	
 	public static WorkConfig getWorkConfig(String simuID, Scenario scenario, String... streamIDs) {

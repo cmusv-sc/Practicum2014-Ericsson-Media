@@ -3,7 +3,10 @@ package edu.cmu.mdnsim.global;
 /**
  * This class is used to provide easy access to configuration
  * 
- * @author JeremyFu
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class ClusterConfig {

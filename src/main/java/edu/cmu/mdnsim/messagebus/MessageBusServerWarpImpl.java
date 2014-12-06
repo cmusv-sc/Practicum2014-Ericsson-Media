@@ -23,6 +23,14 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.server.WebClient;
 
+/**
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
+ *
+ */
 public class MessageBusServerWarpImpl implements MessageBusServer {
 
 	private static WarpDomain _warpDomain;
@@ -33,7 +41,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	public void config() throws MessageBusException {
 
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
-		JDKLoggerConfig.initForPrefixes(Level.WARNING, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
 		configDomain();
 
 		try {
@@ -96,7 +104,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 
 	private void configService() throws MessageBusException {
 
-		JDKLoggerConfig.initForPrefixes(Level.WARNING, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
 
 		try {
 			_svc=_warpDomain.createService("mdn-manager");

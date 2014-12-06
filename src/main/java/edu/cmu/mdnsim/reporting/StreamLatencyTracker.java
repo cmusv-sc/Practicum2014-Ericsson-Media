@@ -13,7 +13,11 @@ import edu.cmu.util.Utility;
 /**
  * Keeps track of latency between source and sink node(first and last node in flow) 
  * for each flow within stream
- * @author Jigar
+ * 
+ * @author Geng Fu
+ * @author Jigar Patel
+ * @author Vinay Kumar Vavili
+ * @author Hao Wang
  *
  */
 public class StreamLatencyTracker {
