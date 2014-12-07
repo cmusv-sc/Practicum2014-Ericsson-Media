@@ -14,7 +14,7 @@ import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
- * 
+ * A node that represents the source of a media network.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -28,7 +28,9 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	public SourceNode() throws UnknownHostException {
 		super();
 	}	
+	
 	/**
+	 * Execute a task to process a stream.
 	 * Assumptions:
 	 * 1. All the flows in the stream should have source node in it.
 	 * 2. Properties for source node should be same in all flows.
@@ -58,7 +60,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	}
 
 	/**
-	 * Create and launch a SendRunnable and put it in the streamId - runnable map
+	 * Creates and launches a SendRunnable and puts it in the streamId - runnable map
 	 * @param streamId
 	 * @param destAddrStr
 	 * @param destPort
@@ -70,7 +72,9 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		Future<?> sendFuture = NodeContainer.ThreadPool.submit(new MDNTask(sendRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SourceRunnable>(sendFuture, sendRunnable));
 	}
+	
 	/**
+	 * Terminates the task for a flow.
 	 * For Source Node, stopping flow and stopping stream is same thing.
 	 */
 	@Override
@@ -82,7 +86,9 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		sendTaskHanlder.kill();
 		releaseResource(flow);
 	}
+	
 	/**
+	 * Releases the resources for flow.
 	 * For Source Node, stopping flow and stopping stream is same thing.
 	 */
 	@Override

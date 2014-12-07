@@ -17,8 +17,8 @@ import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
- * 
- * Each flow is received in a separate WarpPoolThread.
+ * A runnable that is to process a stream for a SinkNode.
+ * <p>Each flow is received in a separate WarpPoolThread.
  * After receiving all packets from the source, this thread 
  * reports the total time and total number of bytes received by the 
  * sink node back to the master using the message bus.
@@ -168,7 +168,7 @@ class SinkRunnable extends NodeRunnable {
 
 
 	/**
-	 * Initialize the receive socket and the DatagramPacket 
+	 * Initializes the receive socket and the DatagramPacket 
 	 * @return true, successfully done
 	 * 		   false, failed in some part
 	 */
@@ -188,7 +188,7 @@ class SinkRunnable extends NodeRunnable {
 
 
 	/**
-	 * Create and Launch a report thread
+	 * Creates and Launches a thread to report to the management layer.
 	 * @return Future of the report thread
 	 */
 
@@ -207,12 +207,8 @@ class SinkRunnable extends NodeRunnable {
 		cleaner.removeNodeRunnable(getStreamId());
 	}
 
-	
-
 	@Override
 	protected void sendEndMessageToDownstream() {
-
-
 	}
 
 }

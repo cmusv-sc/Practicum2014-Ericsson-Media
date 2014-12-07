@@ -17,8 +17,8 @@ import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
- * 
- * Each stream is received in a separate WarpPoolThread.
+ * A runnable to do logic for ProcessNode.
+ * <p>Each stream is received in a separate WarpPoolThread.
  * After receiving all packets from the source, this thread 
  * reports the total time and total number of bytes received by the 
  * sink node back to the master using the message bus.
@@ -42,6 +42,20 @@ class ProcessRunnable extends NodeRunnable {
 	private DatagramPacket packet;
 	private NodeRunnableCleaner cleaner;
 
+	/**
+	 * Constructs a ProcessRunnable.
+	 * @param stream
+	 * @param totalData total data that the node is supposed to receive and send
+	 * @param destAddress Internet address of the destination
+	 * @param dstPort port number of the destination
+	 * @param processingLoop number of passes of iteration to process a packet
+	 * @param processingMemory amount of bytes in memory that is used to process a packet
+	 * @param rate expected transfer rate for packets
+	 * @param msgBusClient messageBusClient to report to the management layer
+	 * @param nodeId node id that the runnable will work for
+	 * @param cleaner a cleaner to release resources
+	 * @param receiveSocket a Datagram socket that is used to receive packets in the runnable
+	 */
 	public ProcessRunnable(Stream stream, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
 
 		super(stream, msgBusClient, nodeId, cleaner);
@@ -57,6 +71,9 @@ class ProcessRunnable extends NodeRunnable {
 		
 	}
 
+	/**
+	 * Starts the runnable.
+	 */
 	@Override
 	public void run() {
 
@@ -195,8 +212,8 @@ class ProcessRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Initialize the receive and send DatagramSockets
-	 * @return true if succeed
+	 * Initializes the receive and send DatagramSockets
+	 * @return true if succeeds
 	 * 	       false if acquiring an non-exist socket
 	 * 					setting receive socket timeout encounters some exception
 	 * 					initialize send socket encounters some exception 
@@ -224,8 +241,8 @@ class ProcessRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Create and Launch a report thread
-	 * @return Future of the report thread
+	 * Creates and Launches a reporting thread
+	 * @return Future of the reporting thread
 	 */
 
 	private ReportTaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
@@ -235,7 +252,7 @@ class ProcessRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Send the NodePacket embedded into DatagramPacket
+	 * Sends the NodePacket embedded into DatagramPacket
 	 * @param packet
 	 * @param nodePacket
 	 */
@@ -252,7 +269,7 @@ class ProcessRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Get raw data from NodePacket, process it and put the output data back into NodePacket
+	 * Gets raw data from NodePacket, processes it and puts the output data back into NodePacket
 	 * @param nodePacket
 	 */
 	private void processNodePacket(NodePacket nodePacket){
@@ -262,7 +279,7 @@ class ProcessRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Simulate the processing of a byte array with some memory and cpu loop
+	 * Simulates the processing of a byte array with some memory and cpu loop
 	 * @param data
 	 */
 	private void processByteArray(byte[] data){
@@ -274,6 +291,9 @@ class ProcessRunnable extends NodeRunnable {
 		}
 	}
 
+	/**
+	 * Cleans resources(sockets) associated with the Runnable
+	 */
 	public void clean() {
 		if (!receiveSocket.isClosed()) {
 			receiveSocket.close();
@@ -285,6 +305,9 @@ class ProcessRunnable extends NodeRunnable {
 		this.cleaner.removeNodeRunnable(getStreamId());
 	}
 
+	/**
+	 * Sends message to the down stream notifying the end of receiving and sending 
+	 */
 	@Override
 	protected void sendEndMessageToDownstream() {
 		try {

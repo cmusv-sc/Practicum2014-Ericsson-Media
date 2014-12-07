@@ -15,7 +15,7 @@ import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
- * Relay Node can send data to multiple flows for the same stream 
+ * A Node can send data to multiple flows for the same stream. 
  * 
  * @author Geng Fu
  * @author Jigar Patel
@@ -30,8 +30,9 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		super();
 	}
 	/**
+	 * Executes a task.
 	 * For the same stream, execute task might be called multiple times.
-	 * But it should use only one thread to handle that 
+	 * But it should use only one thread to handle that.
 	 */
 	@Override
 	public synchronized void executeTask(Message request, Stream stream) {
@@ -40,7 +41,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		//Get the relay node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		//Open a socket for receiving data only if it is not already open
-		DatagramSocket receiveSocket = this.getAvailablePort(flow.getStreamId());
+		DatagramSocket receiveSocket = this.getAvailableSocket(flow.getStreamId());
 		if (receiveSocket == null) {
 			//TODO: this is an exception
 			return;
@@ -82,6 +83,9 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		}
 	}
 
+	/**
+	 * Terminate the task that associated with a flow
+	 */
 	@Override
 	public synchronized void terminateTask(Flow flow) {
 
@@ -120,6 +124,9 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		}
 	}
 
+	/**
+	 * Releases resource associated with a flow
+	 */
 	@Override
 	public void releaseResource(Flow flow) {
 
@@ -137,6 +144,9 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		}
 	}
 
+	/**
+	 * Resets a task.
+	 */
 	@Override
 	public synchronized void reset() {
 		for (StreamTaskHandler<RelayRunnable> streamTask : streamIdToRunnableMap.values()) {
@@ -149,6 +159,9 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		msgBusClient.removeResource("/" + getNodeId());
 	}
 
+	/**
+	 * Removes the node runnable associated with the streamId
+	 */
 	@Override
 	public void removeNodeRunnable(String streamId) {
 		

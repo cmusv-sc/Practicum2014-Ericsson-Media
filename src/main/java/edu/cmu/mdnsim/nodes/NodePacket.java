@@ -5,7 +5,7 @@ import java.util.Arrays;
 
 /**
  *	A packet that can hold a flag, packet id and data length fields as well as the payload.
- *  The header of the packet takes 12 bytes. The total size of the packet is limited by PACKET_MAX_LENGTH.
+ *  <p>The header of the packet takes 12 bytes. The total size of the packet is limited by PACKET_MAX_LENGTH.
  *  That means the max size of payload is PACKET_MAX_LENGTH - HEADER_LENGTH. If a larger data field is set, when 
  *  serialize the object, a BufferOverflowException will be thrown. Then the program will fail.
  *  
@@ -27,7 +27,6 @@ import java.util.Arrays;
  * @author Vinay Kumar Vavili
  * @author Hao Wang
  *
- * 
  */
 public class NodePacket {
 

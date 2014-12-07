@@ -34,11 +34,11 @@ class RelayRunnable extends NodeRunnable {
 	
 	
 	/**
-	 * Create a new NodeRunnable object with given stream 
-	 * @param stream
-	 * @param downStreamUri 
-	 * @param destAddress
-	 * @param destPort
+	 * Constructs a new NodeRunnable object with given stream 
+	 * @param stream the stream that the runnable is processing
+	 * @param downStreamUri  URI of the down stream node
+	 * @param destAddress destination Internet address to send packets
+	 * @param destPort destination port number to send packets
 	 */
 	public RelayRunnable(Stream stream, String downStreamUri, InetAddress destAddress, int destPort, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
 		super(stream, msgBusClient, nodeId, cleaner);
@@ -187,6 +187,9 @@ class RelayRunnable extends NodeRunnable {
 
 	}
 
+	/**
+	 * Notifies the down stream that the processing at this node has finished.
+	 */
 	@Override
 	protected void sendEndMessageToDownstream() {
 		for(String downStreamURI : this.getDownStreamURIs()){
@@ -200,6 +203,9 @@ class RelayRunnable extends NodeRunnable {
 
 	}
 
+	/**
+	 * Cleans up sockets.
+	 */
 	public void clean() {
 		if (!receiveSocket.isClosed()) {
 			receiveSocket.close();
@@ -223,7 +229,7 @@ class RelayRunnable extends NodeRunnable {
 				new InetSocketAddress(destAddress, destPort));
 	}
 	/**
-	 * Initialize the receive DatagramSocket
+	 * Initializes the receive DatagramSocket
 	 * @return true if succeed
 	 * 	       false if acquiring an non-exist socket
 	 * 					setting receive socket timeout encounters some exception
