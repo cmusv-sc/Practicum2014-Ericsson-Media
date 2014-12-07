@@ -2,8 +2,16 @@ package edu.cmu.mdnsim.messagebus;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.mdnsim.nodes.NodeContainer;
+import edu.cmu.mdnsim.nodes.AbstractNode;
+import edu.cmu.mdnsim.nodes.NodeRunnable;
+import edu.cmu.mdnsim.server.Master;
+
 
 /**
+ * 
+ * This Interface defines the way that how {@link NodeContainer} {@link AbstractNode} and 
+ * {@link NodeRunnable} can communicate with {@link Master} and each other.
  * 
  * @author Geng Fu
  * @author Jigar Patel

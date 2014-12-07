@@ -2,12 +2,10 @@ package edu.cmu.mdnsim.config;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
-import edu.cmu.mdnsim.config.Flow;
 
 /*
 Example JSON object representing the following topology
