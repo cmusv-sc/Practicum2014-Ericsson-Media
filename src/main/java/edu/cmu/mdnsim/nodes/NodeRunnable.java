@@ -15,7 +15,6 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
-import edu.cmu.util.Utility;
 
 /**
  * 

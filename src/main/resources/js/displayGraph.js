@@ -4,6 +4,7 @@ sigma.utils.pkg('sigma.canvas.edges');
  * The following function defines new type of edge render. 
  * The name of new type = t
  * Use the name of new type in the graph JSON when creating/refreshing the graph
+ * Works only with canvas renderer
  */
 sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	var color = edge.color,

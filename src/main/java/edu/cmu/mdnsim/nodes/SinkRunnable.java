@@ -83,7 +83,7 @@ class SinkRunnable extends NodeRunnable {
 				//					startedTime = System.currentTimeMillis();
 				packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
 						Integer.parseInt(this.getStream().getKiloBitRate()),
-						NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+						NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -180,7 +180,7 @@ class SinkRunnable extends NodeRunnable {
 			return false;
 		}
 
-		byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 		packet = new DatagramPacket(buf, buf.length);
 
 		return true;

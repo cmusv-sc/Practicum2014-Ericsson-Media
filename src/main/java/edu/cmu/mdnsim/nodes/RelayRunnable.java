@@ -91,7 +91,7 @@ class RelayRunnable extends NodeRunnable {
 			if(reportTaskHandler == null) {
 				packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
 						Integer.parseInt(this.getStream().getKiloBitRate()),
-						NodePacket.PACKET_MAX_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+						NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
 				ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
 				reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
@@ -108,7 +108,7 @@ class RelayRunnable extends NodeRunnable {
 			//Send data to all destination nodes
 			DatagramPacket packet ;
 			for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
-				byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+				byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 
 				packet = new DatagramPacket(buf, buf.length);
 				packet.setData(nodePacket.serialize());	
@@ -238,7 +238,7 @@ class RelayRunnable extends NodeRunnable {
 			return false;
 		} 
 
-		byte[] buf = new byte[NodePacket.PACKET_MAX_LENGTH]; 
+		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
 		receivedPacket = new DatagramPacket(buf, buf.length);
 
 		try {

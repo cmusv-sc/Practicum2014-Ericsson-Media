@@ -1,6 +1,9 @@
 #Ignore the class files
+
 *.class
+
 #Ignore the target
+
 target/
 .metadata/
 pom.xml
