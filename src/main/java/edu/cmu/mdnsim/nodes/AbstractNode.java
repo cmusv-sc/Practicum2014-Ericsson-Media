@@ -40,18 +40,6 @@ public abstract class AbstractNode {
 
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
 	
-	
-	/**
-	 * Used for reporting purposes. 
-	 * Key = FlowId, Value = UpStreamNodeId
-	 *//*
-	Map<String,String> upStreamNodes = new HashMap<String,String>();
-	*//**
-	 * Used for reporting purposes.
-	 * Key = FlowId, Value = DownStreamNodeId
-	 *//*
-	Map<String,String> downStreamNodes = new HashMap<String,String>();*/
-	
 	/**
 	 * Construct a node that is using local host as the host address.
 	 * 
