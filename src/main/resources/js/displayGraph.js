@@ -4,6 +4,7 @@ sigma.utils.pkg('sigma.canvas.edges');
  * The following function defines new type of edge render. 
  * The name of new type = t
  * Use the name of new type in the graph JSON when creating/refreshing the graph
+ * Works only with canvas renderer
  */
 sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	var color = edge.color,
@@ -47,7 +48,7 @@ sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 };
 //used to show logs in the web client
 var loggerResource = Warp.rootResource.createResource("/logger");
-//Represents Sigma object
+//Represents Sigma object - Main object which holds the graph
 var s = null;
 //Represents the camera object used by sigma library
 var cam = null;
@@ -91,7 +92,7 @@ function attachNodeEvents(){
 		var nodeId = $(this)[0].attributes["data-node-id"].value;
 		var x = e.pageX - this.offsetLeft;
 		var y = e.pageY - this.offsetTop;
-				
+
 		if(s.graph.nodes(nodeId).tag){
 			$("<div id=d"+nodeId+" class='tag'></div>")
 			.html(s.graph.nodes(nodeId).tag)
@@ -99,11 +100,11 @@ function attachNodeEvents(){
 			.fadeIn('slow');
 			$('#d' + jq(nodeId)).css({ top: y, left: x, opacity:1 });
 		}
-		
+		//This is used to update the tooltip automatically on hover
 		self.updateNodeTag = function() {
 			$(".tag").html(s.graph.nodes(nodeId).tag);
 		}
-		
+
 	},function(e){
 		var nodeId = $(this)[0].attributes["data-node-id"].value;
 		$('#d' + jq(nodeId)).remove();
@@ -132,7 +133,7 @@ function attachEdgeEvents(){
 			.fadeIn('fast');
 			$('#d' + jq(lineId)).css({ top: y, left: x, opacity:1 });
 		}
-		
+		//This is used to update the tooltip automatically on hover
 		self.updateEdgeTag = function() {
 			$(".tag").html(s.graph.edges(lineId).tag);
 		}
@@ -211,14 +212,6 @@ function refreshGraph(updated_data){
 	}
 }
 /**
- * Called on click of start button. 
- * It reads the files at path specified in file input box and sends them to Master Node. 
- */
-function startSimulation(){
-	console.log("startSimulation");
-	Warp.send({to: "warp://embedded:mdn-manager/start_simulation", data: "start"});
-}
-/**
  * Called on "reset" button
  */
 function resetSimulation(){
@@ -276,7 +269,7 @@ function initWarp(){
 			if(s != null) {		
 				s.graph.clear();
 				s.refresh();
-				$("#messages").html("");
+				$("#messages").html(""); //Clear the log messages
 			}
 		}
 	});
@@ -321,26 +314,26 @@ $(document).ready(function() {
 		resetSimulation();
 	});
 	$("#flowaction").on('click', 'li a', function(event) {
-		   var $target = $( event.currentTarget );
-		   $target.closest( '.btn-group' )
-		      .find( '[data-bind="flowactionlabel"]' ).text( $target.text() )
-		         .end()
-		      .children( '.dropdown-toggle' ).dropdown( 'toggle' );
-			/*
-			 * After the file is read, the file input element does not
-			 * trigger the onchange handler if the same file is selected.
-			 * To enable us to use the same file for both starting and 
-			 * stopping a flow, we reset the file input (wsinput) every time 
-			 * the flow action is changed. This will,
-			 * 1) Prevent uploading same file twice for an action selected
-			 * 2) Allows use of same file when action is changed
-			 */
-			var fileInputElement = $("#wsinput");
-			fileInputElement.replaceWith(fileInputElement = fileInputElement.clone(true));
-			console.log('Reset wsinput');
-		   return false;
+		var $target = $( event.currentTarget );
+		$target.closest( '.btn-group' )
+		.find( '[data-bind="flowactionlabel"]' ).text( $target.text() )
+		.end()
+		.children( '.dropdown-toggle' ).dropdown( 'toggle' );
+		/*
+		 * After the file is read, the file input element does not
+		 * trigger the onchange handler if the same file is selected.
+		 * To enable us to use the same file for both starting and 
+		 * stopping a flow, we reset the file input (wsinput) every time 
+		 * the flow action is changed. This will,
+		 * 1) Prevent uploading same file twice for an action selected
+		 * 2) Allows use of same file when action is changed
+		 */
+		var fileInputElement = $("#wsinput");
+		fileInputElement.replaceWith(fileInputElement = fileInputElement.clone(true));
+		console.log('Reset wsinput');
+		return false;
 	});
-	
+
 	/*
 	 * When the input file element is reset when flow action is changed, the event handlers
 	 * for the input file element is lost. But, if we add the event handler on a parent 

@@ -130,7 +130,7 @@ class SourceRunnable extends NodeRunnable {
 	}
 
 	/**
-	 * Initialize the send socket and the DatagramPacket 
+	 * Initializes the sends socket and the DatagramPacket 
 	 * @return true if successfully done
 	 */
 	private boolean initializeSocketAndPacket(){
@@ -146,7 +146,6 @@ class SourceRunnable extends NodeRunnable {
 
 		return true;	
 	}
-
 
 	/**
 	 * Clean up all resources for this thread.

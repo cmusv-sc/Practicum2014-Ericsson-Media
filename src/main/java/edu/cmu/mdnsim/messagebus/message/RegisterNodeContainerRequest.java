@@ -1,6 +1,11 @@
 package edu.cmu.mdnsim.messagebus.message;
 
+import edu.cmu.mdnsim.nodes.NodeContainer;
+import edu.cmu.mdnsim.server.Master;
+
 /**
+ * This is a message instantiated by {@link NodeContainer} to register itself
+ * on {@link Master}.
  * 
  * @author Geng Fu
  * @author Jigar Patel

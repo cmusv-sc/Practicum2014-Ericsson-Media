@@ -4,7 +4,6 @@
 package edu.cmu.mdnsim.reporting;
 
 import java.text.ParseException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

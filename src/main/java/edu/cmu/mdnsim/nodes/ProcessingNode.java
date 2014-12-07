@@ -15,7 +15,7 @@ import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
- * 
+ * A node which can process packets with some amout of resource such as CPU and memory.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -31,6 +31,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	}
 
 	/**
+	 * Executes a task.
 	 * It is assumed that there will be only one downstream node for one stream
 	 * even if Processing node exists in multiple flows.
 	 */
@@ -40,7 +41,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		/* Open a socket for receiving data from upstream node */
-		DatagramSocket receiveSocket = this.getAvailablePort(flow.getStreamId());
+		DatagramSocket receiveSocket = this.getAvailableSocket(flow.getStreamId());
 		if(receiveSocket.getLocalPort() < 0){
 			//TODO: report to the management layer, we failed to bind a port to a socket
 		}else{
@@ -85,7 +86,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	}
 
 	/**
-	 * Create a ReceiveProcessAndSendRunnable and launch it & record it in the map
+	 * Creates a ReceiveProcessAndSendRunnable and launch it and record it in the map
 	 * @param streamId
 	 * @param totalData
 	 * @param destAddress
@@ -96,9 +97,11 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	public void launchProcessRunnable(Stream stream, int totalData, 
 			InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
-		
 	}
 
+	/**
+	 * Terminate a task.
+	 */
 	@Override
 	public void terminateTask(Flow flow) {
 
@@ -117,6 +120,9 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 		}
 	}
 
+	/**
+	 * Releases the resource of a flow.
+	 */
 	@Override
 	public void releaseResource(Flow flow) {
 
@@ -136,6 +142,9 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
 	}
 
+	/**
+	 * Reset tasks.
+	 */
 	@Override
 	public synchronized void reset() {
 
@@ -151,9 +160,12 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	}
 
 
+	/**
+	 * Removes a NodeRunnable for a specific stream.
+	 * @param streamId the stream id of the target stream
+	 */
 	@Override
 	public void removeNodeRunnable(String streamId) {
-		
 		this.streamIdToRunnableMap.remove(streamId);
 		
 	}

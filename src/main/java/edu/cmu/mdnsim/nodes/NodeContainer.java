@@ -20,8 +20,14 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
+import edu.cmu.mdnsim.server.*;
 
 /**
+ * NodeContainer is an entity that can host multiple nodes. The types of nodes,
+ * the number of each type nodes are configured during the runtime. It holds a 
+ * {@link MessageBusClient} to allow communication with {@link Master}. Besides,
+ * it passes object of {@link MessageBusClient} to {@link AbstractNode}. 
+ * {@link MessageBusClient} is one per each JVM.
  * 
  * @author Geng Fu
  * @author Jigar Patel

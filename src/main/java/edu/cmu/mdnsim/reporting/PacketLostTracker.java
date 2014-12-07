@@ -3,21 +3,16 @@ package edu.cmu.mdnsim.reporting;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
-<<<<<<< HEAD:src/main/java/edu/cmu/mdnsim/nodes/PacketLostTracker.java
  * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
  * 
  * This class is not thread safe except getter and setter of lostPacketNum and highestPacketId.
  * All applicable methods throw a NullPointerException if null is passed in any parameter
-=======
- * This class is not thread safe except get and set lostPacketNum
- * It is not supposed to be used at multithreading environment except get and set lostPacketNum
  *
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
  * @author Hao Wang
  *
->>>>>>> 55be833d3a608808c505353959976ee46eb88350:src/main/java/edu/cmu/mdnsim/reporting/PacketLostTracker.java
  */
 public class PacketLostTracker {
 	

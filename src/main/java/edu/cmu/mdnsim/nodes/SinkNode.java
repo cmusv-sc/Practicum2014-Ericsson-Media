@@ -14,7 +14,8 @@ import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
 /**
- * 
+ * A node that can receive packets. 
+ * <p> This node represents the end clients that is the consumers of the media over the network.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -37,11 +38,10 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
-
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
-		DatagramSocket receiveSocket = getAvailablePort(flow.getStreamId());
+		DatagramSocket receiveSocket = getAvailableSocket(flow.getStreamId());
 		SinkRunnable rcvRunnable = new SinkRunnable(stream, flow, msgBusClient, nodeId, this, receiveSocket);
 		Future<?> rcvFuture = NodeContainer.ThreadPool.submit(new MDNTask(rcvRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SinkRunnable>(rcvFuture, rcvRunnable));

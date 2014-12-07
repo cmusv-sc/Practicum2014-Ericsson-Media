@@ -15,10 +15,10 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
-import edu.cmu.util.Utility;
 
 /**
- * 
+ * A runnable that represents an individual Stream.
+ * <p>It will run in a separate thread and will have dedicated reporting thread attached to it.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -59,6 +59,13 @@ public abstract class NodeRunnable implements Runnable {
 
 	private volatile boolean upStreamDone = false;
 
+	/**
+	 * Construct a NodeRunnable.
+	 * @param stream the stream this NodeRunnble is associated with
+	 * @param msgBusClient the MessageBusClient that the NodeRunnable can use to report to the management layer
+	 * @param nodeId the node id that the NodeRunnable is associated with
+	 * @param cleaner the object that this NodeRunnble can use for cleaning up
+	 */
 	public NodeRunnable(Stream stream, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner) {
 		this.stream = stream;
 		this.msgBusClient = msgBusClient;
@@ -118,7 +125,7 @@ public abstract class NodeRunnable implements Runnable {
 	}
 
 	/**
-	 * Reset the NodeRunnable. The NodeRunnable should be interrupted (set killed),
+	 * Resets the NodeRunnable. The NodeRunnable should be interrupted (set killed),
 	 * and set reset flag as actions for clean up is different from being killed.
 	 */
 	public synchronized void reset() {
@@ -176,6 +183,11 @@ public abstract class NodeRunnable implements Runnable {
 		}
 		return null;	
 	}
+	
+	/**
+	 * Gets the set of ids of the down stream.
+	 * @return a set of down stream ids
+	 */
 	protected Set<String> getDownStreamIds() {
 		Set<String> downStreamIds = new HashSet<String>();
 		Stream stream = NodeRunnable.this.getStream();
@@ -187,6 +199,11 @@ public abstract class NodeRunnable implements Runnable {
 		}
 		return downStreamIds;	
 	}
+	
+	/**
+	 * Gets the set of URI of the down stream.
+	 * @return a set of down stream URIs
+	 */
 	protected Set<String> getDownStreamURIs() {
 		Set<String> downStreamURIs = new HashSet<String>();
 		Stream stream = getStream();
@@ -201,6 +218,14 @@ public abstract class NodeRunnable implements Runnable {
 		System.out.println("Down Stream Uris: " + downStreamURIs.toString());
 		return downStreamURIs;	
 	}
+	
+	/**
+	 * Sets report to the 
+	 * 
+	 * 
+	 * management layer.
+	 * @param streamReportMessage
+	 */
 	protected void sendStreamReport(StreamReportMessage streamReportMessage) {
 		String fromPath = "/" + this.getNodeId() + "/" + this.getStreamId();
 		try {
@@ -213,11 +238,9 @@ public abstract class NodeRunnable implements Runnable {
 	
 	abstract void clean();
 	
-//	abstract int getDownstreamCount();
 	/**
-	 * Package private class could not be accessed by outside subclasses
-	 * 
-	 *
+	 * A runnable that reports statistical rate.
+	 * <p>Package private class could not be accessed by outside subclasses
 	 */
 	protected class ReportRateRunnable implements Runnable {
 
@@ -243,10 +266,8 @@ public abstract class NodeRunnable implements Runnable {
 		}
 
 		/**
-		 * Make a while loop as long as the current thread is not interrupted
-		 * Call the calculateAndReport method after the while loop to report the
-		 * status for the last moment Note, the packet lost in the last
-		 * moment(several millisecond could be very large, since time spent is
+		 * Reports statistical rate as long as the current thread is not interrupted.
+		 * Note, the packet lost in the last moment(several millisecond could be very large, since time spent is
 		 * short)
 		 */
 		@Override
@@ -271,8 +292,7 @@ public abstract class NodeRunnable implements Runnable {
 		}
 
 		/**
-		 * Calculate the transfer rate and packet lost rate。 Call the report
-		 * methods Update the last records
+		 * Calculates the transfer rate and packet lost rate。
 		 */
 		private void calculateAndReport() {
 			long currentTime = System.currentTimeMillis();

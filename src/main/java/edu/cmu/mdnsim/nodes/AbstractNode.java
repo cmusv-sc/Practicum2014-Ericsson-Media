@@ -4,8 +4,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +18,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 
 /**
- * 
+ * A abstract node that defines basic behavior of concrete nodes.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -28,6 +26,7 @@ import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
  *
  */
 public abstract class AbstractNode {
+	
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node");
 	protected MessageBusClient msgBusClient;
 	
@@ -41,26 +40,24 @@ public abstract class AbstractNode {
 
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
 	
-	
 	/**
-	 * Used for reporting purposes. 
-	 * Key = FlowId, Value = UpStreamNodeId
-	 *//*
-	Map<String,String> upStreamNodes = new HashMap<String,String>();
-	*//**
-	 * Used for reporting purposes.
-	 * Key = FlowId, Value = DownStreamNodeId
-	 *//*
-	Map<String,String> downStreamNodes = new HashMap<String,String>();*/
-	
+	 * Construct a node that is using local host as the host address.
+	 * 
+	 * Note: Only using getLocalHost method may not be sufficient for proper DNS resolution
+	 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
+	 * @throws UnknownHostException when it fails to get the local internet address
+	 */
 	public AbstractNode() throws UnknownHostException {
-		/* 
-		 * Note: This may not be sufficient for proper DNS resolution
-		 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
-		 */
 		hostAddr = java.net.InetAddress.getLocalHost();
 	}
 	
+	/**
+	 * Configure communication with message bus.
+	 * @param msgBusClient
+	 * @param nType
+	 * @param nodeId
+	 * @throws MessageBusException
+	 */
 	public void config(MessageBusClient msgBusClient, String nType, String nodeId) throws MessageBusException {
 		this.msgBusClient = msgBusClient;
 		this.nodeId = nodeId;
@@ -75,6 +72,9 @@ public abstract class AbstractNode {
 		
 	}
 	
+	/**
+	 * Register to MessageBus.
+	 */
 	public void register() {
 		RegisterNodeRequest req = new RegisterNodeRequest();
 		req.setNodeName(getNodeId());
@@ -110,57 +110,43 @@ public abstract class AbstractNode {
 	}
 
 	/**
-	 * 
-	 * This method is to start a stream.	 
+	 * Starts a stream.	 
 	 * It is supposed to receive/send data and also inform its upstream to 
 	 * start appropriate behaviors.
 	 * 
-	 * @param flow
+	 * @param request is a message bus request
+	 * @param flow is a flow that is to be executed
 	 */
 	public abstract void executeTask(Message request, Stream stream);
 	
 	/**
+	 * Stops sending/receiving data at functional node.
+	 * It is supposed send a message to inform its upstream to stop sending data as well.
 	 * 
-	 * This method is to stop sending/receiving data at functional node.
-	 * It is supposed send a message to inform its upstream to stop
-	 * sending data as well.
-	 * 
-	 * @param flow
+	 * @param flow the flow that is to be terminated
 	 */
 	public abstract void terminateTask(Flow flow);
 	
 	/**
-	 * 
-	 * This method is to clean up all resources related to this stream, such 
-	 * as Datagram socket. It is supposed to send a message to inform its 
+	 * Cleans up all resources related to this stream, such as Datagram Socket. It is supposed to send a message to inform its 
 	 * downstream to clean up resources as well.
 	 * 
-	 * @param flow
+	 * @param flow the flow that is to be released
 	 */
 	public abstract void releaseResource(Flow flow);
-	/**
-	 * Each NodeRunnable represents an individual Stream 
-	 * It will run in a separate thread and will have dedicated reporting thread attached to it.
-	 *
-	 */
 	
 	/**
-	 * 
-	 * This method is used kill all threads that run NodeRunnable, clean up 
-	 * resources(MethodListners as well!).
-	 * 
+	 * Kills all threads that run NodeRunnable, clean up resources such as MethodListners as well.
 	 */
 	public abstract void reset();
 
 	/**
+	 * Gets the a DatagramSocket of the stream.
 	 * This function is used by Nodes which need to receive data.
-	 * Retrieves port number associated with the stream.
-	 * If none exists creates a new UDP socket and returns its local port.
-	 * It also stores the UDP socket in streamIdToSocketMap variable.	  
-	 * @param streamId
-	 * @return -1 if socket is not created successfully
+	 * @param streamId id of the stream to retrieve the DatagramSocket
+	 * @return the DatagramSocket that the stream is binded with
 	 */
-	public DatagramSocket getAvailablePort(String streamId) {
+	public DatagramSocket getAvailableSocket(String streamId) {
 		
 		DatagramSocket udpSocket = null;
 		for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
@@ -177,10 +163,12 @@ public abstract class AbstractNode {
 		}
 		return udpSocket;
 	}
+	
 	/**
-	 * The from property of message should contain flow id at the end
-	 * @param request
-	 * @return
+	 * Gets the flow id from a Message.
+	 * The from property of message should contain flow id at the end.
+	 * @param request the request to fetch the flow id from
+	 * @return flow id
 	 */
 	protected String getFlowId(Message request) {
 		String flowId = request.getFrom().toString();

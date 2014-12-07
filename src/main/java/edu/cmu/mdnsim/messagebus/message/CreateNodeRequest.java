@@ -1,12 +1,17 @@
 package edu.cmu.mdnsim.messagebus.message;
 
+import edu.cmu.mdnsim.server.Master;
+import edu.cmu.mdnsim.nodes.*;
+
 /**
+ * 
+ * This message is used by {@link Master} to send a request to create a new instance of 
+ * subclasses of {@link AbstractNode} in {@link NodeContainer}.
  * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
  * @author Hao Wang
- * @author JeremyFu
  *
  */
 public class CreateNodeRequest extends MbMessage {
