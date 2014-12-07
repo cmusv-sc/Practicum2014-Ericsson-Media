@@ -25,6 +25,8 @@ import edu.cmu.mdnsim.server.WebClient;
 
 /**
  * 
+ * This is the implementation of {@link MessageBusServer} by Warp library.
+ * 
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
