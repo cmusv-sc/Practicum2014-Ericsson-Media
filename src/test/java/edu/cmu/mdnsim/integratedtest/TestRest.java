@@ -38,7 +38,7 @@ public class TestRest extends AbstractNode {
 	
 	public static void main(String[] args) throws MessageBusException, InterruptedException, UnknownHostException {
 		
-		MessageBusClient msgBusClient = new MessageBusClientWarpImpl();
+		MessageBusClient msgBusClient = new MessageBusClientWarpImpl("127.0.0.1");
 		msgBusClient.config();
 		msgBusClient.connect();
 		

@@ -50,20 +50,20 @@ public class NodeContainer {
 	/**
 	 * Label uniquely identifies a Node Container in entire simulation
 	 */
-	private String label;
+	private final String label;
 	
 	public NodeContainer() throws MessageBusException {
 		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl");
 	}
 	
 	public NodeContainer(String messageBusImpl) throws MessageBusException {
-		this(messageBusImpl, "default");
+		this(messageBusImpl, "default", "127.0.0.1");
 	}
 	
-	public NodeContainer(String messageBusImpl, String label) throws MessageBusException {
-		msgBusClient= instantiateMsgBusClient(messageBusImpl);
+	public NodeContainer(String messageBusImpl, String label, String masterIP) throws MessageBusException {
+		msgBusClient= instantiateMsgBusClient(messageBusImpl, masterIP);
 		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
-		NodeContainer.this.label = label;
+		this.label = label;
 	}
 	/**
 	 * Configure the message bus.
@@ -168,7 +168,7 @@ public class NodeContainer {
 	}
 	
 	
-	private MessageBusClient instantiateMsgBusClient (String className) throws MessageBusException {
+	private MessageBusClient instantiateMsgBusClient (String className, String masterIP) throws MessageBusException {
 		
 		MessageBusClient client = null;
 
@@ -197,7 +197,7 @@ public class NodeContainer {
 		
 		Constructor<?> defaultConstructor;
 		try {
-			defaultConstructor = objectiveMsgBusClass.getConstructor();
+			defaultConstructor = objectiveMsgBusClass.getConstructor(new Class<?>[]{String.class});
 		} catch (SecurityException e) {
 			throw new MessageBusException(e);
 		} catch (NoSuchMethodException e) {
@@ -206,7 +206,7 @@ public class NodeContainer {
 		
 		
 		try {
-			client = (MessageBusClient) defaultConstructor.newInstance();
+			client = (MessageBusClient) defaultConstructor.newInstance(masterIP);
 		} catch (IllegalArgumentException e) {
 			throw new MessageBusException(e);
 		} catch (InstantiationException e) {
@@ -230,7 +230,7 @@ public class NodeContainer {
 		if (args != null && args.length > 0 && 
 				args[0] != null && args[0].startsWith("label:")) {
 			nc = new NodeContainer("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", 
-					args[0].substring(beginIndex));
+					args[0].substring(beginIndex), args[1]);
 		}
 		else {
 			nc = new NodeContainer();

@@ -32,10 +32,21 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
  */
 public class MessageBusClientWarpImpl implements MessageBusClient {
 
+	private final String masterIP;
 	
 	private AnonymousClient _client;
 	
 	private boolean connected = false;
+	
+	/**
+	 * The constructor of MessageBusClientWaprImpl. It takes the IP address of 
+	 * Master as argument.
+	 * @param ip The IP address of Master. The IP address is denoted in dotted 
+	 * decimal.
+	 */
+	public MessageBusClientWarpImpl(String ip) {
+		this.masterIP = ip;
+	}
 
 	@Override
 	public void config() throws MessageBusException {
@@ -43,7 +54,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 		//JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
 
-		String trapCfg = "trap.transport.websocket.wsuri=ws://127.0.0.1:8889\n"
+		String trapCfg = String.format("trap.transport.websocket.wsuri=ws://%s:8889\n", masterIP)
 				+ "trap.transport.http.enabled=false\n"
 				+ "trap.transport.socket.enabled=false\n"
 				+ "trap.transport.loopback.enabled=false";
