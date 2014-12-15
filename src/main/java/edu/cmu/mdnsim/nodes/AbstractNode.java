@@ -45,12 +45,12 @@ public abstract class AbstractNode {
 	 * 
 	 * Note: Only using getLocalHost method may not be sufficient for proper DNS resolution
 	 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
-	 * @throws UnknownHostException when it fails to get the local internet address
+	 * @throws UnknownHostException when it fails to get the local Internet address
 	 */
 	public AbstractNode(String nodePublicIP) throws UnknownHostException {
-		System.out.println("NODE PUBLIC IP: " + nodePublicIP);
+		
 		hostAddr = InetAddress.getByAddress(Utility.convertIPv4StrToByteArray(nodePublicIP));
-	
+		
 	}
 	
 	/**
