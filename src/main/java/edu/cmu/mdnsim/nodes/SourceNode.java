@@ -25,8 +25,8 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 
 	private Map<String, StreamTaskHandler<SourceRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SourceRunnable>>();
 
-	public SourceNode() throws UnknownHostException {
-		super();
+	public SourceNode(String nodePublicIP) throws UnknownHostException {
+		super(nodePublicIP);
 	}	
 	
 	/**

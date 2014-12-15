@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.integratedtest;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,7 +36,7 @@ public class Stimulus extends AbstractNode {
 	
 	
 	public Stimulus() throws UnknownHostException, MessageBusException {
-		super();
+		super(InetAddress.getLocalHost().getHostName());
 	}
 	
 	/**

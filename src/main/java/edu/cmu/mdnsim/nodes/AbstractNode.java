@@ -47,8 +47,10 @@ public abstract class AbstractNode {
 	 * Refer http://stackoverflow.com/questions/7348711/recommended-way-to-get-hostname-in-java?lq=1
 	 * @throws UnknownHostException when it fails to get the local internet address
 	 */
-	public AbstractNode() throws UnknownHostException {
-		hostAddr = java.net.InetAddress.getLocalHost();
+	public AbstractNode(String nodePublicIP) throws UnknownHostException {
+		System.out.println("NODE PUBLIC IP: " + nodePublicIP);
+		hostAddr = InetAddress.getByAddress(Utility.convertIPv4StrToByteArray(nodePublicIP));
+	
 	}
 	
 	/**
@@ -141,7 +143,7 @@ public abstract class AbstractNode {
 	public abstract void reset();
 
 	/**
-	 * Gets the a DatagramSocket of the stream.
+	 * Gets the a DatagramSocket to receive the stream.
 	 * This function is used by Nodes which need to receive data.
 	 * @param streamId id of the stream to retrieve the DatagramSocket
 	 * @return the DatagramSocket that the stream is binded with
