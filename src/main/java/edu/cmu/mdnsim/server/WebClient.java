@@ -86,9 +86,13 @@ public class WebClient {
 	 * @return byte[]
 	 */
 	private static byte[] getResourceBytes(String resourceName){
-		resourceName = "resources/" + resourceName.replace('\\','/');
+		
 		
 		InputStream is = WebClient.class.getClassLoader().getResourceAsStream(resourceName);
+		if(is == null){
+			resourceName = "resources/" + resourceName.replace('\\','/');	
+			is = WebClient.class.getClassLoader().getResourceAsStream(resourceName);
+		}
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		byte[] buf = new byte[4096];
 		int read;				
