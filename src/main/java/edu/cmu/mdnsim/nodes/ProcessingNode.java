@@ -26,8 +26,8 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
 	private Map<String, StreamTaskHandler<ProcessRunnable>> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler<ProcessRunnable>>();
 
-	public ProcessingNode() throws UnknownHostException {	
-		super();
+	public ProcessingNode(String nodePublicIP) throws UnknownHostException {	
+		super(nodePublicIP);
 	}
 
 	/**
@@ -42,7 +42,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		/* Open a socket for receiving data from upstream node */
 		DatagramSocket receiveSocket = this.getAvailableSocket(flow.getStreamId());
-		if(receiveSocket.getLocalPort() < 0){
+		if(receiveSocket == null){
 			//TODO: report to the management layer, we failed to bind a port to a socket
 		}else{
 			/* Get processing parameters */

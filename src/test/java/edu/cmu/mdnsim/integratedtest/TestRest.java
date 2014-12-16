@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.integratedtest;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,13 +33,13 @@ public class TestRest extends AbstractNode {
 	
 	
 	public TestRest() throws UnknownHostException, MessageBusException {
-		super();
+		super(InetAddress.getLocalHost().getHostName());
 	}
 	
 	
 	public static void main(String[] args) throws MessageBusException, InterruptedException, UnknownHostException {
 		
-		MessageBusClient msgBusClient = new MessageBusClientWarpImpl();
+		MessageBusClient msgBusClient = new MessageBusClientWarpImpl("127.0.0.1");
 		msgBusClient.config();
 		msgBusClient.connect();
 		

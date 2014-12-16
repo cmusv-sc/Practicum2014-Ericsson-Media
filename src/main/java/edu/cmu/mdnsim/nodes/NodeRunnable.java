@@ -38,8 +38,6 @@ public abstract class NodeRunnable implements Runnable {
 	MessageBusClient msgBusClient;
 	private String nodeId;
 	NodeRunnableCleaner cleaner;
-
-	
 	
 	/**
 	 * Used to indicate NodeRunnable Thread to stop processing. Will be set to

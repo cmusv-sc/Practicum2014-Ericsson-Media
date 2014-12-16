@@ -8,3 +8,6 @@ target/
 .metadata/
 pom.xml
 RemoteSystemsTempFiles/
+
+#Ignore meta-data files on OSX
+.DS_Store

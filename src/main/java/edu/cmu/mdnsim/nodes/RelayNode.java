@@ -26,8 +26,8 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
 	private Map<String, StreamTaskHandler<RelayRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<RelayRunnable>>();
 
-	public RelayNode() throws UnknownHostException {
-		super();
+	public RelayNode(String nodePublicIP) throws UnknownHostException {
+		super(nodePublicIP);
 	}
 	/**
 	 * Executes a task.
@@ -70,7 +70,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 				Map<String, String> upstreamNodePropertiesMap = 
 						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
 				upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
-						super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
+						super.getHostAddr().getHostAddress()+":" + receiveSocket.getLocalPort());
 				try {
 					msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 							nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);

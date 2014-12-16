@@ -35,21 +35,21 @@ import edu.cmu.mdnsim.server.WebClient;
  */
 public class MessageBusServerWarpImpl implements MessageBusServer {
 
-	private static WarpDomain _warpDomain;
-	private static WarpService _svc;
-	private static WarpApplication _warpAppl;
+	private static WarpDomain warpDomain;
+	private static WarpService svc;
+	private static WarpApplication warpAppl;
 
 	@Override
 	public void config() throws MessageBusException {
 
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
-		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
 		configDomain();
 
 		try {
 			//Load the web client 
 			//A TrapHostable that hosts the Web Interface for the Mdn Simulator
-			WebClient.load(_warpDomain);
+			WebClient.load(warpDomain);
 		} catch (WarpException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -64,7 +64,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 	@Override
 	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
-		WarpContext.setApplication(_warpAppl);
+		WarpContext.setApplication(warpAppl);
 		try {
 			Warp.send(fromPath, WarpURI.create(dstURI), method, JSON.toJSON(msg).getBytes());
 		} catch (WarpException e) {
@@ -96,9 +96,9 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 			domainInit.getServiceNetworkCfg(BuiltinService.LOOKUP_SERVICE).setBindHost("127.0.0.1").setBindPort("websocket", 9999).finish();
 
 			// Add any additional (built-in servers) in the com.ericsson.research.warp.spi.enabled package and start
-			_warpDomain = domainInit.loadWarpEnabled(true).create();
+			warpDomain = domainInit.loadWarpEnabled(true).create();
 
-			System.out.println(_warpDomain.getTestClientURI());
+			System.out.println(warpDomain.getTestClientURI());
 		} catch (WarpException e) {
 			throw new MessageBusException(e);
 		}
@@ -106,13 +106,13 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 
 	private void configService() throws MessageBusException {
 
-		JDKLoggerConfig.initForPrefixes(Level.SEVERE, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
 
 		try {
-			_svc=_warpDomain.createService("mdn-manager");
+			svc=warpDomain.createService("mdn-manager");
 			//_svc = Warp.init().service(Master.class.getName(), "embedded", "mdn-manager").create();
 			//.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
-			_svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
+			svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
 
 				@Override
 				public void receiveNotification(String name, Object sender, Object attachment) {
@@ -123,7 +123,7 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 			throw new MessageBusException(e);
 		}
 		
-		_warpAppl = WarpContext.getApplication();
+		warpAppl = WarpContext.getApplication();
 	}
 
 }

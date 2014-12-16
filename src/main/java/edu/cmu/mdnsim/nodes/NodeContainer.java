@@ -3,6 +3,9 @@ package edu.cmu.mdnsim.nodes;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -20,7 +23,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
-import edu.cmu.mdnsim.server.*;
+import edu.cmu.mdnsim.server.Master;
 
 /**
  * NodeContainer is an entity that can host multiple nodes. The types of nodes,
@@ -41,6 +44,15 @@ public class NodeContainer {
 	
 	public static final String NODE_COLLECTION_PATH = "/nodes";
 	
+	
+	private static final String KEY_LABEL = "label";
+	
+	private static final String KEY_MASTER_IP = "master_ip";
+	
+	private static final String KEY_NODECONTAINER_IP = "nc_ip";
+	
+	private static final String DEFAULT_MSGBUS_IMPL = "edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl";
+	
 	private MessageBusClient msgBusClient;
 	/**
 	 * Key = Node Id, Value = Node
@@ -50,33 +62,27 @@ public class NodeContainer {
 	/**
 	 * Label uniquely identifies a Node Container in entire simulation
 	 */
-	private String label;
+	private final String label;
 	
-	public NodeContainer() throws MessageBusException {
-		this("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl");
-	}
+	private String nodeContainerIP;
 	
-	public NodeContainer(String messageBusImpl) throws MessageBusException {
-		this(messageBusImpl, "default");
-	}
-	
-	public NodeContainer(String messageBusImpl, String label) throws MessageBusException {
-		msgBusClient= instantiateMsgBusClient(messageBusImpl);
+	public NodeContainer(String messageBusImpl, String label, String masterIP, String nodeContainerIP) throws MessageBusException {
+		msgBusClient= instantiateMsgBusClient(messageBusImpl, masterIP);
 		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
-		NodeContainer.this.label = label;
+		this.label = label;
+		this.nodeContainerIP = nodeContainerIP;
 	}
+	
 	/**
 	 * Configure the message bus.
 	 * @throws MessageBusException
 	 */
 	public void config() throws MessageBusException {
+		
 		msgBusClient.config();
 
 		WarpRestConverter.convert(this, false);
-		
-		//msgBusClient.addMethodListener(NODE_COLLECTION_PATH + "/{nodeId}", "PUT", this, "createNode");
-		
-		//msgBusClient.addMethodListener(NODE_COLLECTION_PATH, "DELETE", this, "cleanUpNodes");
+
 	}
 	/**
 	 * Connects the Node Container to Master node
@@ -131,8 +137,10 @@ public class NodeContainer {
 					+ " be found.");
 		}
 		
-		Constructor<?> constructor = objectiveNodeClass.getConstructor();
-		AbstractNode newNode = (AbstractNode)constructor.newInstance();
+		Constructor<?> constructor = objectiveNodeClass.getConstructor(new Class<?>[] {String.class});
+		
+		AbstractNode newNode = (AbstractNode)constructor.newInstance(nodeContainerIP);
+		
 		try {
 			newNode.config(msgBusClient, req.getNodeType(), req.getNodeId());
 			newNode.register();
@@ -168,7 +176,7 @@ public class NodeContainer {
 	}
 	
 	
-	private MessageBusClient instantiateMsgBusClient (String className) throws MessageBusException {
+	private static MessageBusClient instantiateMsgBusClient (String className, String masterIP) throws MessageBusException {
 		
 		MessageBusClient client = null;
 
@@ -197,7 +205,7 @@ public class NodeContainer {
 		
 		Constructor<?> defaultConstructor;
 		try {
-			defaultConstructor = objectiveMsgBusClass.getConstructor();
+			defaultConstructor = objectiveMsgBusClass.getConstructor(new Class<?>[]{String.class});
 		} catch (SecurityException e) {
 			throw new MessageBusException(e);
 		} catch (NoSuchMethodException e) {
@@ -206,7 +214,7 @@ public class NodeContainer {
 		
 		
 		try {
-			client = (MessageBusClient) defaultConstructor.newInstance();
+			client = (MessageBusClient) defaultConstructor.newInstance(masterIP);
 		} catch (IllegalArgumentException e) {
 			throw new MessageBusException(e);
 		} catch (InstantiationException e) {
@@ -223,20 +231,77 @@ public class NodeContainer {
 	public static void main(String[] args) throws MessageBusException {
 		
 		NodeContainer nc = null;
-		
-		/* the node label will start after the prefix "label:" i.e. the 7th char */
-		int beginIndex = 6; 
-		
-		if (args != null && args.length > 0 && 
-				args[0] != null && args[0].startsWith("label:")) {
-			nc = new NodeContainer("edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl", 
-					args[0].substring(beginIndex));
+
+		Map<String, String> argsMap = getOpt(args);
+		if (argsMap.get(KEY_LABEL) == null) {
+			System.out.format("Failed to initiate NodeContainer because of missing label.\n");
+			System.exit(1);
 		}
-		else {
-			nc = new NodeContainer();
+		if (argsMap.get(KEY_MASTER_IP) == null) {
+			
+			System.out.format("Failed to initiate NodeContainer because of missing Master IP.\n");
+			System.exit(1);
+			
 		}
+		if (argsMap.get(KEY_NODECONTAINER_IP) == null) {
+			try {
+				argsMap.put(KEY_NODECONTAINER_IP, InetAddress.getLocalHost().getHostAddress());
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
+		}
+		nc = new NodeContainer(DEFAULT_MSGBUS_IMPL, argsMap.get(KEY_LABEL), argsMap.get(KEY_MASTER_IP), argsMap.get(KEY_NODECONTAINER_IP));
 		nc.config();
 		nc.connect();
 	}
+	
+	private static Map<String, String>getOpt(String[] args) {
+		Map<String, String> ret = new HashMap<String, String>();
+		if (args== null) {
+			return ret;
+		}
+		
+		for (String arg : args) {
+			String key = parseKey(arg);
+			if (KEY_LABEL.equals(key)) {
+				ret.put(KEY_LABEL, parseValue(arg));
+			} else if (KEY_MASTER_IP.equals(key)) {
+				ret.put(KEY_MASTER_IP, parseValue(arg));
+			} else if (KEY_NODECONTAINER_IP.equals(key)) {
+				ret.put(KEY_NODECONTAINER_IP, parseValue(arg));
+			}
+		}
+
+		return ret;
+	}
+	
+	private static String parseKey(String arg) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 1; i < arg.length(); i++) {
+			if (arg.charAt(i) == ':') {
+				break;
+			} else {
+				sb.append(arg.charAt(i));
+			}
+		}
+		System.out.println(sb.toString());
+		return sb.toString();
+	}
+	
+	private static String parseValue(String arg) {
+
+		int i = 0;
+		for (i = 1; i < arg.length(); i++) {
+			if (arg.charAt(i) == ':') {
+				i++;
+				System.out.println(i);
+				break;
+			}
+			
+		}
+		return arg.substring(i);
+	}
+	
 
 }

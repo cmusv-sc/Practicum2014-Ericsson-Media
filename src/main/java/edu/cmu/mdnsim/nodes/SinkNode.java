@@ -28,8 +28,8 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	private Map<String, StreamTaskHandler<SinkRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SinkRunnable>>();
 	
-	public SinkNode() throws UnknownHostException {
-		super();
+	public SinkNode(String nodePublicIP) throws UnknownHostException {
+		super(nodePublicIP);
 	}
 	
 
