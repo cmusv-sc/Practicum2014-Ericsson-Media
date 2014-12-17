@@ -9,7 +9,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.DatagramChannel;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
@@ -20,11 +19,10 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
-import edu.cmu.util.Utility;
 
 class RelayRunnable extends NodeRunnable {
 	
-	private static Random randomGen = new Random();
+
 	
 	private DatagramSocket receiveSocket;
 	private DatagramPacket receivedPacket;
@@ -114,15 +112,10 @@ class RelayRunnable extends NodeRunnable {
 				packet.setData(nodePacket.serialize());	
 				packet.setAddress(destination.getAddress());
 				packet.setPort(destination.getPort());
-				if (randomGen.nextDouble() > 0.1) {
-					try {
-						sendSocket.send(packet);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					
-				} else {
-					logger.debug(Utility.getFormattedLogMessage("Drop a packet", super.getNodeId()));
+				try {
+					sendSocket.send(packet);
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
 
