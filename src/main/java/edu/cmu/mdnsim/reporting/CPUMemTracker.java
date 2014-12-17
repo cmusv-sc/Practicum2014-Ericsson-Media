@@ -14,8 +14,9 @@ import java.io.InputStreamReader;
  */
 public class CPUMemTracker {
 
-	private double cpuUsage;
-	private double memUsage;
+	// Initialize with invalid numbers
+	private double cpuUsage = -1;
+	private double memUsage = -1;
 	
 	/**
 	 * Retrieve CPU and Memory and update member variables.
