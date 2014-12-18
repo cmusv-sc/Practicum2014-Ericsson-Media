@@ -53,13 +53,6 @@ class SourceRunnable extends NodeRunnable {
 		if(!initializeSocketAndPacket()){
 			return;
 		}
-//
-//		//Target nanoseconds per packet
-//		long targetNspp = bps2nspp(rate);
-//		
-//		//Running nanoseconds per packet
-//		long runningNspp = targetNspp;
-		
 		
 		StreamReportMessage streamReportMessage = 
 				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
@@ -68,13 +61,10 @@ class SourceRunnable extends NodeRunnable {
 		this.sendStreamReport(streamReportMessage);
 
 		int packetId = 0;
-//		System.err.println("[DELETE-JEREMY]SourceRunnable.run(): bytesToTransfer=" + bytesToTransfer);
-		
 		
 		RateMonitor rateMonitor = new RateMonitor(rate);
 		rateMonitor.start();
 		
-		long runningNspp = rateMonitor.updateRunningNspp(-packet.getLength());
 		long expectedTime = System.nanoTime();
 		
 		while (bytesToTransfer > 0 && !isKilled()) {	
@@ -198,19 +188,47 @@ class SourceRunnable extends NodeRunnable {
 		return (long)(edu.cmu.mdnsim.nodes.AbstractNode.NANOSCONDS_PER_SECOND / packetsPerSecond);	
 	}
 	
-	
+	/**
+	 * 
+	 * This class is used to adjust the transferring rates in the pace of seconds.
+	 * Source is supposed to call the {@link #updateRunningNspp(long) updateRunningNspp}
+	 * every time the source sends a packet and obtain the nanoseconds per packet.
+	 * The return values keeps changing on one second basis to adjust the transfer rate to the target one.
+	 * 
+	 * @author Geng Fu
+	 *
+	 */
 	private class RateMonitor {
 		
+		/**
+		 * The starting time-stamp of current second
+		 */
 		private long lastSecondTimestmp;
+		
+		/**
+		 * The total bytes sent in current second
+		 */
 		private long lastSecondSentBytes;
 
+		/**
+		 * The target rate(bytes per second) to achieve by rate correction
+		 */
 		private long targetRate;
+		
+		/**
+		 * The computed rate (bytes per second) in runtime to compensate the deficit
+		 * of target rate and actual transferring rate because of system.
+		 */
 		private long runningRate;
-		
-		private long offset;
 
-		
+		/**
+		 * The accumulative deficit. This should aim to eliminated by 
+		 */
 		private long cumulativeDeficit = 0;
+		
+		/**
+		 * Nanoseconds per packet
+		 */
 		private long nspp;
 		
 		public RateMonitor(int targetRate) {
@@ -237,10 +255,12 @@ class SourceRunnable extends NodeRunnable {
 				long cDeficit = targetRate - lastSecondRate;
 				cumulativeDeficit += cDeficit;
 				
-				
-				offset = Math.max(-targetRate, cumulativeDeficit);
+				//The offset cannot be less than -targeRate because the runningRate should be non-negative.
+				long offset = Math.max(-targetRate, cumulativeDeficit);
 				
 				System.out.println(String.format("RateMonitor.updateRunningNspp(): target:%d, running:%d, observed:%d, offset:%d, cumulativeOffset:%d", targetRate, runningRate, lastSecondRate, offset, this.cumulativeDeficit));
+				
+				//Adjust the running rate to meet the target rate on average.
 				runningRate = targetRate + offset;
 				
 				lastSecondSentBytes = 0;
@@ -248,7 +268,6 @@ class SourceRunnable extends NodeRunnable {
 				nspp = bps2nspp((int)runningRate);
 				
 			}
-			
 			
 			return nspp;
 		}
