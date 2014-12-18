@@ -6,7 +6,7 @@ import java.util.List;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
- * 
+ * Stream represents a live/recored media being transferred. For example, a movie file or live game stream.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili

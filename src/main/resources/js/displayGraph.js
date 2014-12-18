@@ -352,6 +352,8 @@ $(document).ready(function() {
 		}
 		handleWsFileSelect(event, action);
 	});
+	
+	
 });
 
 /**
@@ -361,4 +363,86 @@ $(document).ready(function() {
  */
 function jq( myid ) {	 
 	return myid.replace( /(:|\.|\[|\])/g, "\\$1" ); 
+}
+
+
+var WorkConfig = function (simId, streamList) {
+	  this.simId = simId;
+	  this.streamList = streamList;
+	  console.log('WorkConfig instantiated');
+	};
+	
+var Stream = function(streamId, dataSize, kiloBitRate, flowList){
+	this.streamId = streamId;
+	this.dataSize = dataSize;
+	this.kiloBitRate = kiloBitRate;
+	this.flowList = flowList;
+	console.log("Stream " + streamId + " created");
+};	
+
+var Flow = function(flowId, dataSize, streamId, kiloBitRate, nodeList){
+	this.flowId = flowId;
+	this.dataSize = dataSize;
+	this.streamId = streamId;
+	this.kiloBitRate = kiloBitRate;
+	this.nodeList = nodeList;
+	console.log("Flow " + flowId + " created");
+};
+var sourceNodeType = "SourceNode";
+var sinkNodeType = "SinkNode";
+var relayNodeType = "RelayNode";
+var processingNodeType = "ProcessingNode";
+var sourceNodeContainer = "nc_source";
+var sinkNodeContainer = "nc_sink";
+var relayNodeContainer = "nc_relay";
+var processingNodeContainer = "nc_processing";
+
+function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
+	var flowList = new Array();
+	
+	var nonSinkNodeList = new Array();
+	
+	var sourceNodeMap = {};
+	sourceNodeMap["NodeType"] = sourceNodeType;
+	sourceNodeMap["NodeId"] = sourceNodeContainer + ":" + sourceNodeType;
+	sourceNodeMap["UpstreamId"] = "NULL";
+	
+	var processingNodeMap = {};
+	processingNodeMap["NodeType"] = processingNodeType;
+	processingNodeMap["NodeId"] = processingNodeContainer + ":" + processingNodeType;
+	processingNodeMap["UpstreamId"] = sourceNodeMap["NodeId"];
+	processingNodeMap["ProcessingLoop"] = "10000";
+	processingNodeMap["ProcessingMemory"] = "100";
+	
+	var relayNodeMap = {};
+	relayNodeMap["NodeType"] = relayNodeType;
+	relayNodeMap["NodeId"] = relayNodeContainer + ":" + relayNodeType;
+	relayNodeMap["UpstreamId"] = processingNodeMap["NodeId"];
+	
+	nonSinkNodeList.push(relayNodeMap);
+	nonSinkNodeList.push(processingNodeMap);	
+	nonSinkNodeList.push(sourceNodeMap);
+	var j = 1;
+	for(var i=nodesCount-3; i>0; i--){
+		var sinkNodeMap = {};
+		sinkNodeMap["NodeType"] = sinkNodeType;
+		sinkNodeMap["NodeId"] = sinkNodeContainer + ":" + sinkNodeType + j;
+		sinkNodeMap["UpstreamId"] = relayNodeMap["NodeId"];
+		j++;
+		var nodeList = new Array();
+		nodeList.push(sinkNodeMap);		
+		for(var k=0; k<nonSinkNodeList.length; k++){
+			nodeList.push(nonSinkNodeList[k]);
+		}
+		
+		flowList.push(new Flow("", dataSize, "1",kiloBitRate,nodeList));
+	}
+	
+	var streamList = new Array();
+	streamList.push(new Stream("1",dataSize, kiloBitRate, flowList));
+	
+	var wc = new WorkConfig("1", streamList);
+	//console.log(wc);
+	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
+	
 }

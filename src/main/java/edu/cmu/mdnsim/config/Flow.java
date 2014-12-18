@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
- * 
+ * Flow represents unique data flow path from sink to source node.
  * @author Geng Fu
  * @author Jigar Patel
  * @author Vinay Kumar Vavili
@@ -16,7 +19,7 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
  *
  */
 public class Flow extends MbMessage {
-	
+	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.flow");
 	public static final String NODE_ID = "NodeId";
 	public static final String NODE_URI = "NodeUri";
 	public static final String NODE_TYPE = "NodeType";
@@ -27,6 +30,7 @@ public class Flow extends MbMessage {
 	public static final String RECEIVER_IP_PORT = "ReceiverIpPort";
 	public static final String PROCESSING_LOOP = "ProcessingLoop";
 	public static final String PROCESSING_MEMORY = "ProcessingMemory";
+	public static final String SOURCE_UPSTREAM_ID = "NULL";
 	
 	/**
 	 * The FlowMemberList is ordered from sink -> middle nodes -> source (bottom-up)
@@ -151,8 +155,6 @@ public class Flow extends MbMessage {
 	 */
 	public void updateFlowWithNodeUri(String nodeId, String nodeUri) {		
 		for (Map<String, String>nodeMap : this.getNodeList()) {
-//			System.out.println("Node Map before updating with "+nodeId+" "+nodeUri);
-//			System.out.println(nodeMap.toString());
 			if (nodeId.equals(nodeMap.get(Flow.NODE_ID))) {
 				nodeMap.put(Flow.NODE_URI, nodeUri);
 			}
@@ -162,8 +164,6 @@ public class Flow extends MbMessage {
 			if (nodeId.equals(nodeMap.get(Flow.UPSTREAM_ID))) {
 				nodeMap.put(Flow.UPSTREAM_URI, nodeUri);
 			}
-//			System.out.println("Node Map after updating ");
-//			System.out.println(nodeMap.toString());
 		}
 	}
 	
@@ -176,7 +176,6 @@ public class Flow extends MbMessage {
 		int i = 0;
 		String downStreamId = "";
 		for (Map<String, String>nodeMap : this.getNodeList()) {
-//			System.out.println("Before Downstream update "+nodeMap.toString());
 			if (i == 0) {
 				downStreamId = nodeMap.get(Flow.NODE_ID);
 			} else {
@@ -184,7 +183,6 @@ public class Flow extends MbMessage {
 				downStreamId = nodeMap.get(Flow.NODE_ID);
 			}
 			i++;
-//			System.out.println("After Downstream update "+nodeMap.toString());
 		}
 	}
 	
@@ -201,29 +199,29 @@ public class Flow extends MbMessage {
 		for (Map<String, String>nodeMap : getNodeList()) {
 			// For all nodes check for the NodeUri
 			if (!nodeMap.containsKey(Flow.NODE_URI)) {
-				System.out.println("ALL: NodeUri not present in "+nodeMap.toString());
+				logger.debug("ALL: NodeUri not present in "+nodeMap.toString());
 				return false;
 			}
 			if (i == 0) {
 				// Sink Node: Check only for UpstreamUri
 				if (!nodeMap.containsKey(Flow.UPSTREAM_URI)) {
-					System.out.println("SINK: UpstreamUri not present in "+nodeMap.toString());
+					logger.debug("SINK: UpstreamUri not present in "+nodeMap.toString());
 					return false;
 				}
 			} else if (i < size-1) {
 				// Intermediate nodes: Check for DownstreamUri and UpstreamUri
 				if (!nodeMap.containsKey(Flow.DOWNSTREAM_URI)) {
-					System.out.println("INTER: DownstreamUri not present in "+nodeMap.toString());
+					logger.debug("INTER: DownstreamUri not present in "+nodeMap.toString());
 					return false;
 				}
 				if (!nodeMap.containsKey(Flow.UPSTREAM_URI)) {
-					System.out.println("INTER: UpstreamUri not present in "+nodeMap.toString());
+					logger.debug("INTER: UpstreamUri not present in "+nodeMap.toString());
 					return false;
 				}
 			} else {
 				// Source Node: Check only for for DownstreamUri
 				if (!nodeMap.containsKey(Flow.DOWNSTREAM_URI)) {
-					System.out.println("SRC: DownstreamUri not present in "+nodeMap.toString());
+					logger.debug("SRC: DownstreamUri not present in "+nodeMap.toString());
 					return false;
 				}
 			}

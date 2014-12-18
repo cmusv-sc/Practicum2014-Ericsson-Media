@@ -549,6 +549,7 @@ public class WebClientGraph {
 	 * @param e
 	 */
 	public void addEdge(Map<String, String> nodeMap) {
+		
 		String nodeId = nodeMap.get(Flow.NODE_ID);
 		String upStreamNodeId = nodeMap.get(Flow.UPSTREAM_ID);
 		String edgeId = getEdgeId(upStreamNodeId, nodeId);
@@ -556,14 +557,16 @@ public class WebClientGraph {
 		if (containsEdge(edgeId)) {
 			return;
 		}
+		System.err.println("upStreamNodeId: " + upStreamNodeId);
+		
 		//Consider Source Node when setting children property as Source nodes will be child of Virtual root
 		//But do a duplicate check for source nodes as the edge 
 		// between virtual root and source nodes is not part of edgesMap
-		if(!upStreamNodeId.equals("NULL") || !isChildOf(nodeId, upStreamNodeId))
+		if(!upStreamNodeId.equals(Flow.SOURCE_UPSTREAM_ID) || !isChildOf(nodeId, upStreamNodeId))
 			addChild(nodeId, upStreamNodeId);
 		//Ignore Source nodes when adding edges to be displayed in graph
 		// because it is creating issues in displaying the graph
-		if(!upStreamNodeId.equals("NULL")){
+		if(!upStreamNodeId.equals(Flow.SOURCE_UPSTREAM_ID)){
 			Edge newEdge = new Edge(edgeId, upStreamNodeId, 
 					nodeId, "", edgeId, Edge.EDGE_COLOR, 
 					Edge.EDGE_SIZE_IN_GRAPH);
@@ -588,7 +591,7 @@ public class WebClientGraph {
 	 */
 	private void addChild(String nodeId, String parentNodeId) {
 		if(this.getNode(nodeId) != null){
-			if(parentNodeId.equals("NULL")){				
+			if(parentNodeId.equals(Flow.SOURCE_UPSTREAM_ID)){				
 				root.addChild(this.getNode(nodeId));
 			}else{
 				if(this.getNode(parentNodeId) != null)

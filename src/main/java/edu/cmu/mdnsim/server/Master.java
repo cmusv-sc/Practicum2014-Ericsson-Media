@@ -435,6 +435,7 @@ public class Master extends TimerTask {
 					Map<String,String> nodeProperties = (Map<String,String>)nodesReverseIterator.previous();
 					String nodeId = nodeProperties.get(Flow.NODE_ID);
 					String nodeType = nodeProperties.get(Flow.NODE_TYPE);
+					
 					webClientGraph.addNode(nodeProperties);
 					webClientGraph.addEdge(nodeProperties);
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
