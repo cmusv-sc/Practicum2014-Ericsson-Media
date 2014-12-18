@@ -18,7 +18,7 @@ class SourceRunnable extends NodeRunnable {
 	private DatagramSocket sendSocket = null;
 	private InetAddress dstAddrStr;
 	private int dstPort;
-	private int bytesToTransfer;
+	private long bytesToTransfer;
 	private int rate;
 	private DatagramPacket packet;
 
@@ -29,7 +29,8 @@ class SourceRunnable extends NodeRunnable {
 	 * Used only for reporting to master
 	 */
 	private Flow flow;
-	public SourceRunnable(Stream stream, InetAddress dstAddrStr, int dstPort, int bytesToTransfer, int rate, Flow flow, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner) {
+	
+	public SourceRunnable(Stream stream, InetAddress dstAddrStr, int dstPort, long bytesToTransfer, int rate, Flow flow, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner) {
 		super(stream, msgBusClient, nodeId, cleaner);
 		this.dstAddrStr = dstAddrStr;
 		this.dstPort = dstPort;
@@ -54,7 +55,7 @@ class SourceRunnable extends NodeRunnable {
 		}
 
 		double packetPerSecond = rate / NodePacket.MAX_PACKET_LENGTH;
-		long millisecondPerPacket = (long)(1 * edu.cmu.mdnsim.nodes.AbstractNode.MILLISECONDS_PER_SECOND / packetPerSecond); 
+		long nanosecondPerPacket = (long)(edu.cmu.mdnsim.nodes.AbstractNode.NANOSCONDS_PER_SECOND / packetPerSecond); 
 		
 		StreamReportMessage streamReportMessage = 
 				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
@@ -63,13 +64,13 @@ class SourceRunnable extends NodeRunnable {
 		this.sendStreamReport(streamReportMessage);
 
 		int packetId = 0;
-
+		System.err.println("[DELETE-JEREMY]SourceRunnable.run(): bytesToTransfer=" + bytesToTransfer);
 		while (bytesToTransfer > 0 && !isKilled()) {	
-			long begin = System.currentTimeMillis();
+			long begin = System.nanoTime();
 
 			NodePacket nodePacket = 
 					bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? 
-							new NodePacket(1, packetId, bytesToTransfer) : new NodePacket(0, packetId);
+							new NodePacket(1, packetId, (int)bytesToTransfer) : new NodePacket(0, packetId);
 			packet.setData(nodePacket.serialize());
 			
 			try {
@@ -82,11 +83,13 @@ class SourceRunnable extends NodeRunnable {
 			bytesToTransfer -= packet.getLength();
 			setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
-			long end = System.currentTimeMillis();
-			long millisRemaining = millisecondPerPacket - (end - begin);
-			if (millisRemaining > 0) {
+			long end = System.nanoTime();
+			long nanosecondsRemaining = nanosecondPerPacket - (end - begin);
+			if (nanosecondsRemaining > 0) {
 				try {
-					Thread.sleep(millisRemaining);
+					long millisec = nanosecondsRemaining / 1000000;
+					int nanosec = (int)(nanosecondsRemaining - (millisec * 1000000));
+					Thread.sleep(millisec, nanosec);
 				} catch (InterruptedException e) {
 					logger.error(e.toString());
 				}

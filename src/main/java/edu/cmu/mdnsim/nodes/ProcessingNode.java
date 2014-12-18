@@ -58,12 +58,12 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				targetAddress = InetAddress.getByName(addressAndPort[0]);
 				int targetPort = Integer.valueOf(addressAndPort[1]);
 
-				this.launchProcessRunnable(stream, 
-						Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
-						processingLoop, processingMemory, rate);
+//				this.launchProcessRunnable(stream, 
+//						Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
+//						processingLoop, processingMemory, rate);
 				
 				ProcessRunnable procRunnable = 
-						new ProcessRunnable(stream, Integer.valueOf(stream.getDataSize()), InetAddress.getByName(addressAndPort[0]), Integer.valueOf(addressAndPort[1]), processingLoop, processingMemory, rate, msgBusClient, nodeId, this, receiveSocket);
+						new ProcessRunnable(stream, Long.parseLong(stream.getDataSize()), InetAddress.getByName(addressAndPort[0]), Integer.valueOf(addressAndPort[1]), processingLoop, processingMemory, rate, msgBusClient, nodeId, this, receiveSocket);
 				Future<?> procFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
 				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<ProcessRunnable>(procFuture, procRunnable));
 

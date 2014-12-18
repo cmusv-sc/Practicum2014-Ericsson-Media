@@ -3,7 +3,7 @@ package edu.cmu.mdnsim.nodes;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +33,8 @@ public abstract class NodeRunnable implements Runnable {
 	
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-runnable");
 	private Stream stream;
-	private AtomicInteger totalBytesTransfered = new AtomicInteger(0);
-	private AtomicInteger lostPacketNum = new AtomicInteger(0);
+	private AtomicLong totalBytesTransfered = new AtomicLong(0);
+	private AtomicLong lostPacketNum = new AtomicLong(0);
 	MessageBusClient msgBusClient;
 	private String nodeId;
 	NodeRunnableCleaner cleaner;
@@ -98,15 +98,15 @@ public abstract class NodeRunnable implements Runnable {
 		return this.stream.getStreamId();
 	}
 
-	public int getTotalBytesTranfered() {
+	public long getTotalBytesTranfered() {
 		return totalBytesTransfered.get();
 	}
 
-	public void setTotalBytesTranfered(int totalBytesTranfered) {
+	public void setTotalBytesTranfered(long totalBytesTranfered) {
 		this.totalBytesTransfered.set(totalBytesTranfered);
 	}
 
-	public synchronized int getLostPacketNum() {
+	public synchronized long getLostPacketNum() {
 		return lostPacketNum.get();
 	}
 
@@ -242,10 +242,10 @@ public abstract class NodeRunnable implements Runnable {
 	 */
 	protected class ReportRateRunnable implements Runnable {
 
-		private int lastRecordedHighestPacketId = 0;
-		private int lastRecordedTotalBytes = 0;
+		private long lastRecordedHighestPacketId = 0;
+		private long lastRecordedTotalBytes = 0;
 
-		private int lastRecordedPacketLost = 0;
+		private long lastRecordedPacketLost = 0;
 
 		PacketLostTracker packetLostTracker;
 		// -1 to avoid time difference to be 0 when used as a divider
@@ -297,16 +297,16 @@ public abstract class NodeRunnable implements Runnable {
 			long timeDiffInMillisecond = currentTime - lastRecordedTime;
 			long totalTimeDiffInMillisecond = currentTime - startedTime;
 
-			int localToTalBytesTransfered = getTotalBytesTranfered();
-			int bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
+			long localToTalBytesTransfered = getTotalBytesTranfered();
+			long bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
 			double transportationInstantRate = ((double)bytesDiff/ timeDiffInMillisecond) * 1000;
 			double transportationAverageRate = 
 					((double)localToTalBytesTransfered / totalTimeDiffInMillisecond) * 1000;
 
-			int localPacketLostNum = packetLostTracker.getLostPacketNum();
-			int lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			int localHighestPacketId = packetLostTracker.getHighestPacketId();
-			int packetNumDiff = localHighestPacketId - lastRecordedHighestPacketId ;
+			long localPacketLostNum = packetLostTracker.getLostPacketNum();
+			long lostDiff = localPacketLostNum - lastRecordedPacketLost;
+			long localHighestPacketId = packetLostTracker.getHighestPacketId();
+			long packetNumDiff = localHighestPacketId - lastRecordedHighestPacketId ;
 			double currentPacketLossRatio = packetNumDiff==0 ? 0 : (lostDiff * 1.0 / packetNumDiff);
 			double averagePacketLossRatio = packetLostTracker.getLostPacketNum() * 1.0 / packetLostTracker.getHighestPacketId();
 			lastRecordedTotalBytes = localToTalBytesTransfered;

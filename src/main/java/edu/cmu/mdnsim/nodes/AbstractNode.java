@@ -36,7 +36,7 @@ public abstract class AbstractNode {
 	
 	private boolean registered = false;
 	
-	public static final int MILLISECONDS_PER_SECOND = 1000;
+	public static final long NANOSCONDS_PER_SECOND = 1000 * 1000 * 1000;
 
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
 	

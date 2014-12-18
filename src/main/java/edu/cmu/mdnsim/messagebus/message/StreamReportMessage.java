@@ -39,7 +39,7 @@ public class StreamReportMessage extends MbMessage{
 	/**
 	 * Total Bytes transfered can be either sent or received depending on type of event
 	 */
-	private int totalBytesTransferred;
+	private long totalBytesTransferred;
 	/**
 	 * Following fields are used by all nodes which receive some data. 
 	 */
@@ -87,10 +87,10 @@ public class StreamReportMessage extends MbMessage{
 	public void setEventTime(String eventTime) {
 		this.eventTime = eventTime;
 	}
-	public int getTotalBytesTransferred() {
+	public long getTotalBytesTransferred() {
 		return totalBytesTransferred;
 	}
-	public void setTotalBytesTransferred(int totalBytesTransferred) {
+	public void setTotalBytesTransferred(long totalBytesTransferred) {
 		this.totalBytesTransferred = totalBytesTransferred;
 	}
 	public double getAveragePacketLossRate() {
@@ -130,7 +130,7 @@ public class StreamReportMessage extends MbMessage{
 		
 		private String flowId = null;	
 		private String eventTime = Utility.currentTime(); 
-		private int totalBytesTransferred = -1;
+		private long totalBytesTransferred = -1;
 		private double averagePacketLossRate = -1;
 		private double currentPacketLossRate = -1;
 		private double averageTransferRate = -1;
@@ -149,7 +149,7 @@ public class StreamReportMessage extends MbMessage{
 			this.eventTime = eventTime;
 			return this;
 		}
-		public Builder totalBytesTransferred(int totalBytesTransferred){
+		public Builder totalBytesTransferred(long totalBytesTransferred){
 			this.totalBytesTransferred = totalBytesTransferred;
 			return this;
 		}
