@@ -88,12 +88,14 @@ public class MessageBusServerWarpImpl implements MessageBusServer {
 
 		try {
 			DomainInit domainInit = Warp.init().domain();
+			
+			String host = System.getProperty("host", "127.0.0.1");
 
 			// Configure the gateway (client connections) to go to http://127.0.0.1:8888 as initial connection
-			domainInit.getClientNetworkCfg().setBindHost("127.0.0.1").setBindPort("http", 8888).setBindPort("websocket", 8889).finish();
+			domainInit.getClientNetworkCfg().setBindHost(host).setBindPort("http", 8888).setBindPort("websocket", 8889).finish();
 
 			// Configure the lookup service (service registry) to bind to http://127.0.0.1:9999 as initial connection
-			domainInit.getServiceNetworkCfg(BuiltinService.LOOKUP_SERVICE).setBindHost("127.0.0.1").setBindPort("websocket", 9999).finish();
+			domainInit.getServiceNetworkCfg(BuiltinService.LOOKUP_SERVICE).setBindHost(host).setBindPort("websocket", 9999).finish();
 
 			// Add any additional (built-in servers) in the com.ericsson.research.warp.spi.enabled package and start
 			warpDomain = domainInit.loadWarpEnabled(true).create();

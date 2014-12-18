@@ -13,12 +13,12 @@
 			  [
 				{
 				  "NodeType":"SinkNode",
-				  "NodeId":"tomato:sink1",
-				  "UpstreamId":"orange:source1"
+				  "NodeId":"nc_sink:sink1",
+				  "UpstreamId":"nc_source:source1"
 				},
 				{
 				  "NodeType":"SourceNode",
-				  "NodeId":"orange:source1",
+				  "NodeId":"nc_source:source1",
 				  "UpstreamId":"NULL"
 				}
 			  ]
