@@ -1,6 +1,6 @@
 package edu.cmu.mdnsim.reporting;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
@@ -16,14 +16,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class PacketLostTracker {
 	
-	private AtomicInteger lostPacketNum;
-	private AtomicInteger highestPacketId;
+	private AtomicLong lostPacketNum;
+	private AtomicLong highestPacketId;
 
-	private int expectedMaxPacketId;
-	private int packetNumInAWindow;
-	private int lowPacketIdBoundry;
-	private int highPacketIdBoundry;
-	private int receivedPacketNumInAWindow;
+	private long expectedMaxPacketId;
+	private long packetNumInAWindow;
+	private long lowPacketIdBoundry;
+	private long highPacketIdBoundry;
+	private long receivedPacketNumInAWindow;
 	private boolean finished;
 
 	/**
@@ -34,20 +34,20 @@ public class PacketLostTracker {
 	 * @param timeout, longest time to wait when no packets comes, this can help calculate window size
 	 * @throws IllegalArgumentException if any of the four parameters is invalid
 	 */
-	public PacketLostTracker(int totalData, int rate, int packetLength, int timeout, int beginId){
+	public PacketLostTracker(long totalData, int rate, int packetLength, int timeout, int beginId){
 		
 		if(totalData < 0 || rate < 0 || packetLength < 0 || timeout < 0 || beginId < 0){
 			throw new IllegalArgumentException();
 		}
 
-		lostPacketNum = new AtomicInteger(0);
-		expectedMaxPacketId = (int) Math.ceil(totalData * 1.0 / packetLength) - 1;
+		lostPacketNum = new AtomicLong(0);
+		expectedMaxPacketId = (long) Math.ceil(totalData * 1.0 / packetLength) - 1;
 		double packetNumPerSecond = rate * 1.0 / packetLength;
 		packetNumInAWindow = (int) Math.ceil(packetNumPerSecond * timeout / 1000);
 		lowPacketIdBoundry = beginId;
 		highPacketIdBoundry = Math.min(beginId + packetNumInAWindow - 1, expectedMaxPacketId);
 		receivedPacketNumInAWindow = 0;
-		highestPacketId = new AtomicInteger(-1);
+		highestPacketId = new AtomicLong(-1);
 		
 		finished = false;
 	}
@@ -82,26 +82,26 @@ public class PacketLostTracker {
 	 * Update the packet lost for the last time. Timeout and last packet is received can lead this method being called. 
 	 */
 	public void updatePacketLostForLastTime(){
-		int lostPacketNumInCurrentWindow = highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow;
-		int lostPacketNumInFollowingWindows = expectedMaxPacketId - highPacketIdBoundry;
+		long lostPacketNumInCurrentWindow = highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow;
+		long lostPacketNumInFollowingWindows = expectedMaxPacketId - highPacketIdBoundry;
 		setLostPacketNum(getLostPacketNum() + lostPacketNumInCurrentWindow + lostPacketNumInFollowingWindows);
 		
 		finished = true;
 	}
 	
-	public int getLostPacketNum() {
+	public long getLostPacketNum() {
 		return lostPacketNum.get();
 	}
 
-	public void setLostPacketNum(int lostPacketNum) {
+	public void setLostPacketNum(long lostPacketNum) {
 		this.lostPacketNum.set(lostPacketNum);
 	}
 	
-	public int getHighestPacketId() {
+	public long getHighestPacketId() {
 		return highestPacketId.get();
 	}
 
-	public void setHighestPacketId(int highestPacketId) {
+	public void setHighestPacketId(long highestPacketId) {
 		this.highestPacketId.set(highestPacketId);
 	}
 }

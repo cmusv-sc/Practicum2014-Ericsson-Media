@@ -47,7 +47,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 		String destAddrStr = ipAndPort[0];
 		int destPort = Integer.parseInt(ipAndPort[1]);
-		int dataSizeInBytes = Integer.parseInt(flow.getDataSize());
+		long dataSizeInBytes = Long.parseLong(flow.getDataSize());
 		int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
 		int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  //Assumed that KiloBits = 1024 bits
 
@@ -67,7 +67,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	 * @param bytesToTransfer
 	 * @param rate
 	 */
-	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, int bytesToTransfer, int rate, Flow flow){
+	public void createAndLaunchSendRunnable(Stream stream, InetAddress destAddrStr, int destPort, long bytesToTransfer, int rate, Flow flow){
 		SourceRunnable sendRunnable = new SourceRunnable(stream, destAddrStr, destPort, bytesToTransfer, rate, flow, msgBusClient, getNodeId(), this);
 		Future<?> sendFuture = NodeContainer.ThreadPool.submit(new MDNTask(sendRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SourceRunnable>(sendFuture, sendRunnable));

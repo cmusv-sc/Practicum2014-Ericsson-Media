@@ -30,7 +30,7 @@ import edu.cmu.mdnsim.reporting.PacketLostTracker;
  */
 class ProcessRunnable extends NodeRunnable {
 
-	private int totalData;
+	private long totalData;
 	private DatagramSocket receiveSocket;
 
 	private long processingLoop;
@@ -56,7 +56,7 @@ class ProcessRunnable extends NodeRunnable {
 	 * @param cleaner a cleaner to release resources
 	 * @param receiveSocket a Datagram socket that is used to receive packets in the runnable
 	 */
-	public ProcessRunnable(Stream stream, int totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
+	public ProcessRunnable(Stream stream, long totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
 
 		super(stream, msgBusClient, nodeId, cleaner);
 

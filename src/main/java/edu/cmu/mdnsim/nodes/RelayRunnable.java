@@ -65,7 +65,6 @@ class RelayRunnable extends NodeRunnable {
 		while (!isKilled()) {
 			try {
 				receiveSocket.receive(receivedPacket);
-				logger.debug("[RELAY] Received Packet" );
 			} catch(SocketTimeoutException ste){
 				if(this.isUpstreamDone()){
 					if(!isFinalWait){
