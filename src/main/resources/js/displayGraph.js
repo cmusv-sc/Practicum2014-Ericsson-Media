@@ -1,51 +1,3 @@
-//Required for custom edge rendering - works only with canvas renderer
-sigma.utils.pkg('sigma.canvas.edges');
-/**
- * The following function defines new type of edge render. 
- * The name of new type = t
- * Use the name of new type in the graph JSON when creating/refreshing the graph
- * Works only with canvas renderer
- */
-sigma.canvas.edges.t = function(edge, source, target, context, settings) {
-	var color = edge.color,
-	prefix = settings('prefix') || '',
-	edgeColor = settings('edgeColor'),
-	defaultNodeColor = settings('defaultNodeColor'),
-	defaultEdgeColor = settings('defaultEdgeColor');
-	if (!color)
-		switch (edgeColor) {
-		case 'source':
-			color = source.color || defaultNodeColor;
-			break;
-		case 'target':
-			color = target.color || defaultNodeColor;
-			break;
-		default:
-			color = defaultEdgeColor;
-		break;
-		}
-	context.strokeStyle = color;
-	context.lineWidth = edge[prefix + 'size'] || 1;
-	context.lineWidth = 5;
-	context.beginPath();
-	context.moveTo(
-			source[prefix + 'x'],
-			source[prefix + 'y']
-	);
-	context.lineTo(
-			target[prefix + 'x'],
-			target[prefix + 'y']
-	);
-	// context.lineTo(
-	//   source[prefix + 'x'],
-	//   target[prefix + 'y']
-	// );
-	// context.lineTo(
-	//   target[prefix + 'x'],
-	//   target[prefix + 'y']
-	// );
-	context.stroke();
-};
 //used to show logs in the web client
 var loggerResource = Warp.rootResource.createResource("/logger");
 //Represents Sigma object - Main object which holds the graph
@@ -448,61 +400,19 @@ function startMultipleSinks(nodesCount, streamId,  dataSize, kiloBitRate){
 	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
 	
 }
-//Vars - NodeContainers list, #Nodes, nodetypes->node_count map
-//Assumption -> #source and #processing nodes are same, #relay are >= #processing nodes & #sink >= #relay nodes
-//Get nodes per node container. (#NodeContainer/#Nodes) 
-//for each node container - start assigning nodes - start from source, then go to processing ....
-//If there are more relays than processing start assigning them to other relay nodes.
-//For sink divide them equally to all relay nodes
-function startSoureProcessingRelaySinkChain(nodeContainersList, nodesCount, nodeTypesCountMap, 
-		streamId,  dataSize, kiloBitRate){
-	var nodesPerContainer = nodeContainersList.length / nodesCount;
-	var nodeTypesMap = {}; //Map of node type to list of node ids
-	var nodeTypes = []; // list of node types
-	
-	for(var nodeType in nodeTypesCountMap){
-		nodeTypesMap[nodeType] = new Array();
-		nodeTypes.push(nodeType);
-	}
-
-	var currentNodeContainerIndex = 0;
-	var currentNodeContainer = nodeContainersList[currentNodeContainerIndex];
-	var nodeTypeCounter = 0;
-	var nodeType = nodeTypes[nodeTypeCounter];
-	var nodesOfANodeType = 0;
-	var nodesInANodeContainerCounter = 0;
-	
-	while(currentNodeContainerIndex < nodeContainersList.length){
-		if(nodesOfANodeType >= nodeTypesCountMap[nodeType]){
-			//Go to next node type
-			nodeTypeCounter++;
-			if(nodeTypeCounter >= nodeTypes.length)
-				break;
-			nodeType = nodeTypes[nodeTypeCounter];
-			nodesOfANodeType = 0;
-		}
-		//Create a new node of type = nodeType and put it in currentNodeContainer
-		nodeTypesMap[nodeType].push(getNodeId(currentNodeContainer,nodeType,nodesOfANodeType));
-		nodesOfANodeType++;
-		
-		nodesInANodeContainerCounter++;
-		if(nodesInANodeContainerCounter >= nodesPerContainer){
-			//Change the node container
-			currentNodeContainerIndex++;			
-			currentNodeContainer = nodeContainersList[currentNodeContainerIndex];
-			nodesInANodeContainerCounter = 0;
-		}
-	}
-	for(var nodeType in nodeTypesMap){
-		console.log(nodeTypesMap[nodeType]);
-	}
-	
-}
-function getNodeId(currentNodeContainer,nodeType,nodesOfANodeType){
-	return currentNodeContainer + nodeIdSeparator + nodeType + nodesOfANodeType;
-}
-
+/**
+ * Starts new flows as specified in flowList.
+ * @param flowList
+ * @param streamId
+ * @param dataSize
+ * @param kiloBitRate
+ */
 function startFlow(flowList, streamId, dataSize, kiloBitRate){
+	for(var i=0; i<flowList.length; i++){
+		flowList[i].streamId = streamId;
+		flowList[i].dataSize = dataSize;
+		flowList[i].kiloBitRate = kiloBitRate;
+	}
 	var streamList = new Array();
 	streamList.push(new Stream(streamId,dataSize, kiloBitRate, flowList));
 	
@@ -510,8 +420,14 @@ function startFlow(flowList, streamId, dataSize, kiloBitRate){
 	//console.log(wc);
 	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
 }
-
-function getFlow(nodeList, streamId, dataSize, kiloBitRate){
+/**
+ * Returns a new flow object with node list initialised.
+ * The nodelist has to be in [label,label:nodeType,properties,label:nodeType,label] format 
+ * 	starting from source and ending with sink node.
+ * @param nodeList
+ * @returns {Flow}
+ */
+function getFlow(nodeList){
 	var nodes = new Array();
 	var sourceNodeMap = null;
 	var prevNodeMap = null;
@@ -550,5 +466,5 @@ function getFlow(nodeList, streamId, dataSize, kiloBitRate){
 			}
 		}
 	}
-	return new Flow("", dataSize, streamId,kiloBitRate,nodes.reverse());
+	return new Flow("", "", "","",nodes.reverse());
 }
