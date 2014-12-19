@@ -11,5 +11,5 @@ processingNodeMap["ProcessingLoop"] = "100000";
 processingNodeMap["ProcessingMemory"] = "100";
 var nodeList  = ["nc_source","nc_processing:ProcessingNode",processingNodeMap ,"nc_relay:RelayNode","nc_sink"]
 var flowList = new Array();
-flowList.push(getFlow(nodeList,"1","10000","60")); //streamId, dataSize, kiloBitRate
+flowList.push(getFlow(nodeList)); 
 startFlow(flowList,"1","10000","60");//streamId, dataSize, kiloBitRate
