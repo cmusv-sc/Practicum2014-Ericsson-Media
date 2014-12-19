@@ -39,6 +39,7 @@ public abstract class AbstractNode {
 	public static final int MILLISECONDS_PER_SECOND = 1000;
 
 	private static final int RETRY_CREATING_SOCKET_NUMBER = 3;
+	public static final long NANOSECONDS_PER_SECOND = 1000000000;
 	
 	/**
 	 * Construct a node that is using local host as the host address.

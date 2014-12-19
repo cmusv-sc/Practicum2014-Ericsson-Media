@@ -396,27 +396,29 @@ var sourceNodeContainer = "nc_source";
 var sinkNodeContainer = "nc_sink";
 var relayNodeContainer = "nc_relay";
 var processingNodeContainer = "nc_processing";
+var nodeIdSeparator = ":";
+var simId = "1";
 
-function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
+function startMultipleSinks(nodesCount, streamId,  dataSize, kiloBitRate){
 	var flowList = new Array();
 	
 	var nonSinkNodeList = new Array();
 	
 	var sourceNodeMap = {};
 	sourceNodeMap["NodeType"] = sourceNodeType;
-	sourceNodeMap["NodeId"] = sourceNodeContainer + ":" + sourceNodeType;
+	sourceNodeMap["NodeId"] = sourceNodeContainer + nodeIdSeparator + sourceNodeType;
 	sourceNodeMap["UpstreamId"] = "NULL";
 	
 	var processingNodeMap = {};
 	processingNodeMap["NodeType"] = processingNodeType;
-	processingNodeMap["NodeId"] = processingNodeContainer + ":" + processingNodeType;
+	processingNodeMap["NodeId"] = processingNodeContainer + nodeIdSeparator + processingNodeType;
 	processingNodeMap["UpstreamId"] = sourceNodeMap["NodeId"];
 	processingNodeMap["ProcessingLoop"] = "10000";
 	processingNodeMap["ProcessingMemory"] = "100";
 	
 	var relayNodeMap = {};
 	relayNodeMap["NodeType"] = relayNodeType;
-	relayNodeMap["NodeId"] = relayNodeContainer + ":" + relayNodeType;
+	relayNodeMap["NodeId"] = relayNodeContainer + nodeIdSeparator + relayNodeType;
 	relayNodeMap["UpstreamId"] = processingNodeMap["NodeId"];
 	
 	nonSinkNodeList.push(relayNodeMap);
@@ -426,7 +428,7 @@ function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
 	for(var i=nodesCount-3; i>0; i--){
 		var sinkNodeMap = {};
 		sinkNodeMap["NodeType"] = sinkNodeType;
-		sinkNodeMap["NodeId"] = sinkNodeContainer + ":" + sinkNodeType + j;
+		sinkNodeMap["NodeId"] = sinkNodeContainer + nodeIdSeparator + sinkNodeType + j;
 		sinkNodeMap["UpstreamId"] = relayNodeMap["NodeId"];
 		j++;
 		var nodeList = new Array();
@@ -435,14 +437,118 @@ function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
 			nodeList.push(nonSinkNodeList[k]);
 		}
 		
-		flowList.push(new Flow("", dataSize, "1",kiloBitRate,nodeList));
+		flowList.push(new Flow("", dataSize, streamId,kiloBitRate,nodeList));
 	}
 	
 	var streamList = new Array();
-	streamList.push(new Stream("1",dataSize, kiloBitRate, flowList));
+	streamList.push(new Stream(streamId,dataSize, kiloBitRate, flowList));
 	
-	var wc = new WorkConfig("1", streamList);
+	var wc = new WorkConfig(simId, streamList);
 	//console.log(wc);
 	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
 	
+}
+//Vars - NodeContainers list, #Nodes, nodetypes->node_count map
+//Assumption -> #source and #processing nodes are same, #relay are >= #processing nodes & #sink >= #relay nodes
+//Get nodes per node container. (#NodeContainer/#Nodes) 
+//for each node container - start assigning nodes - start from source, then go to processing ....
+//If there are more relays than processing start assigning them to other relay nodes.
+//For sink divide them equally to all relay nodes
+function startSoureProcessingRelaySinkChain(nodeContainersList, nodesCount, nodeTypesCountMap, 
+		streamId,  dataSize, kiloBitRate){
+	var nodesPerContainer = nodeContainersList.length / nodesCount;
+	var nodeTypesMap = {}; //Map of node type to list of node ids
+	var nodeTypes = []; // list of node types
+	
+	for(var nodeType in nodeTypesCountMap){
+		nodeTypesMap[nodeType] = new Array();
+		nodeTypes.push(nodeType);
+	}
+
+	var currentNodeContainerIndex = 0;
+	var currentNodeContainer = nodeContainersList[currentNodeContainerIndex];
+	var nodeTypeCounter = 0;
+	var nodeType = nodeTypes[nodeTypeCounter];
+	var nodesOfANodeType = 0;
+	var nodesInANodeContainerCounter = 0;
+	
+	while(currentNodeContainerIndex < nodeContainersList.length){
+		if(nodesOfANodeType >= nodeTypesCountMap[nodeType]){
+			//Go to next node type
+			nodeTypeCounter++;
+			if(nodeTypeCounter >= nodeTypes.length)
+				break;
+			nodeType = nodeTypes[nodeTypeCounter];
+			nodesOfANodeType = 0;
+		}
+		//Create a new node of type = nodeType and put it in currentNodeContainer
+		nodeTypesMap[nodeType].push(getNodeId(currentNodeContainer,nodeType,nodesOfANodeType));
+		nodesOfANodeType++;
+		
+		nodesInANodeContainerCounter++;
+		if(nodesInANodeContainerCounter >= nodesPerContainer){
+			//Change the node container
+			currentNodeContainerIndex++;			
+			currentNodeContainer = nodeContainersList[currentNodeContainerIndex];
+			nodesInANodeContainerCounter = 0;
+		}
+	}
+	for(var nodeType in nodeTypesMap){
+		console.log(nodeTypesMap[nodeType]);
+	}
+	
+}
+function getNodeId(currentNodeContainer,nodeType,nodesOfANodeType){
+	return currentNodeContainer + nodeIdSeparator + nodeType + nodesOfANodeType;
+}
+
+function startFlow(flowList, streamId, dataSize, kiloBitRate){
+	var streamList = new Array();
+	streamList.push(new Stream(streamId,dataSize, kiloBitRate, flowList));
+	
+	var wc = new WorkConfig(simId, streamList);
+	//console.log(wc);
+	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
+}
+
+function getFlow(nodeList, streamId, dataSize, kiloBitRate){
+	var nodes = new Array();
+	var sourceNodeMap = null;
+	var prevNodeMap = null;
+	for(var i=0; i<nodeList.length; i++){
+		var node = nodeList[i];
+		if(typeof(node) == "string"){
+			//Create new node
+			var items = node.split(":");
+			if(items.length == 1){
+				if(sourceNodeMap == null){
+					sourceNodeMap = {};
+					sourceNodeMap["NodeType"] = sourceNodeType;
+					sourceNodeMap["NodeId"] = items[0] + nodeIdSeparator + sourceNodeType;
+					sourceNodeMap["UpstreamId"] = "NULL";
+					nodes.push(sourceNodeMap);
+					prevNodeMap = sourceNodeMap;
+				}else{
+					var sinkNodeMap = {};
+					sinkNodeMap["NodeType"] = sinkNodeType;
+					sinkNodeMap["NodeId"] =  items[0] + nodeIdSeparator + sinkNodeType;
+					sinkNodeMap["UpstreamId"] = prevNodeMap["NodeId"];
+					nodes.push(sinkNodeMap);
+				}
+			}else{
+				var currentNodeMap = {};
+				currentNodeMap["NodeType"] = items[1];
+				currentNodeMap["NodeId"] = items[0] + nodeIdSeparator + items[1];
+				currentNodeMap["UpstreamId"] = prevNodeMap["NodeId"];
+				nodes.push(currentNodeMap);
+				prevNodeMap = currentNodeMap;
+			}
+		}else{
+			//Add parameters to prev node
+			for(var prop in node){
+				prevNodeMap[prop] = node[prop];
+			}
+		}
+	}
+	return new Flow("", dataSize, streamId,kiloBitRate,nodes.reverse());
 }
