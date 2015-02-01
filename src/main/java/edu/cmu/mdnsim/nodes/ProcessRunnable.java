@@ -130,7 +130,9 @@ class ProcessRunnable extends NodeRunnable {
 			 * received.
 			 */
 			if(reportTask == null) {
-				packetLostTracker = new PacketLostTracker(totalData, rate, NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND,nodePacket.getMessageId());
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * MAX_WAITING_TIME_IN_MILLISECOND / NodePacket.MAX_PACKET_LENGTH / 1000;
+				packetLostTracker = new PacketLostTracker(windowSize);
+				
 				reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -160,7 +162,7 @@ class ProcessRunnable extends NodeRunnable {
 		/*
 		 * Calculating packet lost at the end
 		 */
-		packetLostTracker.updatePacketLostForLastTime();
+		
 
 		/*
 		 * The reportTask might be null when the NodeRunnable thread is 

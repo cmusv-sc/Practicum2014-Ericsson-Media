@@ -1,11 +1,11 @@
 package edu.cmu.mdnsim.reporting;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+
+import java.util.Random;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
  * 
@@ -21,50 +21,86 @@ public class PacketLostTrackerTest {
 	public void setUp() throws Exception {
 	}
 
-	//public PacketLostTracker(int totalData, int rate, int packetLength, int timeout)
-	@Test
-	public final void testUpdatePacketLost() {
-		int totalData = 10000;
-		int rate = 1000;
-		int packetLength = 1000;
-		int timeout = 5 * 1000;
-		PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, packetLength, timeout, 0);
+	
+	@Test//(timeout=1000)
+	public final void testInorderDelivery() {
+		
+		PacketLostTracker packetLostTracker = new PacketLostTracker(10);
 		
 		for(int i = 0; i < 10; i++){
 			packetLostTracker.updatePacketLost(i);
 		}
 		assertEquals("all 10 packets are received",packetLostTracker.getLostPacketNum(), 0);
 		
-		packetLostTracker = new PacketLostTracker(totalData, rate, packetLength, timeout, 0);
-		for(int i = 0; i < 9; i++){
+		packetLostTracker.reset();
+		for (int i = 0; i < 20; i++) {
 			packetLostTracker.updatePacketLost(i);
 		}
-		packetLostTracker.updatePacketLostForLastTime();
-		assertEquals("1 packet is lost at the end",packetLostTracker.getLostPacketNum(), 1);
-
-
-		packetLostTracker = new PacketLostTracker(totalData, rate, packetLength, timeout, 0);
-		for(int i = 0; i < 10; i++){
-			if(i == 6){
-				continue;
+		assertEquals("all 20 packets are received",packetLostTracker.getLostPacketNum(), 0);
+		
+		packetLostTracker.reset();
+		for (int i = 0; i < 25; i++) {
+			packetLostTracker.updatePacketLost(i);
+		}
+		assertEquals("all 25 packets are received",packetLostTracker.getLostPacketNum(), 0);
+		
+		packetLostTracker.reset();
+		for (int i = 0; i < 100; i++) {
+			if (i / 10 != i % 10) {
+				packetLostTracker.updatePacketLost(i);
 			}
-			packetLostTracker.updatePacketLost(i);
 		}
-		packetLostTracker.updatePacketLostForLastTime();
-		assertEquals("1 packet is lost in the middle (7th)",packetLostTracker.getLostPacketNum(), 1);
+		
+		assertEquals("9 out 100 packets are lost",packetLostTracker.getLostPacketNum(), 9);
+		
 	}
 	
-
 	@Test
-	public final void testUpdatePacketLostForTimeout() {
-		int totalData = 10000;
-		int rate = 1000;
-		int packetLength = 1000;
-		int timeout = 5 * 1000;
-		PacketLostTracker packetLostTracker = new PacketLostTracker(totalData, rate, packetLength, timeout, 0);
+	public void testOutOfOrderDeliveryWithoutPacketLoss() {
+		PacketLostTracker packetLostTracker = new PacketLostTracker(10);
+		/*
+		 * Test out-of-order delivery without packet loss in timeout
+		 */
+		packetLostTracker.updatePacketLost(2);
+		packetLostTracker.updatePacketLost(4);
+		packetLostTracker.updatePacketLost(7);
+		packetLostTracker.updatePacketLost(9);
+		packetLostTracker.updatePacketLost(0);
+		packetLostTracker.updatePacketLost(1);
+		packetLostTracker.updatePacketLost(3);
+		packetLostTracker.updatePacketLost(5);
+		packetLostTracker.updatePacketLost(6);
+		packetLostTracker.updatePacketLost(8);
+		assertEquals("all 10 packets are received",packetLostTracker.getLostPacketNum(), 0);
 		
-		packetLostTracker.updatePacketLostForLastTime();
-		assertEquals("10 packets are lost", packetLostTracker.getLostPacketNum(), 10);
+		packetLostTracker.reset();
+		packetLostTracker.updatePacketLost(2);
+		packetLostTracker.updatePacketLost(4);
+		packetLostTracker.updatePacketLost(7);
+		packetLostTracker.updatePacketLost(9);
+		packetLostTracker.updatePacketLost(0);
+		packetLostTracker.updatePacketLost(1);
+		packetLostTracker.updatePacketLost(5);
+		packetLostTracker.updatePacketLost(6);
+		packetLostTracker.updatePacketLost(14);
+		assertEquals("3, 8, 10, 11, 12, 13 out of 0-14 lost",packetLostTracker.getLostPacketNum(), 6);
+		
+		
+		packetLostTracker.updatePacketLost(13);
+		assertEquals("3, 8, 10, 11, 12 out of 0-14 lost",packetLostTracker.getLostPacketNum(), 5);
+		packetLostTracker.updatePacketLost(12);
+		assertEquals("3, 8, 10, 11, 12 out of 0-14 lost",packetLostTracker.getLostPacketNum(), 4);
+		packetLostTracker.updatePacketLost(3);
+		assertEquals("3, 8, 10, 11, 12 out of 0-14 lost",packetLostTracker.getLostPacketNum(), 4);
+		packetLostTracker.updatePacketLost(8);
+		assertEquals("3, 8, 10, 11, 12 out of 0-14 lost",packetLostTracker.getLostPacketNum(), 3);
+		
+		packetLostTracker.reset();
+		packetLostTracker.updatePacketLost(1);
+		packetLostTracker.updatePacketLost(5);
+		assertEquals("0, 2, 3, 4 out of 5 lost",packetLostTracker.getLostPacketNum(), 4);
+		packetLostTracker.updatePacketLost(40);
+		assertEquals("0, 2, 3, 4, 6 - 19 out of 0 - 30 lost",packetLostTracker.getLostPacketNum(), 38);
 	}
 
 }

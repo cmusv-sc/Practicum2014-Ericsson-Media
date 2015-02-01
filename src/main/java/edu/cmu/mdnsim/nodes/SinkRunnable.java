@@ -1,10 +1,15 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.Date;
 import java.util.concurrent.Future;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -45,10 +50,23 @@ class SinkRunnable extends NodeRunnable {
 	@Override
 	public void run() {						
 
+		File logFile = new File("sink -" + System.currentTimeMillis() + ".log");
+		FileOutputStream out = null;
+		try {
+			out = new FileOutputStream(logFile);
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		
 		if(!initializeSocketAndPacket()){
 			return;
 		}
 		PacketLostTracker packetLostTracker = null;
+		int firstPacketNumber = Integer.MIN_VALUE;
+		int lastPacketNumber = 0;
+		
 
 		//			long startedTime = 0;
 		boolean isFinalWait = false;			
@@ -57,7 +75,8 @@ class SinkRunnable extends NodeRunnable {
 		while (!isKilled()) {
 			try{
 				receiveSocket.receive(packet);
-
+				out.write(("Sink sends packet ID:\t" + new NodePacket(packet.getData()).getMessageId() + "\n").getBytes());
+				
 			} catch(SocketTimeoutException ste){
 				if(this.isUpstreamDone()){
 					if(!isFinalWait){
@@ -77,13 +96,23 @@ class SinkRunnable extends NodeRunnable {
 			setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 
 			NodePacket nodePacket = new NodePacket(packet.getData());
+			
+			if (firstPacketNumber == Integer.MIN_VALUE) {
+				firstPacketNumber = nodePacket.getMessageId();
+			}
+			lastPacketNumber = nodePacket.getMessageId();
 
 
 			if(reportTaksHandler == null){
 				//					startedTime = System.currentTimeMillis();
-				packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
-						Integer.parseInt(this.getStream().getKiloBitRate()),
-						NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+				
+				System.out.println("kpbs: " + this.getStream().getKiloBitRate());
+				System.out.println("MAX_WAITING_TIME_IN_MILLISECOND: " + MAX_WAITING_TIME_IN_MILLISECOND);
+				System.out.println("MAX_PACKET_LENGTH: " + NodePacket.MAX_PACKET_LENGTH);
+				
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * 1000 / NodePacket.MAX_PACKET_LENGTH / 8 * 2;
+				System.out.println("Window Size: " + windowSize);
+				packetLostTracker = new PacketLostTracker(windowSize);
 				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
@@ -98,6 +127,7 @@ class SinkRunnable extends NodeRunnable {
 				super.setUpstreamDone();
 				break;
 			}
+			
 		}	
 
 		/*
@@ -127,8 +157,6 @@ class SinkRunnable extends NodeRunnable {
 		.totalBytesTransferred(this.getTotalBytesTranfered())
 		.build();
 		this.sendStreamReport(streamReportMessage);
-
-		packetLostTracker.updatePacketLostForLastTime();
 
 		if (isUpstreamDone()) { //Simulation completes as informed by upstream.
 
@@ -163,7 +191,16 @@ class SinkRunnable extends NodeRunnable {
 				System.out.println("[DEBUG]SinkNode.ReceiveThread.run(): Finish receiving.");
 			}
 		}
+		
+		System.err.println("SinkRunnable.run(): First received packet: " + firstPacketNumber);
+		System.err.println("SinkRunnable.run(): Last received packet: " + lastPacketNumber);
 
+		try {
+			out.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 

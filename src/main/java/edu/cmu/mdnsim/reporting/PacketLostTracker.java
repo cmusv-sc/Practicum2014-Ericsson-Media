@@ -1,6 +1,7 @@
 package edu.cmu.mdnsim.reporting;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Date;
+
 
 /**
  * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
@@ -9,47 +10,42 @@ import java.util.concurrent.atomic.AtomicLong;
  * All applicable methods throw a NullPointerException if null is passed in any parameter
  *
  * @author Geng Fu
- * @author Jigar Patel
- * @author Vinay Kumar Vavili
- * @author Hao Wang
  *
  */
 public class PacketLostTracker {
 	
-	private AtomicLong lostPacketNum;
-	private AtomicLong highestPacketId;
+	private int windowSize;
+	private long[] buff;
+	private long minNonRcvedPacketId = 0;
+	private long maxRcvedPacketId = 0;
+	
+	private long packetLostCounter = 0L;
+	
+	
+	
+	private final long NOT_RCVED = -1;
+	
+	
 
-	private long expectedMaxPacketId;
-	private long packetNumInAWindow;
-	private long lowPacketIdBoundry;
-	private long highPacketIdBoundry;
-	private long receivedPacketNumInAWindow;
-	private boolean finished;
 
 	/**
-	 * Construct an instance based on five parameters.
-	 * @param totalData, total data for this flow in byte
-	 * @param rate, transfer rate of the flow in byte
-	 * @param packetLength, length of the packet for transfer
-	 * @param timeout, longest time to wait when no packets comes, this can help calculate window size
+	 * 
+	 * @param dataSize Total data for this flow （unit: byte)
+	 * @param rate Transfer rate of the flow (unit: bytes per second)
+	 * @param packetSize size of the packet for transfer (unit: byte)
+	 * @param timeout longest time to wait when no packets comes, this can help calculate window size
 	 * @throws IllegalArgumentException if any of the four parameters is invalid
 	 */
-	public PacketLostTracker(long totalData, int rate, int packetLength, int timeout, int beginId){
+	public PacketLostTracker(int windowSize){
 		
-		if(totalData < 0 || rate < 0 || packetLength < 0 || timeout < 0 || beginId < 0){
+		if(windowSize <= 0){
 			throw new IllegalArgumentException();
 		}
+		this.windowSize = windowSize;
+		buff = new long[windowSize];
+		reset();
 
-		lostPacketNum = new AtomicLong(0);
-		expectedMaxPacketId = (long) Math.ceil(totalData * 1.0 / packetLength) - 1;
-		double packetNumPerSecond = rate * 1.0 / packetLength;
-		packetNumInAWindow = (int) Math.ceil(packetNumPerSecond * timeout / 1000);
-		lowPacketIdBoundry = beginId;
-		highPacketIdBoundry = Math.min(beginId + packetNumInAWindow - 1, expectedMaxPacketId);
-		receivedPacketNumInAWindow = 0;
-		highestPacketId = new AtomicLong(-1);
 		
-		finished = false;
 	}
 
 	/**
@@ -58,50 +54,86 @@ public class PacketLostTracker {
 	 * @throws IllegalArgumentException if packetId is not in valid range which is [0, expectedMaxPacketId]
 	 * @throws IllegalStateException if called after timeout
 	 */
-	public void updatePacketLost(int packetId){
-		if(packetId < 0 || packetId > expectedMaxPacketId){
-			throw new IllegalArgumentException("packet id " + packetId + " is out of valid range [0," + expectedMaxPacketId +"]");
-		}
-		if(finished){
-			throw new IllegalStateException("Timeout has happened.");
+	public synchronized void updatePacketLost(long packetId){ 
+		
+		if (packetId == 0) {
+			System.out.println("Recived 0.");
 		}
 		
-		if(packetId > highPacketIdBoundry){
-			setLostPacketNum(this.getLostPacketNum() + (highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow) + (packetId - highPacketIdBoundry - 1));
-			lowPacketIdBoundry = packetId;
-			highPacketIdBoundry = Math.min(lowPacketIdBoundry + packetNumInAWindow - 1, expectedMaxPacketId);
-			receivedPacketNumInAWindow = 1;
-		} else if(packetId >= lowPacketIdBoundry && packetId <= highPacketIdBoundry){
-			receivedPacketNumInAWindow++;
+		if(packetId < 0){
+			throw new IllegalArgumentException("Invalid packed id. " + packetId);
 		}
 		
-		setHighestPacketId(Math.max(getHighestPacketId(), packetId));
+		/*
+		 * A new packet arrives out of (larger) current window, do following steps:
+		 * [1] calculate not RCV till minNonRecvedPacketId to packetId - windowSize;
+		 * [2] set current window to packetId - windowSize + 1;
+		 */
+		if (minNonRcvedPacketId + windowSize <= packetId) { //If packetId = 14, minRcvedPacketId = 4, slide to at least [5 - 14]
+			//Step[1]
+			while(minNonRcvedPacketId + windowSize <= packetId) {
+				long lastPacketId = buff[(int)(minNonRcvedPacketId % windowSize)];
+				if (lastPacketId == NOT_RCVED) {
+					packetLostCounter++;
+				} else {
+					buff[(int)(minNonRcvedPacketId % windowSize)] = NOT_RCVED;
+				}
+				minNonRcvedPacketId++;
+				assert(packetId - windowSize + 1 == minNonRcvedPacketId);
+			}
+			
+		} 
+		/*
+		 * A new packet arrives out of (smaller) current window, ignore
+		 */
+		else if (minNonRcvedPacketId > packetId){
+			System.out.println("Out-of-order pakcet: " + packetId);
+			return;
+		} 
+		/*
+		 * A new packet arrives in current window, update the window and might slides
+		 */
+		
+		buff[(int)(packetId % windowSize)] = packetId;
+		maxRcvedPacketId = Math.max(packetId, maxRcvedPacketId);
+		slide();
+		
 	}
-	
-	/**
-	 * Update the packet lost for the last time. Timeout and last packet is received can lead this method being called. 
-	 */
-	public void updatePacketLostForLastTime(){
-		long lostPacketNumInCurrentWindow = highPacketIdBoundry - lowPacketIdBoundry + 1 - receivedPacketNumInAWindow;
-		long lostPacketNumInFollowingWindows = expectedMaxPacketId - highPacketIdBoundry;
-		setLostPacketNum(getLostPacketNum() + lostPacketNumInCurrentWindow + lostPacketNumInFollowingWindows);
 		
-		finished = true;
-	}
-	
-	public long getLostPacketNum() {
-		return lostPacketNum.get();
+	public synchronized long getLostPacketNum() {
+		int packetLostCounterInCurrWindow = 0;
+		for (long i = minNonRcvedPacketId; i <= maxRcvedPacketId; i++) {
+			long lastPacketId = buff[(int)(i % windowSize)];
+			if (lastPacketId == NOT_RCVED || lastPacketId < minNonRcvedPacketId) {
+				packetLostCounterInCurrWindow++;
+			}
+		}
+		System.out.println("min: " + minNonRcvedPacketId + "\tmax: " + maxRcvedPacketId);
+		return packetLostCounter + packetLostCounterInCurrWindow;
 	}
 
-	public void setLostPacketNum(long lostPacketNum) {
-		this.lostPacketNum.set(lostPacketNum);
+	
+	public void reset() {
+		for (int i = 0; i < windowSize; i++) {
+			buff[i] = NOT_RCVED;
+		}
+		minNonRcvedPacketId = 0;
+		maxRcvedPacketId = 0;
+		packetLostCounter = 0L;
 	}
 	
-	public long getHighestPacketId() {
-		return highestPacketId.get();
+	public synchronized long getHighestPacketId() {
+		return this.maxRcvedPacketId;
+	}
+	
+	private void slide() {
+		while(buff[(int)(minNonRcvedPacketId % windowSize)] != NOT_RCVED && minNonRcvedPacketId <= maxRcvedPacketId) {
+			buff[(int)(minNonRcvedPacketId % windowSize)] = NOT_RCVED;
+			minNonRcvedPacketId++;
+//			if (minNonRcvedPacketId % windowSize == 0) {
+//				System.err.println(new Date() + ":\tA new window started");
+//			}
+		}
 	}
 
-	public void setHighestPacketId(long highestPacketId) {
-		this.highestPacketId.set(highestPacketId);
-	}
 }

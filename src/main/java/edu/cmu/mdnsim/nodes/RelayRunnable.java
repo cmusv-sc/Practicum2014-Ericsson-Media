@@ -1,6 +1,10 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -9,6 +13,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.DatagramChannel;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
@@ -22,7 +27,7 @@ import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 class RelayRunnable extends NodeRunnable {
 	
-
+	private static Random randomGen = new Random();
 	
 	private DatagramSocket receiveSocket;
 	private DatagramPacket receivedPacket;
@@ -56,6 +61,23 @@ class RelayRunnable extends NodeRunnable {
 
 	@Override
 	public void run() {
+		
+		File logFile = new File("relay-" + System.currentTimeMillis() + ".log");
+		FileOutputStream out = null;
+		try {
+			out = new FileOutputStream(logFile);
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		//TODO: remove the dropped packet counter;
+		int dorppedPacketsCounter = 0;
+		boolean firstSentPacket = false;
+		int firstPacketId = 0;
+		int lastPacketId = 0;
+		int highestPacketId = 0;
+		
 		if(!initializeSocketAndPacket()){
 			return;
 		}		
@@ -86,9 +108,8 @@ class RelayRunnable extends NodeRunnable {
 			
 
 			if(reportTaskHandler == null) {
-				packetLostTracker = new PacketLostTracker(Integer.parseInt(this.getStream().getDataSize()),
-						Integer.parseInt(this.getStream().getKiloBitRate()),
-						NodePacket.MAX_PACKET_LENGTH, MAX_WAITING_TIME_IN_MILLISECOND, nodePacket.getMessageId());
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * MAX_WAITING_TIME_IN_MILLISECOND * 2 / NodePacket.MAX_PACKET_LENGTH / 1000;
+				packetLostTracker = new PacketLostTracker(windowSize);
 				ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
 				reportTaskHandler = new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
@@ -111,17 +132,33 @@ class RelayRunnable extends NodeRunnable {
 				packet.setData(nodePacket.serialize());	
 				packet.setAddress(destination.getAddress());
 				packet.setPort(destination.getPort());
-				try {
-					sendSocket.send(packet);
-				} catch (IOException e) {
-					e.printStackTrace();
+				if (randomGen.nextDouble() > 0.3) {
+					try {
+						if (!firstSentPacket) {
+							firstPacketId = nodePacket.getMessageId();
+							firstSentPacket = true;
+						}
+						sendSocket.send(packet);
+						out.write(("Relay sends packet ID:\t" + nodePacket.getMessageId() + "\n").getBytes());
+						
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					
+				} else {
+//					logger.debug(edu.cmu.util.Utility.getFormattedLogMessage("Drop a packet", super.getNodeId()));
+					dorppedPacketsCounter++;
 				}
+				
+				lastPacketId = nodePacket.getMessageId();
+				highestPacketId = highestPacketId < nodePacket.getMessageId() ? nodePacket.getMessageId() : highestPacketId;
 			}
 
 			if(nodePacket.isLast()){
 				super.setUpstreamDone();
 				break;
 			}
+		
 		}
 
 		/*
@@ -154,7 +191,7 @@ class RelayRunnable extends NodeRunnable {
 			.build();
 			this.sendStreamReport(streamReportMessage);
 		}
-		packetLostTracker.updatePacketLostForLastTime();
+		
 		if (isUpstreamDone()) { //Simulation completes
 			/*
 			 * Processing node should actively tell downstream its has sent out all
@@ -175,6 +212,16 @@ class RelayRunnable extends NodeRunnable {
 			 * Do nothing
 			 */
 			logger.debug("Relay Runnbale has been killed for stream " + this.getStreamId());
+		}
+		
+		System.err.println("RelayRunnable.run(): dropped packets: " + dorppedPacketsCounter);
+		System.err.println("RelayRunnable.run(): first packet ID: " + firstPacketId + "  last packet ID: " + lastPacketId + "  highest packet ID: " + highestPacketId);
+		
+		try {
+			out.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
 	}

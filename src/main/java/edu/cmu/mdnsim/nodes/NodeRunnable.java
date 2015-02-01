@@ -282,7 +282,8 @@ public abstract class NodeRunnable implements Runnable {
 			}
 			calculateAndReport();
 			System.out.println("ReportRateRunnable.run(): " + NodeRunnable.this.nodeId + " report thread has been interrupted.");
-
+			System.err.println("ReportRateRunnable.run(): Total recorded packet loss:" + packetLostTracker.getLostPacketNum());
+			
 		}
 
 		public void kill() {

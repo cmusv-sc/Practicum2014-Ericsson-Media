@@ -1,7 +1,10 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
+import edu.cmu.util.ObjectSizeFetcher;
 
 /**
  *	A packet that can hold a flag, packet id and data length fields as well as the payload.
@@ -166,4 +169,5 @@ public class NodePacket {
 	public int size(){
 		return dataLength + HEADER_LENGTH;
 	}
+	
 }

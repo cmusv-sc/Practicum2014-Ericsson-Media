@@ -5,6 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.util.Random;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
@@ -66,7 +67,8 @@ class SourceRunnable extends NodeRunnable {
 		rateMonitor.start();
 		
 		long expectedTime = System.nanoTime();
-		
+		Random ranGen = new Random();
+		long droppedPktCnt = 0;
 		while (bytesToTransfer > 0 && !isKilled()) {	
 			
 
@@ -77,7 +79,12 @@ class SourceRunnable extends NodeRunnable {
 			
 			
 			try {
-				sendSocket.send(packet);
+				if (ranGen.nextDouble() > 0.3) {
+					sendSocket.send(packet);
+				} else {
+					droppedPktCnt++;
+				}
+				
 			} catch (IOException e1) {
 				break;
 			}
@@ -99,7 +106,9 @@ class SourceRunnable extends NodeRunnable {
 				}
 			}
 			
-			
+			if (bytesToTransfer <= 0) {
+				System.out.println("[SourceRunnable run] Last sent packet ID: " + packetId);
+			}
 			packetId++;
 		}
 		/*
@@ -135,6 +144,8 @@ class SourceRunnable extends NodeRunnable {
 			 */
 			logger.debug("Send Runnbale has been killed for stream " + this.getStreamId());
 		}
+		
+		System.out.println("SourceRunnable.run(): Total dropped packet = " + droppedPktCnt);
 
 	}
 
