@@ -21,8 +21,6 @@ public class PacketLostTracker {
 	
 	private long packetLostCounter = 0L;
 	
-	
-	
 	private final long NOT_RCVED = -1;
 	
 	
@@ -30,10 +28,7 @@ public class PacketLostTracker {
 
 	/**
 	 * 
-	 * @param dataSize Total data for this flow （unit: byte)
-	 * @param rate Transfer rate of the flow (unit: bytes per second)
-	 * @param packetSize size of the packet for transfer (unit: byte)
-	 * @param timeout longest time to wait when no packets comes, this can help calculate window size
+	 * @param windowSize The size of the window
 	 * @throws IllegalArgumentException if any of the four parameters is invalid
 	 */
 	public PacketLostTracker(int windowSize){
@@ -44,8 +39,6 @@ public class PacketLostTracker {
 		this.windowSize = windowSize;
 		buff = new long[windowSize];
 		reset();
-
-		
 	}
 
 	/**
@@ -78,38 +71,37 @@ public class PacketLostTracker {
 				} else {
 					buff[(int)(minNonRcvedPacketId % windowSize)] = NOT_RCVED;
 				}
-				minNonRcvedPacketId++;
-				assert(packetId - windowSize + 1 == minNonRcvedPacketId);
+				incrementMinNonRcvedPacketId();
 			}
+			assert(packetId - windowSize + 1 == minNonRcvedPacketId);
 			
 		} 
 		/*
 		 * A new packet arrives out of (smaller) current window, ignore
 		 */
 		else if (minNonRcvedPacketId > packetId){
-			System.out.println("Out-of-order pakcet: " + packetId);
+			System.out.println("Obselete: " + packetId);
 			return;
 		} 
 		/*
-		 * A new packet arrives in current window, update the window and might slides
+		 * A new packet arrives in current window, update the window and might slide
 		 */
-		
 		buff[(int)(packetId % windowSize)] = packetId;
 		maxRcvedPacketId = Math.max(packetId, maxRcvedPacketId);
-		slide();
 		
 	}
 		
 	public synchronized long getLostPacketNum() {
-		int packetLostCounterInCurrWindow = 0;
+		/*int packetLostCounterInCurrWindow = 0;
 		for (long i = minNonRcvedPacketId; i <= maxRcvedPacketId; i++) {
 			long lastPacketId = buff[(int)(i % windowSize)];
 			if (lastPacketId == NOT_RCVED || lastPacketId < minNonRcvedPacketId) {
 				packetLostCounterInCurrWindow++;
 			}
 		}
-		System.out.println("min: " + minNonRcvedPacketId + "\tmax: " + maxRcvedPacketId);
-		return packetLostCounter + packetLostCounterInCurrWindow;
+//		System.out.println("min: " + minNonRcvedPacketId + "\tmax: " + maxRcvedPacketId);
+		return packetLostCounter + packetLostCounterInCurrWindow;*/
+		return packetLostCounter;
 	}
 
 	
@@ -126,14 +118,30 @@ public class PacketLostTracker {
 		return this.maxRcvedPacketId;
 	}
 	
-	private void slide() {
-		while(buff[(int)(minNonRcvedPacketId % windowSize)] != NOT_RCVED && minNonRcvedPacketId <= maxRcvedPacketId) {
-			buff[(int)(minNonRcvedPacketId % windowSize)] = NOT_RCVED;
-			minNonRcvedPacketId++;
-//			if (minNonRcvedPacketId % windowSize == 0) {
-//				System.err.println(new Date() + ":\tA new window started");
-//			}
+	@Override
+	public String toString() {
+		StringBuffer sb = new StringBuffer();
+		sb.append("min_non_rcved_id: " + this.minNonRcvedPacketId + "\t");
+		sb.append("max_rcved_id: " + this.maxRcvedPacketId + "\t");
+		sb.append("\nBuff: [");
+		for (int i = 0; i < this.windowSize; i++) {
+			if (buff[i] == -1)
+				sb.append("_");
+				else
+			sb.append(this.buff[i]);
+			sb.append(",");
 		}
+		sb.deleteCharAt(sb.length()-1);
+		sb.append("]");
+		return sb.toString();
+	}
+	
+	
+	private void incrementMinNonRcvedPacketId() {
+		this.minNonRcvedPacketId++;
+//		if (this.minNonRcvedPacketId % windowSize == 0) {
+//			System.out.println("offset == 0");
+//		}
 	}
 
 }

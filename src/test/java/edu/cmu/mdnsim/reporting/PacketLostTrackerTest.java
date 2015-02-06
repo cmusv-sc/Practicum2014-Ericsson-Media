@@ -75,6 +75,7 @@ public class PacketLostTrackerTest {
 		
 		packetLostTracker.reset();
 		packetLostTracker.updatePacketLost(2);
+		System.out.println(packetLostTracker);
 		packetLostTracker.updatePacketLost(4);
 		packetLostTracker.updatePacketLost(7);
 		packetLostTracker.updatePacketLost(9);
@@ -101,6 +102,22 @@ public class PacketLostTrackerTest {
 		assertEquals("0, 2, 3, 4 out of 5 lost",packetLostTracker.getLostPacketNum(), 4);
 		packetLostTracker.updatePacketLost(40);
 		assertEquals("0, 2, 3, 4, 6 - 19 out of 0 - 30 lost",packetLostTracker.getLostPacketNum(), 38);
+	}
+	
+	@Test
+	public void testFivePercentLoss() {
+		int lost = 0;
+		PacketLostTracker packetLostTracker = new PacketLostTracker(10);
+		for (int i=0; i< 10000; i++)
+		{
+			if (Math.random() < 0.05)
+				lost++;
+			else
+				packetLostTracker.updatePacketLost(i);
+		}
+
+		System.out.println(lost);
+		System.out.println(packetLostTracker.getLostPacketNum());
 	}
 
 }

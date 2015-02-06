@@ -5,8 +5,8 @@
 
 	{
 		"StreamId":"Stream1",
-		"DataSize":"20000000",
-		"KiloBitRate":"1000",
+		"DataSize":"2000000000",
+		"KiloBitRate":"100000",
 		"FlowList":
 		[
 

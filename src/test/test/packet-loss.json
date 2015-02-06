@@ -1,0 +1,30 @@
+{
+	"SimId":"demo",
+	"StreamList":
+	[
+
+	{
+		"StreamId":"Stream1",
+		"DataSize":"80000000",
+		"KiloBitRate":"5000",
+		"FlowList":
+		[
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink1",
+				"UpstreamId":"lemon:source1"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		}
+		]
+	}
+	]
+}
