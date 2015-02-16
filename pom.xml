@@ -1,205 +1,84 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>edu.cmu</groupId>
-  <artifactId>mdnsimulator</artifactId>
-  <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
-  <name>mdnsimulator</name>
-  <url>http://maven.apache.org</url>
-
-  <parent>
-    <groupId>com.ericsson.research.warp</groupId>
-    <artifactId>WarpSettings</artifactId>
-    <version>2.0.3</version>
-  </parent>  
-
-  <properties>
-    <warp-releases-repo>https://nexus.d2dx.com/content/repositories/warp-releases</warp-releases-repo>
-    <warp-snapshots-repo>https://nexus.d2dx.com/content/repositories/warp-snapshots</warp-snapshots-repo>
-    <trap-releases-repo>https://nexus.d2dx.com/content/repositories/trap-releases</trap-releases-repo>
-    <trap-snapshots-repo>https://nexus.d2dx.com/content/repositories/trap-snapshots</trap-snapshots-repo>
-    <public-repo>https://nexus.d2dx.com/content/groups/public</public-repo>
-    <plugins-repo>https://nexus.d2dx.com/content/groups/plugins</plugins-repo>
-  </properties>
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>edu.cmu</groupId>
+	<artifactId>mdnsimulator</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0-SNAPSHOT</version>
+	<name>mdnsimulator</name>
+	<url>http://maven.apache.org</url>
 
 
-  <repositories>
-    <repository>
-      <id>public</id>
-      <url>${public-repo}</url>
-      <releases>
-        <enabled>true</enabled>
-        <updatePolicy>never</updatePolicy>
-        <checksumPolicy>warn</checksumPolicy>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    
-    <repository>
-      <id>warp-releases</id>
-      <url>${warp-releases-repo}</url>
-      <releases>
-        <enabled>true</enabled>
-        <updatePolicy>never</updatePolicy>
-        <checksumPolicy>warn</checksumPolicy>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    
-    <repository>
-      <id>warp-snapshots</id>
-      <url>${warp-snapshots-repo}</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-        <checksumPolicy>warn</checksumPolicy>
-      </snapshots>
-    </repository>
-    
-    <repository>
-      <id>trap-releases</id>
-      <url>${trap-releases-repo}</url>
-      <releases>
-        <enabled>true</enabled>
-        <updatePolicy>never</updatePolicy>
-        <checksumPolicy>warn</checksumPolicy>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    
-    <repository>
-      <id>trap-snapshots</id>
-      <url>${trap-snapshots-repo}</url>
-      <snapshots>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-        <checksumPolicy>warn</checksumPolicy>
-      </snapshots>
-    </repository>
-  </repositories>
+	<repositories>
+
+		<repository>
+			<id>yamb-snapshotss</id>
+			<url>https://nexus.d2dx.com/content/repositories/yamb-snapshots</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+				<updatePolicy>daily</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</snapshots>
+		</repository>
+
+		<repository>
+			<id>sonatype-snapshots</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 
 
-  <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+			<version>4.10</version>
+		</dependency>
 
-    <dependency>
-      <groupId>com.ericsson.research.warp</groupId>
-      <artifactId>API-Server-Embedded</artifactId>
-    </dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk14</artifactId>
+			<version>1.7.0</version>
+		</dependency>
 
-    <dependency>
-      <groupId>com.ericsson.research.warp</groupId>
-      <artifactId>API-Client-Java</artifactId>
-    </dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>2.2.2</version>
+		</dependency>
+		<dependency>
+			<groupId>us.yamb</groupId>
+			<artifactId>rmb-amb</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>us.yamb</groupId>
+			<artifactId>amb-tmb</artifactId>
+			<version>1.0-SNAPSHOT</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>tmb</artifactId>
+					<groupId>us.yamb</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>us.yamb</groupId>
+			<artifactId>tmb-trap</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
 
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-jdk14</artifactId>
-    </dependency>
-    
-    <dependency>
-  		<groupId>com.fasterxml.jackson.core</groupId>
-  		<artifactId>jackson-core</artifactId>
-  		<version>2.2.2</version>
-	</dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-transport-websocket</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-transport-socket</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-transport-loopback</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-transport-http</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-js</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-js</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    	<classifier>min</classifier>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-core</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-api</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-
-    <dependency>
-    	<groupId>com.ericsson.research.trap</groupId>
-    	<artifactId>trap-api</artifactId>
-    	<version>1.3.0-SNAPSHOT</version>
-    </dependency>
-  </dependencies>
-
-  <dependencyManagement>
-  	<dependencies>
-  		<dependency>
-  			<groupId>com.ericsson.research.trap.transports</groupId>
-  			<artifactId>http-client-sun</artifactId>
-  			<version>1.3.0-SNAPSHOT</version>
-  		</dependency>
-  		<dependency>
-  			<groupId>com.ericsson.research.trap.transports</groupId>
-  			<artifactId>http-server-servlet-2.5</artifactId>
-  			<version>1.3.0-SNAPSHOT</version>
-  		</dependency>
-  		<dependency>
-  			<groupId>com.ericsson.research.trap.transports</groupId>
-  			<artifactId>http-server-sun</artifactId>
-  			<version>1.3.0-SNAPSHOT</version>
-  		</dependency>
-  		<dependency>
-  			<groupId>com.ericsson.research.trap</groupId>
-  			<artifactId>trap-utils-api</artifactId>
-  			<version>1.3.0-SNAPSHOT</version>
-  		</dependency>
-  		<dependency>
-  			<groupId>com.ericsson.research.trap</groupId>
-  			<artifactId>trap-utils-15</artifactId>
-  			<version>1.3.0-SNAPSHOT</version>
-  		</dependency>
-  	</dependencies>
-  </dependencyManagement>
+	<dependencyManagement>
+	</dependencyManagement>
 </project>
