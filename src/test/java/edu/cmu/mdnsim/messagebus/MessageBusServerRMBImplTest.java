@@ -1,69 +1,113 @@
 package edu.cmu.mdnsim.messagebus;
 
-import java.io.IOException;
+import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.util.logging.Level;
+
+import org.junit.Before;
+
+import com.ericsson.research.trap.utils.JDKLoggerConfig;
+
+import us.yamb.amb.spi.AsyncResultImpl;
+import us.yamb.rmb.Message;
 import us.yamb.rmb.RMB;
+import us.yamb.rmb.annotations.GET;
 import us.yamb.rmb.builders.RMBBuilder;
+import us.yamb.tmb.Broker;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 
+/**
+ * 
+ * This junit test is to examine the methods listeners are correctly added to the server.
+ * 
+ * @author JeremyFu
+ *
+ */
 public class MessageBusServerRMBImplTest {
 	
+	MessageBusServer server;
+	
+	@Before
+	public void broker() throws Exception
+	{
+		server = new MessageBusServerRMBImpl();
+		server.config();
+	}
+	
 	@org.junit.Test
-	public void testConnectivity() {
-		
-		MessageBusServer server = new MessageBusServerRMBImpl();
-		try {
-			server.config();
-		} catch (MessageBusException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		TestObject obj = new TestObject();
-		try {
-			server.addMethodListener("/hello", "GET", obj, "hello");
-		} catch (MessageBusException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-
-		
+	public void testMethodListner() throws Exception {
 		
 		String trapCfg = "trap.transport.http.url = http://127.0.0.1:8888/_connectTrap\n"
 				+ "trap.transport.websocket.wsuri = ws://127.0.0.1:8888/_connectTrapWS\n";
 		
-		try {
-			RMB rootRMB = RMBBuilder.builder().seed(trapCfg).build();
-			try {
-				Exception e = rootRMB.connect().get();
-				if (e != null) {
-					System.out.println(e.toString());
-				}
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			System.out.println("rootRMB:" + rootRMB.id());
-			rootRMB.message().to("/mdnsim/hello").method("GET").send();
-		} catch (InstantiationException | IllegalAccessException
-				| ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		
+		RMB rootRMB = RMBBuilder.builder().seed(trapCfg).build();
+		Exception e = rootRMB.connect().get();
+		if (e != null) {
+			throw new Exception(e);
 		}
 		
-			
-//		System.exit(0);
-				
+		TestObject obj = new TestObject();
+		AsyncResultImpl<String> res;
+		
+		
+		res = new AsyncResultImpl<String>();
+		obj.resetAsyncResult(res);
+		server.addMethodListener("hello", "GET", obj, "getHelloWorld");
+		rootRMB.get("/mdnsim/hello").data("get hello world").send();
+		assertEquals(res.get(), "get hello world");
+		
+		res = new AsyncResultImpl<String>();
+		obj.resetAsyncResult(res);
+		server.addMethodListener("hello", "PUT", obj, "putHelloWorld");
+		rootRMB.put("/mdnsim/hello").data("put hello world").send();
+		assertEquals(res.get(), "put hello world");
+		
+		res = new AsyncResultImpl<String>();
+		obj.resetAsyncResult(res);
+		server.addMethodListener("hello", "POST", obj, "postHelloWorld");
+		rootRMB.post("/mdnsim/hello").data("post hello world").send();
+		assertEquals(res.get(), "post hello world");
+		
+		res = new AsyncResultImpl<String>();
+		obj.resetAsyncResult(res);
+		server.addMethodListener("hello", "DELETE", obj, "deleteHelloWorld");
+		rootRMB.delete("/mdnsim/hello").data("delete hello world").send();
+		assertEquals(res.get(), "delete hello world");
+
 	}
 	
-	
-	private class TestObject {
+	public class TestObject {
 		
-		public void hello() {
-			System.out.println("hello");
+		AsyncResultImpl<String> res;
+
+		
+		
+		public String getHelloWorld(String msg) {
+			res.completed(msg);
+			return "";
+		}
+		
+		public String putHelloWorld(String msg) {
+			res.completed(msg);
+			return "";
+		}
+		
+		public String postHelloWorld(String msg) {
+			res.completed(msg);
+			return "";
+		}
+		
+		public String deleteHelloWorld(String msg) {
+			res.completed(msg);
+			return "";
+		}
+		
+		public void resetAsyncResult(AsyncResultImpl<String> res) {
+			this.res = res;
 		}
 		
 	}
+	
 }

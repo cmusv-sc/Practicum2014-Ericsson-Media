@@ -1,6 +1,7 @@
 package edu.cmu.mdnsim.messagebus;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.logging.Level;
@@ -13,8 +14,11 @@ import us.yamb.rmb.Response.ResponseException;
 import us.yamb.rmb.builders.RMBBuilder;
 import us.yamb.rmb.callbacks.OnDelete;
 import us.yamb.rmb.callbacks.OnGet;
+import us.yamb.rmb.callbacks.OnMessage;
 import us.yamb.rmb.callbacks.OnPost;
 import us.yamb.rmb.callbacks.OnPut;
+import us.yamb.rmb.impl.RMBImpl;
+import us.yamb.rmb.impl.ReflectionListener;
 import us.yamb.tmb.Broker;
 
 import com.ericsson.research.trap.TrapException;
@@ -85,7 +89,6 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	public void send(String fromPath, String dstURI, String method,
 			MbMessage msg) throws MessageBusException {
 		
-		
 		try {
 			rmb.message().to(dstURI).method(method).send();
 		} catch (IOException e) {
@@ -98,128 +101,31 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	public void addMethodListener(String path, String method, final Object object,
 			final String objectMethod) throws MessageBusException {
 		
-		RMB resource = rmb.create(path);
+		Method m = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
+		ReflectionListener listener = new ReflectionListener((RMBImpl) rmb, object, m, path);
 		
-		if (method.trim().toUpperCase().equals("GET")) {
-			
-//			resource.onget(new OnGet() {
-//				
-//				private Method method = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
-//				
-//				public void onget(Message message) throws ResponseException {
-//					Class<?>[] params = this.method.getParameterTypes();
-//					Object[]   objs   = new Object[params.length];
-//					for (int i = 0; i < params.length; i++) {
-//						Class<?> param = params[i];
-//						objs[i] = JSON.fromJSON(message.toString(), param);
-//					}
-//					
-//					try {
-//						method.invoke(object, objs);
-//					} catch (IllegalAccessException e) {
-//						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-//					} catch (IllegalArgumentException e) {
-//						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-//					} catch (InvocationTargetException e) {
-//						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-//					}
-//				}
-//				
-//			});
-			
-			resource.onget(new OnGet() {
-				
-				public void onget(Message message) throws ResponseException {
-					System.out.println("hello");
-				}
-				
-			});
-			
-			
-		} else if (method.trim().toUpperCase().equals("PUT")) {
-				
-				resource.onput(new OnPut() {
-				
-				private Method method = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
-				
-				public void onput(Message message) throws ResponseException {
-					
-					Class<?>[] params = this.method.getParameterTypes();
-					Object[]   objs   = new Object[params.length];
-					for (int i = 0; i < params.length; i++) {
-						Class<?> param = params[i];
-						objs[i] = JSON.fromJSON(message.toString(), param);
-					}
-					
-					try {
-						method.invoke(object, objs);
-					} catch (IllegalAccessException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (IllegalArgumentException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (InvocationTargetException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					}
-				}
-				
-			});
-			
-			
-		} else if (method.trim().toUpperCase().equals("DELETE")) {
-			
-			resource.ondelete(new OnDelete() {
-				
-				private Method method = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
-				
-				public void ondelete(Message message) throws ResponseException {
-					
-					Class<?>[] params = this.method.getParameterTypes();
-					Object[]   objs   = new Object[params.length];
-					for (int i = 0; i < params.length; i++) {
-						Class<?> param = params[i];
-						objs[i] = JSON.fromJSON(message.toString(), param);
-					}
-					
-					try {
-						method.invoke(object, objs);
-					} catch (IllegalAccessException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (IllegalArgumentException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (InvocationTargetException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					}
-				}
-				
-			});
-		} else if (method.trim().toUpperCase().equals("POST")) {
-			
-			resource.onpost(new OnPost() {
-				
-				private Method method = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
-				
-				public void onpost(Message message) throws ResponseException {
-					
-					Class<?>[] params = this.method.getParameterTypes();
-					Object[]   objs   = new Object[params.length];
-					for (int i = 0; i < params.length; i++) {
-						Class<?> param = params[i];
-						objs[i] = JSON.fromJSON(message.toString(), param);
-					}
-					
-					try {
-						method.invoke(object, objs);
-					} catch (IllegalAccessException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (IllegalArgumentException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					} catch (InvocationTargetException e) {
-						Response.create().status(Response.Status.CLIENT_ERROR).throwException();
-					}
-				}
-				
-			});
+		Field field = null;
+		RMB rmb;
+		try {
+			field = getField(listener, "rmb");
+			field.setAccessible(true);
+			rmb = (RMB) field.get(listener);
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			throw new MessageBusException("Cannot find rmb filed in ReflectionListener", e);
 		}
+		
+		
+		method = method.trim().toUpperCase();
+		if (method.equals("GET")) {
+			rmb.onget(message -> listener.receiveMessage(message));
+		} else if (method.equals("PUT")) {
+			rmb.onput(message -> listener.receiveMessage(message));
+		} else if (method.equals("POST")) {
+			rmb.onpost(message -> listener.receiveMessage(message));
+		} else if (method.equals("DELETE")) {
+			rmb.ondelete(message -> listener.receiveMessage(message));
+		}
+//		listener.register();
 		
 	}
 
@@ -246,14 +152,27 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 //	}
 	
 	
-	public static Method parseMethod(Object object, String name) {
+	private static Method parseMethod(Object object, String name) throws IllegalArgumentException {
 		Method[] methods = object.getClass().getMethods();
 		for (Method method : methods) {
 			if (method.getName().equals(name)) {
 				return method;
 			}
 		}
-		throw new RuntimeException("Cannot found method with name: " + name);
+		throw new IllegalArgumentException("Cannot found method with name: " + name);
 	}
+	
+	private static Field getField(ReflectionListener listener, String fieldName) throws NoSuchFieldException{
+		
+		for(Field f : listener.getClass().getDeclaredFields()) {
+			if (f.getName().equals(fieldName)) {
+				return f;
+			}
+		}
+		
+		throw new NoSuchFieldException("Cannot find rmb field in " + listener.getClass().getName());
+	}
+	
+	
 
 }
