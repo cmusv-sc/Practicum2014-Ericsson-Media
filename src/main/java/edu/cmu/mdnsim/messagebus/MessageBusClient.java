@@ -2,8 +2,8 @@ package edu.cmu.mdnsim.messagebus;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
-import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.nodes.AbstractNode;
+import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.nodes.NodeRunnable;
 import edu.cmu.mdnsim.server.Master;
 
@@ -92,7 +92,8 @@ public interface MessageBusClient {
 	
 	/**
 	 * 
-	 * Obtain the URI in the domain
+	 * Obtain the URI in the domain. The method is blocked until URI is available, i.e. client has connected to message
+	 * broker.
 	 * 
 	 * @return
 	 */

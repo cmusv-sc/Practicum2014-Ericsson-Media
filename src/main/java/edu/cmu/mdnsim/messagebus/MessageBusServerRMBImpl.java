@@ -2,31 +2,20 @@ package edu.cmu.mdnsim.messagebus;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.logging.Level;
 
 import us.yamb.mb.util.JSON;
-import us.yamb.rmb.Message;
 import us.yamb.rmb.RMB;
-import us.yamb.rmb.Response;
-import us.yamb.rmb.Response.ResponseException;
 import us.yamb.rmb.builders.RMBBuilder;
-import us.yamb.rmb.callbacks.OnDelete;
-import us.yamb.rmb.callbacks.OnGet;
-import us.yamb.rmb.callbacks.OnMessage;
-import us.yamb.rmb.callbacks.OnPost;
-import us.yamb.rmb.callbacks.OnPut;
 import us.yamb.rmb.impl.RMBImpl;
 import us.yamb.rmb.impl.ReflectionListener;
 import us.yamb.tmb.Broker;
 
-import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
-import edu.cmu.mdnsim.server.WebClient;
 
 /**
  * 
@@ -39,7 +28,6 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 
 	private Broker broker;
 	private RMB rmb;
-
 	
 	public void config() throws MessageBusException {
 		
@@ -90,7 +78,7 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 			MbMessage msg) throws MessageBusException {
 		
 		try {
-			rmb.message().to(dstURI).method(method).send();
+			rmb.message().to(dstURI).method(method).data(JSON.toJSON(msg)).send();
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}
@@ -101,13 +89,13 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	public void addMethodListener(String path, String method, final Object object,
 			final String objectMethod) throws MessageBusException {
 		
-		Method m = MessageBusServerRMBImpl.parseMethod(object, objectMethod);
+		Method m = MessageBusUtil.parseMethod(object, objectMethod);
 		ReflectionListener listener = new ReflectionListener((RMBImpl) rmb, object, m, path);
 		
 		Field field = null;
 		RMB rmb;
 		try {
-			field = getField(listener, "rmb");
+			field = MessageBusUtil.getField(listener, "rmb");
 			field.setAccessible(true);
 			rmb = (RMB) field.get(listener);
 		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
@@ -125,7 +113,6 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 		} else if (method.equals("DELETE")) {
 			rmb.ondelete(message -> listener.receiveMessage(message));
 		}
-//		listener.register();
 		
 	}
 
@@ -150,29 +137,6 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 //		
 //		warpAppl = WarpContext.getApplication();
 //	}
-	
-	
-	private static Method parseMethod(Object object, String name) throws IllegalArgumentException {
-		Method[] methods = object.getClass().getMethods();
-		for (Method method : methods) {
-			if (method.getName().equals(name)) {
-				return method;
-			}
-		}
-		throw new IllegalArgumentException("Cannot found method with name: " + name);
-	}
-	
-	private static Field getField(ReflectionListener listener, String fieldName) throws NoSuchFieldException{
-		
-		for(Field f : listener.getClass().getDeclaredFields()) {
-			if (f.getName().equals(fieldName)) {
-				return f;
-			}
-		}
-		
-		throw new NoSuchFieldException("Cannot find rmb field in " + listener.getClass().getName());
-	}
-	
 	
 
 }

@@ -1,21 +1,20 @@
 package edu.cmu.mdnsim.messagebus;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.logging.Level;
 
+import us.yamb.mb.util.JSON;
+import us.yamb.rmb.RMB;
+import us.yamb.rmb.Request.Reply;
+import us.yamb.rmb.builders.RMBBuilder;
+import us.yamb.rmb.impl.RMBImpl;
+import us.yamb.rmb.impl.ReflectionListener;
+
+import com.ericsson.research.trap.spi.nhttp.handlers.Resource;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
-import com.ericsson.research.warp.api.Notifications.Listener;
-import com.ericsson.research.warp.api.Warp;
-import com.ericsson.research.warp.api.WarpException;
-import com.ericsson.research.warp.api.WarpURI;
-import com.ericsson.research.warp.api.client.AnonymousClient;
-import com.ericsson.research.warp.api.client.Client;
-import com.ericsson.research.warp.api.client.Client.ConnectionPolicy;
-import com.ericsson.research.warp.api.client.PlaintextAuthenticator;
-import com.ericsson.research.warp.api.logging.WarpLogger;
-import com.ericsson.research.warp.api.resources.Resource;
-import com.ericsson.research.warp.spi.resources.ResourceInternal;
-import com.ericsson.research.warp.util.JSON;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
@@ -24,17 +23,14 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
  * 
  * This is the implementation of {@link MessageBusClient} by using Warp library. 
  * 
- * @author Geng Fu
- * @author Jigar Patel
- * @author Vinay Kumar Vavili
- * @author Hao Wang
+ * @author Jeremy Fu
  *
  */
-public class MessageBusClientWarpImpl implements MessageBusClient {
+public class MessageBusClientRMBImpl implements MessageBusClient {
 
 	private final String masterIP;
 	
-	private AnonymousClient _client;
+	private RMB rootRMB;
 	
 	private boolean connected = false;
 	
@@ -44,7 +40,7 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	 * @param ip The IP address of Master. The IP address is denoted in dotted 
 	 * decimal.
 	 */
-	public MessageBusClientWarpImpl(String ip) {
+	public MessageBusClientRMBImpl(String ip) {
 		this.masterIP = ip;
 	}
 
@@ -54,81 +50,76 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 		//JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
 
-		String trapCfg = String.format("trap.transport.websocket.wsuri=ws://%s:8889\n", masterIP)
-				+ "trap.transport.http.enabled=false\n"
-				+ "trap.transport.socket.enabled=false\n"
-				+ "trap.transport.loopback.enabled=false";
-
 		try {
-			_client = Warp.init().client().setRemoteConfig(trapCfg)
-						.setAuth(new PlaintextAuthenticator(WarpURI.create("warp:anon/foo"), "secret"))
-						.setPolicy(ConnectionPolicy.KEEP_ALIVE)
-						.createAnonymous();
-		} catch (WarpException e1) {
-			throw new MessageBusException(e1);
+			String trapCfg = String.format("trap.transport.http.url = http://%s:8888/_connectTrap\n"
+					+ "trap.transport.websocket.wsuri = ws://%s:8888/_connectTrapWS\n", masterIP, masterIP);
+			this.rootRMB = RMBBuilder.builder().seed(trapCfg).build();
+		} catch (InstantiationException | IllegalAccessException
+				| ClassNotFoundException e) {
+			throw new MessageBusException("Cannot instantiate RMB implementation.", e);
 		}
-
-		_client.notifications().registerForNotification(
-				Client.ConnectedNotification, new Listener() {
-					
-					@Override
-					public void receiveNotification(String name, Object sender,
-							Object attachment) {
-						WarpLogger.info("Connection successful. Time to do stuff!");
-						connectToDomain();
-
-					}
-				}, true);
-
-		_client.notifications().registerForNotification(
-				Client.DisconnectedNotification, new Listener() {
-
-					@Override
-					public void receiveNotification(String name, Object sender,
-							Object attachment) {
-						WarpLogger
-								.info("We have been disconnected from the server");
-					}
-				}, true);
-
+		
+		
 	}
 	
 	@Override
-	public void connect() throws MessageBusException {
+	public synchronized void connect() throws MessageBusException {
 		
+		Exception exception;
 		try {
-			_client.connect();
-		} catch (WarpException e) {
-			throw new MessageBusException(e);
+			exception = rootRMB.connect().get();
+		} catch (InterruptedException e) {
+			throw new MessageBusException("RMB thread is interrupted while waiting for conect to broker.", e);
 		}
 		
+		if (exception != null)
+			throw new MessageBusException("An exception is caught while connect to RMB broker.", exception);
+		
+		connected = true;
+		notifyAll();
+		
 	}
-
-
+	
 
 	@Override
-	public void addMethodListener(String path, String method,
-			Object object, String objectMethod) throws MessageBusException {
+	public void addMethodListener(String path, String method, final Object object,
+			final String objectMethod) throws MessageBusException {
 		
+		Method m = MessageBusUtil.parseMethod(object, objectMethod);
+		ReflectionListener listener = new ReflectionListener((RMBImpl) rootRMB, object, m, path);
+		
+		Field field = null;
+		RMB rmb;
 		try {
-			Warp.addMethodListener(path, method, object, objectMethod);
-		} catch (WarpException e) {
-			e.printStackTrace();
-			throw new MessageBusException("Failed to add method listener by Warp.", e);
+			field = MessageBusUtil.getField(listener, "rmb");
+			field.setAccessible(true);
+			rmb = (RMB) field.get(listener);
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			throw new MessageBusException("Cannot find rmb filed in ReflectionListener", e);
+		}
+		
+		
+		method = method.trim().toUpperCase();
+		if (method.equals("GET")) {
+			rmb.onget(message -> listener.receiveMessage(message));
+		} else if (method.equals("PUT")) {
+			rmb.onput(message -> listener.receiveMessage(message));
+		} else if (method.equals("POST")) {
+			rmb.onpost(message -> listener.receiveMessage(message));
+		} else if (method.equals("DELETE")) {
+			rmb.ondelete(message -> listener.receiveMessage(message));
 		}
 		
 	}
+
 
 	@Override
 	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
 		
 		try {
-			
-			Warp.send(fromPath, 
-					WarpURI.create(dstURI), method, JSON.toJSON(msg).getBytes());
-		
-		} catch (WarpException e) {
+			rootRMB.message().to(dstURI).data(JSON.toJSON(msg)).method(method).send();
+		} catch (IOException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		}
 		
@@ -141,8 +132,8 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 			throws MessageBusException {
 		
 		try {
-			Warp.send(fromPath, WarpURI.create("warp://embedded:mdn-manager" + dstPath), method, JSON.toJSON(msg).getBytes());
-		} catch (WarpException e) {
+			rootRMB.message().to(MessageBusServer.SERVER_ID + dstPath).data(JSON.toJSON(msg)).method(method).send();
+		} catch (IOException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		
 		}
@@ -153,57 +144,44 @@ public class MessageBusClientWarpImpl implements MessageBusClient {
 	public MbMessage request(String fromPath, String dstURI, String method,
 			MbMessage msg) throws MessageBusException {
 		
-		com.ericsson.research.warp.api.message.Message reply = null;
+		Reply reply = null;
+		
 		try {
-			reply = Warp.request(WarpURI.create(dstURI), method, JSON.toJSON(msg).getBytes(), null, 1000 * 10);
-		} catch (WarpException e) {
-			throw new MessageBusException(e);
+			reply = rootRMB.create(fromPath).request().to(dstURI).method(method).data(msg).execute().get();
+		} catch (InterruptedException e) {
+			new MessageBusException("The request thread is interrupted while waiting for response." ,e);
+		} catch (IOException e) {
+			new MessageBusException("The request thread is corrupted while waiting for response." ,e);
 		}
 
-		return JSON.fromJSON(new String(reply.getData()), MbMessage.class);
+		return reply == null ? null : JSON.fromJSON(reply.toString(), MbMessage.class);
 
 	}
 	
 	@Override
-	public String getURI() {
+	public synchronized String getURI() {
 		
-		while (!isConnected()) {
-			
+		while (!connected) {
+			try {
+				wait();
+			} catch (InterruptedException e) {}
 		}
 		
-		return Warp.uri().toString();
+		return rootRMB.id();
 		
 	}
 	
 	@Override
 	public void removeResource(String path) {
-		Resource resource = _client.resources().getResource(path);
-		Resource parent = resource.getParent();
-		resource.remove();
-		
-		//TODO: This is to check 
-		HashMap<String, Resource> children = ((ResourceInternal)parent).getChildren();
-		if (children.keySet().isEmpty()) {
-			System.out.println("[DELETE]MessageBusClientWarpImpl.removeResource(): After removal, no nodes attached to current MessageBusClient.");
-		} else {
-			String tmp = "";
-			for (String subPath : children.keySet()) {
-				tmp += subPath + ";";
-			}
-			System.out.println("[DELETE]MessageBusClientWarpImpl.removeResource(): After removal, rest resources:" + tmp);
-		}
+		RMB res = rootRMB.create(path);
+		res.remove();
 	}
 	
 	
 	public synchronized boolean isConnected() {
+		
 		return connected;
+		
 	}
-	
-	private synchronized void connectToDomain() {
-		connected = true;
-	}
-
-	
-
 
 }
