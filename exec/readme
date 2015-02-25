@@ -3,3 +3,13 @@
 	java -jar Master.jar
 3. The NodeContainer takes three arguments: (1)Label of the NodeContainer, (2)The IP address of master, (3)[optional] The public IP address of the NodeContainer. If you don't pass the 3rd argument, the NodeContainer just picked the IP address from JVM via InetAddress.getLocalHost().getHostAddress()
 	Java -jar NodeContainer.jar -label:<label> -master_ip:<master ip> -nc_ip:<node_container public ip>
+	
+
+4. To auto generate flows
+var processingNodeMap = {};
+processingNodeMap["ProcessingLoop"] = "100000";
+processingNodeMap["ProcessingMemory"] = "100";
+var nodeList  = ["nc_source","nc_processing:ProcessingNode",processingNodeMap ,"nc_relay:RelayNode","nc_sink"]
+var flowList = new Array();
+flowList.push(getFlow(nodeList)); 
+startFlow(flowList,"1","10000","60");//streamId, dataSize, kiloBitRate

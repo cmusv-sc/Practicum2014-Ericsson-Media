@@ -286,7 +286,6 @@ public class NodeContainer {
 				sb.append(arg.charAt(i));
 			}
 		}
-		System.out.println(sb.toString());
 		return sb.toString();
 	}
 	
@@ -296,7 +295,6 @@ public class NodeContainer {
 		for (i = 1; i < arg.length(); i++) {
 			if (arg.charAt(i) == ':') {
 				i++;
-				System.out.println(i);
 				break;
 			}
 			

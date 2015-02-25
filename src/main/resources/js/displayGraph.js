@@ -1,51 +1,3 @@
-//Required for custom edge rendering - works only with canvas renderer
-sigma.utils.pkg('sigma.canvas.edges');
-/**
- * The following function defines new type of edge render. 
- * The name of new type = t
- * Use the name of new type in the graph JSON when creating/refreshing the graph
- * Works only with canvas renderer
- */
-sigma.canvas.edges.t = function(edge, source, target, context, settings) {
-	var color = edge.color,
-	prefix = settings('prefix') || '',
-	edgeColor = settings('edgeColor'),
-	defaultNodeColor = settings('defaultNodeColor'),
-	defaultEdgeColor = settings('defaultEdgeColor');
-	if (!color)
-		switch (edgeColor) {
-		case 'source':
-			color = source.color || defaultNodeColor;
-			break;
-		case 'target':
-			color = target.color || defaultNodeColor;
-			break;
-		default:
-			color = defaultEdgeColor;
-		break;
-		}
-	context.strokeStyle = color;
-	context.lineWidth = edge[prefix + 'size'] || 1;
-	context.lineWidth = 5;
-	context.beginPath();
-	context.moveTo(
-			source[prefix + 'x'],
-			source[prefix + 'y']
-	);
-	context.lineTo(
-			target[prefix + 'x'],
-			target[prefix + 'y']
-	);
-	// context.lineTo(
-	//   source[prefix + 'x'],
-	//   target[prefix + 'y']
-	// );
-	// context.lineTo(
-	//   target[prefix + 'x'],
-	//   target[prefix + 'y']
-	// );
-	context.stroke();
-};
 //used to show logs in the web client
 // var loggerResource = Warp.rootResource.createResource("/logger");
 var loggerResource = RMB.builder().seed("http://127.0.0.1:8888/_connectTrap\nws://127.0.0.1:8888/_connectTrapWS").id("webclient").build();
@@ -398,27 +350,29 @@ var sourceNodeContainer = "nc_source";
 var sinkNodeContainer = "nc_sink";
 var relayNodeContainer = "nc_relay";
 var processingNodeContainer = "nc_processing";
+var nodeIdSeparator = ":";
+var simId = "1";
 
-function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
+function startMultipleSinks(nodesCount, streamId,  dataSize, kiloBitRate){
 	var flowList = new Array();
 	
 	var nonSinkNodeList = new Array();
 	
 	var sourceNodeMap = {};
 	sourceNodeMap["NodeType"] = sourceNodeType;
-	sourceNodeMap["NodeId"] = sourceNodeContainer + ":" + sourceNodeType;
+	sourceNodeMap["NodeId"] = sourceNodeContainer + nodeIdSeparator + sourceNodeType;
 	sourceNodeMap["UpstreamId"] = "NULL";
 	
 	var processingNodeMap = {};
 	processingNodeMap["NodeType"] = processingNodeType;
-	processingNodeMap["NodeId"] = processingNodeContainer + ":" + processingNodeType;
+	processingNodeMap["NodeId"] = processingNodeContainer + nodeIdSeparator + processingNodeType;
 	processingNodeMap["UpstreamId"] = sourceNodeMap["NodeId"];
 	processingNodeMap["ProcessingLoop"] = "10000";
 	processingNodeMap["ProcessingMemory"] = "100";
 	
 	var relayNodeMap = {};
 	relayNodeMap["NodeType"] = relayNodeType;
-	relayNodeMap["NodeId"] = relayNodeContainer + ":" + relayNodeType;
+	relayNodeMap["NodeId"] = relayNodeContainer + nodeIdSeparator + relayNodeType;
 	relayNodeMap["UpstreamId"] = processingNodeMap["NodeId"];
 	
 	nonSinkNodeList.push(relayNodeMap);
@@ -428,7 +382,7 @@ function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
 	for(var i=nodesCount-3; i>0; i--){
 		var sinkNodeMap = {};
 		sinkNodeMap["NodeType"] = sinkNodeType;
-		sinkNodeMap["NodeId"] = sinkNodeContainer + ":" + sinkNodeType + j;
+		sinkNodeMap["NodeId"] = sinkNodeContainer + nodeIdSeparator + sinkNodeType + j;
 		sinkNodeMap["UpstreamId"] = relayNodeMap["NodeId"];
 		j++;
 		var nodeList = new Array();
@@ -437,16 +391,84 @@ function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
 			nodeList.push(nonSinkNodeList[k]);
 		}
 		
-		flowList.push(new Flow("", dataSize, "1",kiloBitRate,nodeList));
+		flowList.push(new Flow("", dataSize, streamId,kiloBitRate,nodeList));
 	}
 	
 	var streamList = new Array();
-	streamList.push(new Stream("1",dataSize, kiloBitRate, flowList));
+	streamList.push(new Stream(streamId,dataSize, kiloBitRate, flowList));
 	
-	var wc = new WorkConfig("1", streamList);
+	var wc = new WorkConfig(simId, streamList);
 	//console.log(wc);
 	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
 	
 }
 
+/**
+ * Starts new flows as specified in flowList.
+ * @param flowList
+ * @param streamId
+ * @param dataSize
+ * @param kiloBitRate
+ */
+function startFlow(flowList, streamId, dataSize, kiloBitRate){
+	for(var i=0; i<flowList.length; i++){
+		flowList[i].streamId = streamId;
+		flowList[i].dataSize = dataSize;
+		flowList[i].kiloBitRate = kiloBitRate;
+	}
+	var streamList = new Array();
+	streamList.push(new Stream(streamId,dataSize, kiloBitRate, flowList));
+	
+	var wc = new WorkConfig(simId, streamList);
+	//console.log(wc);
+	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
+}
+/**
+ * Returns a new flow object with node list initialised.
+ * The nodelist has to be in [label,label:nodeType,properties,label:nodeType,label] format 
+ * 	starting from source and ending with sink node.
+ * @param nodeList
+ * @returns {Flow}
+ */
+function getFlow(nodeList){
+	var nodes = new Array();
+	var sourceNodeMap = null;
+	var prevNodeMap = null;
+	for(var i=0; i<nodeList.length; i++){
+		var node = nodeList[i];
+		if(typeof(node) == "string"){
+			//Create new node
+			var items = node.split(":");
+			if(items.length == 1){
+				if(sourceNodeMap == null){
+					sourceNodeMap = {};
+					sourceNodeMap["NodeType"] = sourceNodeType;
+					sourceNodeMap["NodeId"] = items[0] + nodeIdSeparator + sourceNodeType;
+					sourceNodeMap["UpstreamId"] = "NULL";
+					nodes.push(sourceNodeMap);
+					prevNodeMap = sourceNodeMap;
+				}else{
+					var sinkNodeMap = {};
+					sinkNodeMap["NodeType"] = sinkNodeType;
+					sinkNodeMap["NodeId"] =  items[0] + nodeIdSeparator + sinkNodeType;
+					sinkNodeMap["UpstreamId"] = prevNodeMap["NodeId"];
+					nodes.push(sinkNodeMap);
+				}
+			}else{
+				var currentNodeMap = {};
+				currentNodeMap["NodeType"] = items[1];
+				currentNodeMap["NodeId"] = items[0] + nodeIdSeparator + items[1];
+				currentNodeMap["UpstreamId"] = prevNodeMap["NodeId"];
+				nodes.push(currentNodeMap);
+				prevNodeMap = currentNodeMap;
+			}
+		}else{
+			//Add parameters to prev node
+			for(var prop in node){
+				prevNodeMap[prop] = node[prop];
+			}
+		}
+	}
+	return new Flow("", "", "","",nodes.reverse());
+}
 

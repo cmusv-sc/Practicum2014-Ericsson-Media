@@ -557,7 +557,6 @@ public class WebClientGraph {
 		if (containsEdge(edgeId)) {
 			return;
 		}
-		System.err.println("upStreamNodeId: " + upStreamNodeId);
 		
 		//Consider Source Node when setting children property as Source nodes will be child of Virtual root
 		//But do a duplicate check for source nodes as the edge 
