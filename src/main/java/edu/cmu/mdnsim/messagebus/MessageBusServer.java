@@ -42,4 +42,6 @@ public interface MessageBusServer {
 	
 	public void addMethodListener(String path, String method, Object object, String objectMethod) throws MessageBusException;
 	
+	public String getURL();
+	
 }

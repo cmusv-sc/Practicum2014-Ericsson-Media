@@ -59,6 +59,7 @@ class SourceRunnable extends NodeRunnable {
 				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
 						.flowId(flow.getFlowId())
 						.build();
+		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 
 		int packetId = 0;
@@ -69,9 +70,12 @@ class SourceRunnable extends NodeRunnable {
 		long expectedTime = System.nanoTime();
 		Random ranGen = new Random();
 		long droppedPktCnt = 0;
+		
+		//TOOD: FOR DEBUG
+		long packetCounter = 0L;
 		while (bytesToTransfer > 0 && !isKilled()) {	
 			
-
+			packetCounter++;
 			NodePacket nodePacket = 
 					bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? new NodePacket(1, packetId, (int)bytesToTransfer) : new NodePacket(0, packetId);
 			
@@ -119,6 +123,7 @@ class SourceRunnable extends NodeRunnable {
 				new StreamReportMessage.Builder(EventType.SEND_END, this.getDownStreamIds().iterator().next())
 						.flowId(flow.getFlowId())
 						.build();
+		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 
 		if (bytesToTransfer <= 0) { //Simulation completes
@@ -162,6 +167,7 @@ class SourceRunnable extends NodeRunnable {
 		}
 
 		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH];
+		logger.debug("SourceRunnable.initializeSocketAndPacket(): dstAddrStr:" + dstAddrStr + "#" + dstPort);
 		packet = new DatagramPacket(buf, buf.length, dstAddrStr, dstPort);
 
 		return true;	
@@ -269,7 +275,7 @@ class SourceRunnable extends NodeRunnable {
 				//The offset cannot be less than -targeRate because the runningRate should be non-negative.
 				long offset = Math.max(-targetRate, cumulativeDeficit);
 				
-				System.out.println(String.format("RateMonitor.updateRunningNspp(): target:%d, running:%d, observed:%d, offset:%d, cumulativeOffset:%d", targetRate, runningRate, lastSecondRate, offset, this.cumulativeDeficit));
+				logger.debug(String.format("RateMonitor.updateRunningNspp(): target:%d, running:%d, observed:%d, offset:%d, cumulativeOffset:%d", targetRate, runningRate, lastSecondRate, offset, this.cumulativeDeficit));
 				
 				//Adjust the running rate to meet the target rate on average.
 				runningRate = targetRate + offset;

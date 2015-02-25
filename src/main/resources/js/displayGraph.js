@@ -47,7 +47,8 @@ sigma.canvas.edges.t = function(edge, source, target, context, settings) {
 	context.stroke();
 };
 //used to show logs in the web client
-var loggerResource = Warp.rootResource.createResource("/logger");
+// var loggerResource = Warp.rootResource.createResource("/logger");
+var loggerResource = RMB.builder().seed("http://127.0.0.1:8888/_connectTrap\nws://127.0.0.1:8888/_connectTrapWS").id("webclient").build();
 //Represents Sigma object - Main object which holds the graph
 var s = null;
 //Represents the camera object used by sigma library
@@ -216,7 +217,7 @@ function refreshGraph(updated_data){
  */
 function resetSimulation(){
 	console.log("Reset Simulation");
-	Warp.send({to: "warp://embedded:mdn-manager/simulations", method: "DELETE", data: "reset"});
+	loggerResource.message().to("/mdnsim/simulations").method("DELETE").data("reset").send();
 }
 /**
  * Whenever new input file is selected, it asks Master to create/update the simulation parameters
@@ -231,10 +232,10 @@ function handleWsFileSelect(evt, action) {
 		reader.onload = (function(theFile) {
 			return function(e) {
 				if (action == 'Start') {
-					Warp.send({to: "warp://embedded:mdn-manager/work_config", data: e.target.result});
+					loggerResource.message().to("/mdnsim/work_config").data(e.target.result).send();
 					console.log("Start flows");
 				} else if (action == 'Stop') {
-					Warp.send({to: "warp://embedded:mdn-manager/work_config", method: "DELETE", data: e.target.result});
+					loggerResource.message().method("DELETE").to("/mdnsim/work_config").data(e.target.result).send();
 					console.log("Stop flows");
 				}
 			};
@@ -251,14 +252,14 @@ function initWarp(){
 	/**
 	 * Registers the WebClient to Master Node when it is connected to the Warp network
 	 */
-	Warp.on("connect", function() {
-		console.log("Now registered at " + Warp.uri);
-		Warp.send({to: "warp://embedded:mdn-manager/register_webclient", data: Warp.uri});
+	loggerResource.on("open", function() {
+		console.log("Now registered at " + loggerResource.id());
+		loggerResource.message().to("/mdnsim/register_webclient").method("POST").data(loggerResource.id()).send();
 	});
 	/**
 	 * Generic Post and Message Handlers
 	 */
-	Warp.on({		
+	loggerResource.on({		
 		post: function(m) {
 			console.log("POST data: " + m.text); 
 		},
@@ -276,20 +277,21 @@ function initWarp(){
 	/**
 	 * Create Resource Handler - used to initialize the graph object 
 	 */
-	Warp.at("/create").on("message", function(m) {
+	loggerResource.create("create").on("message", function(m) {
 		console.log("Got initial graph: ");
 		console.log(m.object);
 		createGraph(m.object);
 	});
+	
 	/**
 	 * Update Resource Handler - used to refresh the graph to show current status
 	 */
-	Warp.at("/update").on("message", function(m) {
-		//console.log("Got update: " );
-		//console.log(m.object);
+
+	loggerResource.create("update").on("message", function(m) {
+		console.log("Got update: ");
+		console.log(m.object);
 		refreshGraph(m.object);
-		//createGraph(m.object);
-	});
+	})
 	/**
 	 * Log Resource Handler - used to display log messages
 	 */
@@ -303,7 +305,7 @@ function initWarp(){
 		}		
 	}
 	//Subscribe to logger plugin
-	loggerResource.sendTo("warp://embedded:mdn-manager/_warp/plugins/logger", "POST");
+//	loggerResource.sendTo("warp://embedded:mdn-manager/_warp/plugins/logger", "POST");
 }
 /**
  * Init function
@@ -446,3 +448,5 @@ function startMultipleSinks(nodesCount, dataSize, kiloBitRate){
 	Warp.send({to: "warp://embedded:mdn-manager/work_config", data: wc});
 	
 }
+
+

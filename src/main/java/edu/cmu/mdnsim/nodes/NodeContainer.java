@@ -11,12 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import us.yamb.rmb.RMB;
+import us.yamb.rmb.annotations.DELETE;
+import us.yamb.rmb.annotations.PUT;
+import us.yamb.rmb.annotations.Path;
+import us.yamb.rmb.annotations.PathParam;
+
 import com.ericsson.research.trap.utils.PackageScanner;
-import com.ericsson.research.warp.api.rest.DELETE;
-import com.ericsson.research.warp.api.rest.PUT;
-import com.ericsson.research.warp.api.rest.Path;
-import com.ericsson.research.warp.api.rest.PathParam;
-import com.ericsson.research.warp.api.rest.WarpRestConverter;
 
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
@@ -51,7 +52,7 @@ public class NodeContainer {
 	
 	private static final String KEY_NODECONTAINER_IP = "nc_ip";
 	
-	private static final String DEFAULT_MSGBUS_IMPL = "edu.cmu.mdnsim.messagebus.MessageBusClientWarpImpl";
+	private static final String DEFAULT_MSGBUS_IMPL = "edu.cmu.mdnsim.messagebus.MessageBusClientRMBImpl";
 	
 	private MessageBusClient msgBusClient;
 	/**
@@ -80,8 +81,8 @@ public class NodeContainer {
 	public void config() throws MessageBusException {
 		
 		msgBusClient.config();
-
-		WarpRestConverter.convert(this, false);
+		msgBusClient.addMethodListener(NODE_COLLECTION_PATH + "/{nodeId}", "PUT", this, "createNode");
+		msgBusClient.addMethodListener(NODE_COLLECTION_PATH, "DELETE", this, "reset");
 
 	}
 	/**

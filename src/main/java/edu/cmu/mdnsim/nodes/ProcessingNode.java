@@ -7,12 +7,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import com.ericsson.research.warp.api.message.Message;
-
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * A node which can process packets with some amout of resource such as CPU and memory.
@@ -36,15 +35,18 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 * even if Processing node exists in multiple flows.
 	 */
 	@Override
-	public void executeTask(Message request, Stream stream) {
+	public void executeTask(MbMessage request, Stream stream) {
 
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		/* Open a socket for receiving data from upstream node */
 		DatagramSocket receiveSocket = this.getAvailableSocket(flow.getStreamId());
+		
 		if(receiveSocket == null){
 			//TODO: report to the management layer, we failed to bind a port to a socket
+			logger.error("ProcessionNode.executeTask(): unable return a receive socket");
 		}else{
+
 			/* Get processing parameters */
 			long processingLoop = Long.valueOf(nodePropertiesMap.get(Flow.PROCESSING_LOOP));
 			int processingMemory = Integer.valueOf(nodePropertiesMap.get(Flow.PROCESSING_MEMORY));
@@ -52,16 +54,8 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 			String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
 			/* Get the expected rate */
 			int rate = Integer.parseInt(flow.getKiloBitRate());
-
-			InetAddress targetAddress = null;
+			
 			try {
-				targetAddress = InetAddress.getByName(addressAndPort[0]);
-				int targetPort = Integer.valueOf(addressAndPort[1]);
-
-//				this.launchProcessRunnable(stream, 
-//						Integer.valueOf(stream.getDataSize()), targetAddress, targetPort, 
-//						processingLoop, processingMemory, rate);
-				
 				ProcessRunnable procRunnable = 
 						new ProcessRunnable(stream, Long.parseLong(stream.getDataSize()), InetAddress.getByName(addressAndPort[0]), Integer.valueOf(addressAndPort[1]), processingLoop, processingMemory, rate, msgBusClient, nodeId, this, receiveSocket);
 				Future<?> procFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
@@ -75,6 +69,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				try {
 					msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 							nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
+					
 				} catch (MessageBusException e) {
 					e.printStackTrace();
 				}
@@ -83,20 +78,6 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				logger.error(e.toString());
 			}
 		}
-	}
-
-	/**
-	 * Creates a ReceiveProcessAndSendRunnable and launch it and record it in the map
-	 * @param streamId
-	 * @param totalData
-	 * @param destAddress
-	 * @param destPort
-	 * @param processingLoop
-	 * @param processingMemory
-	 * @param rate
-	 */
-	public void launchProcessRunnable(Stream stream, int totalData, 
-			InetAddress destAddress, int destPort, long processingLoop, int processingMemory, int rate){
 	}
 
 	/**

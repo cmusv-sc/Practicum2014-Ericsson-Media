@@ -1,6 +1,5 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 class Utility {

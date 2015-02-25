@@ -12,10 +12,12 @@ import us.yamb.rmb.impl.RMBImpl;
 import us.yamb.rmb.impl.ReflectionListener;
 import us.yamb.tmb.Broker;
 
+import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.JDKLoggerConfig;
 
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.mdnsim.server.WebClient;
 
 /**
  * 
@@ -31,8 +33,8 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	
 	public void config() throws MessageBusException {
 		
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
+		JDKLoggerConfig.initForPrefixes(Level.FINE, "embedded");
+		JDKLoggerConfig.initForPrefixes(Level.INFO, "com.ericsson");
 
 		this.broker = new Broker();
 		
@@ -61,15 +63,13 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 		if (exception != null)
 			throw new MessageBusException("An exception is caught while connect to RMB broker.", exception);
 		
-		System.out.println("rmb uri: " + rmb.id());
-		
-//		try {
-//			WebClient.load(broker.getServer().getHostingTransport("http"));
-//		} catch (IOException e) {
-//			throw new MessageBusException(e);
-//		} catch (TrapException e) {
-//			throw new MessageBusException(e);
-//		}
+		try {
+			WebClient.load(broker.getServer().getHostingTransport("http"));
+		} catch (IOException e) {
+			throw new MessageBusException(e);
+		} catch (TrapException e) {
+			throw new MessageBusException(e);
+		}
 
 		
 	}
@@ -77,8 +77,12 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	public void send(String fromPath, String dstURI, String method,
 			MbMessage msg) throws MessageBusException {
 		
+		RMB from = rmb.create(fromPath);
+		if (msg != null) {
+			msg.from(from.id());
+		}
 		try {
-			rmb.message().to(dstURI).method(method).data(JSON.toJSON(msg)).send();
+			from.message().to(dstURI).method(method).data(JSON.toJSON(msg)).send();
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}
@@ -88,6 +92,10 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 
 	public void addMethodListener(String path, String method, final Object object,
 			final String objectMethod) throws MessageBusException {
+		
+		if (path != null && path.length() > 0 && path.charAt(0) == '/') {
+			path = path.substring(1);
+		}
 		
 		Method m = MessageBusUtil.parseMethod(object, objectMethod);
 		ReflectionListener listener = new ReflectionListener((RMBImpl) rmb, object, m, path);
@@ -116,27 +124,10 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 		
 	}
 
-//	private void configService() throws MessageBusException {
-//
-//		JDKLoggerConfig.initForPrefixes(Level.INFO, "warp", "com.ericsson");
-//
-//		try {
-//			svc=warpDomain.createService("mdn-manager");
-//			//_svc = Warp.init().service(Master.class.getName(), "embedded", "mdn-manager").create();
-//			//.setDescriptorProperty(ServicePropertyName.LOOKUP_SERVICE_ENDPOINT,"ws://localhost:9999").create();
-//			svc.notifications().registerForNotification(Notifications.Registered, new Listener() {
-//
-//				@Override
-//				public void receiveNotification(String name, Object sender, Object attachment) {
-//					WarpLogger.info("Now registered...");
-//				}
-//			}, true);
-//		} catch (WarpException e) {
-//			throw new MessageBusException(e);
-//		}
-//		
-//		warpAppl = WarpContext.getApplication();
-//	}
+	
+	public String getURL() {
+		return rmb.id();
+	}
 	
 
 }

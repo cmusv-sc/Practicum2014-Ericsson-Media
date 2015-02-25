@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -108,7 +107,7 @@ class RelayRunnable extends NodeRunnable {
 			
 
 			if(reportTaskHandler == null) {
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * MAX_WAITING_TIME_IN_MILLISECOND * 2 / NodePacket.MAX_PACKET_LENGTH / 1000;
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * 1000 / NodePacket.MAX_PACKET_LENGTH / 8 * 2;	
 				packetLostTracker = new PacketLostTracker(windowSize);
 				ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
@@ -116,6 +115,7 @@ class RelayRunnable extends NodeRunnable {
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 				.build();
+				streamReportMessage.from(this.getNodeId());
 				this.sendStreamReport(streamReportMessage);
 				
 				
@@ -184,11 +184,13 @@ class RelayRunnable extends NodeRunnable {
 		StreamReportMessage streamReportMessage = 
 				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
 		.build();
+		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 		for(String downStreamId : this.getDownStreamIds()){
 			streamReportMessage = 
 					new StreamReportMessage.Builder(EventType.SEND_END, downStreamId)
 			.build();
+			streamReportMessage.from(this.getNodeId());
 			this.sendStreamReport(streamReportMessage);
 		}
 		

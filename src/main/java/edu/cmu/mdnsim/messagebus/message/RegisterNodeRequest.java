@@ -1,7 +1,7 @@
 package edu.cmu.mdnsim.messagebus.message;
 
+import edu.cmu.mdnsim.nodes.AbstractNode;
 import edu.cmu.mdnsim.server.Master;
-import edu.cmu.mdnsim.nodes.*;
 /**
  * 
  * This message is instantiated by instances of subclasses of {@link AbstractNode}

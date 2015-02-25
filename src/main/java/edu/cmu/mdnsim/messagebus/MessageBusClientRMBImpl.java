@@ -48,7 +48,7 @@ public class MessageBusClientRMBImpl implements MessageBusClient {
 	public void config() throws MessageBusException {
 		/* Initialize the message bus */
 		//JDKLoggerConfig.initForPrefixes(Level.INFO, "warp");
-		JDKLoggerConfig.initForPrefixes(Level.INFO, "embedded");
+		JDKLoggerConfig.initForPrefixes(Level.FINE, "embedded");
 
 		try {
 			String trapCfg = String.format("trap.transport.http.url = http://%s:8888/_connectTrap\n"
@@ -85,6 +85,10 @@ public class MessageBusClientRMBImpl implements MessageBusClient {
 	public void addMethodListener(String path, String method, final Object object,
 			final String objectMethod) throws MessageBusException {
 		
+		if (path != null && path.length() > 0 && path.charAt(0) == '/') {
+			path = path.substring(1);
+		}
+		
 		Method m = MessageBusUtil.parseMethod(object, objectMethod);
 		ReflectionListener listener = new ReflectionListener((RMBImpl) rootRMB, object, m, path);
 		
@@ -117,8 +121,11 @@ public class MessageBusClientRMBImpl implements MessageBusClient {
 	public void send(String fromPath, String dstURI, String method, MbMessage msg)
 			throws MessageBusException {
 		
+		RMB from = rootRMB.create(fromPath);
 		try {
-			rootRMB.message().to(dstURI).data(JSON.toJSON(msg)).method(method).send();
+			msg.from(from.id());
+			msg.to(dstURI);
+			from.message().to(dstURI).data(JSON.toJSON(msg)).method(method).send();
 		} catch (IOException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		}
@@ -131,8 +138,11 @@ public class MessageBusClientRMBImpl implements MessageBusClient {
 	public void sendToMaster(String fromPath, String dstPath, String method, MbMessage msg)
 			throws MessageBusException {
 		
+		RMB from = rootRMB.create(fromPath);
 		try {
-			rootRMB.message().to(MessageBusServer.SERVER_ID + dstPath).data(JSON.toJSON(msg)).method(method).send();
+			msg.from(from.id());
+			msg.to(dstPath);
+			from.message().to(MessageBusServer.SERVER_ID + dstPath).data(JSON.toJSON(msg)).method(method).send();
 		} catch (IOException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		

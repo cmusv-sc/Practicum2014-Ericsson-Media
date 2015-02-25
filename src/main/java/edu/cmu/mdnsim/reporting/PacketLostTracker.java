@@ -1,6 +1,5 @@
 package edu.cmu.mdnsim.reporting;
 
-import java.util.Date;
 
 
 /**

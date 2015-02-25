@@ -57,8 +57,13 @@ class ProcessRunnable extends NodeRunnable {
 	 * @param receiveSocket a Datagram socket that is used to receive packets in the runnable
 	 */
 	public ProcessRunnable(Stream stream, long totalData, InetAddress destAddress, int dstPort, long processingLoop, int processingMemory, int rate, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
-
+		
+		
+		
 		super(stream, msgBusClient, nodeId, cleaner);
+		
+		logger.debug("ProcessRunnable.constructor(): called.");
+		
 
 		this.totalData = totalData;
 		this.dstAddress = destAddress;
@@ -90,6 +95,7 @@ class ProcessRunnable extends NodeRunnable {
 			try {
 				receiveSocket.receive(packet);
 			} catch(SocketTimeoutException ste){
+				logger.warn("ProcessRunnable.run(): catch exception: " + ste.toString());
 				/*
 				 * When socket doesn't receive any packet before time out,
 				 * check whether Upstream has informed the NodeRunnable that
@@ -117,12 +123,12 @@ class ProcessRunnable extends NodeRunnable {
 				/*
 				 * IOException forces the thread stopping.
 				 */
-				logger.error(e.toString());
+				logger.warn(e.toString());
 				break;
 			} 
 
 			NodePacket nodePacket = new NodePacket(packet.getData());
-
+			
 			setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
 			/*
@@ -130,28 +136,37 @@ class ProcessRunnable extends NodeRunnable {
 			 * received.
 			 */
 			if(reportTask == null) {
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * MAX_WAITING_TIME_IN_MILLISECOND / NodePacket.MAX_PACKET_LENGTH / 1000;
+								
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * 1000 / NodePacket.MAX_PACKET_LENGTH / 8 * 2;				
 				packetLostTracker = new PacketLostTracker(windowSize);
 				
 				reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
-				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
-								.build();
+				
+				StreamReportMessage streamReportMessage = new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId()).build();
+				
+				streamReportMessage.from(this.getNodeId());
+				
+				
+				
 				this.sendStreamReport(streamReportMessage);
 				
-				
-				
 			}
+			
 			packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+			
 			processNodePacket(nodePacket);
-
+			
 			sendPacket(packet, nodePacket);
+			
 			if(!isStarted) {
+				
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
 								.build();
+				streamReportMessage.from(this.getNodeId());
 				this.sendStreamReport(streamReportMessage);
 				isStarted = true;
+
 			}
 			if(nodePacket.isLast()){
 				super.setUpstreamDone();
@@ -185,6 +200,7 @@ class ProcessRunnable extends NodeRunnable {
 		StreamReportMessage streamReportMessage = 
 				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
 						.build();
+		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 		//this.sendStreamReport(EventType.SEND_END,this.getDownStreamIds().iterator().next());
 
@@ -262,7 +278,6 @@ class ProcessRunnable extends NodeRunnable {
 		packet.setData(nodePacket.serialize());	
 		packet.setAddress(dstAddress);
 		packet.setPort(dstPort);
-		System.out.println("[DELETE-JEREMY]ProcNode.Runnable.sendPacket(): send packet to port" + dstPort);
 		try {
 			sendSocket.send(packet);
 		} catch (IOException e) {

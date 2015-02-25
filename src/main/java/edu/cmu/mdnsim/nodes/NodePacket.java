@@ -4,8 +4,6 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import edu.cmu.util.ObjectSizeFetcher;
-
 /**
  *	A packet that can hold a flag, packet id and data length fields as well as the payload.
  *  <p>The header of the packet takes 12 bytes. The total size of the packet is limited by PACKET_MAX_LENGTH.

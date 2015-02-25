@@ -7,12 +7,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
-import com.ericsson.research.warp.api.message.Message;
-
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * A Node can send data to multiple flows for the same stream. 
@@ -35,7 +34,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 	 * But it should use only one thread to handle that.
 	 */
 	@Override
-	public synchronized void executeTask(Message request, Stream stream) {
+	public synchronized void executeTask(MbMessage request, Stream stream) {
 
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		//Get the relay node properties

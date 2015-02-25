@@ -1,6 +1,5 @@
 package edu.cmu.mdnsim.concurrent;
 
-import com.ericsson.research.warp.util.WarpTask;
 
 /**
  * 
@@ -14,7 +13,7 @@ import com.ericsson.research.warp.util.WarpTask;
  * @author Hao Wang
  *
  */
-public class MDNTask extends WarpTask {
+public class MDNTask implements Runnable {
 
 	Runnable concreteTask;
 	
@@ -22,8 +21,7 @@ public class MDNTask extends WarpTask {
 		this.concreteTask = task;	
 	}
 
-	@Override
-	public void perform() {
+	public void run() {
 		this.concreteTask.run();
 	}
 

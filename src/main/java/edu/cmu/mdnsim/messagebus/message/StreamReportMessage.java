@@ -49,7 +49,9 @@ public class StreamReportMessage extends MbMessage{
 	private double currentTransferRate= 0.0;
 	
 	public StreamReportMessage(){
-		super();		
+		
+		super();	
+		
 	}
 	private StreamReportMessage(Builder builder){
 		super();

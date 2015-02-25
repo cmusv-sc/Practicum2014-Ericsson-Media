@@ -11,6 +11,42 @@ package edu.cmu.mdnsim.messagebus.message;
  * @author Hao Wang
  *
  */
-public abstract class MbMessage {
+public class MbMessage {
+	
+	private String from;
+	
+	private String to;
+	
+	public void from(String from) {
+		this.setFrom(from);
+	}
+	
+	public void to(String to) {
+		this.setTo(to);
+	}
+	
+	public String source() {
+		return getFrom();
+	}
+	
+	public String destination() {
+		return getTo();
+	}
+
+	public String getFrom() {
+		return from;
+	}
+
+	public void setFrom(String from) {
+		this.from = from;
+	}
+
+	public String getTo() {
+		return to;
+	}
+
+	public void setTo(String to) {
+		this.to = to;
+	}
 	
 }

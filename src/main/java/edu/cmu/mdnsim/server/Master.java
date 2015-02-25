@@ -16,8 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
-import com.ericsson.research.warp.api.WarpException;
-import com.ericsson.research.warp.api.message.Message;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
@@ -27,6 +25,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusServer;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.EventType;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
@@ -112,7 +111,7 @@ public class Master extends TimerTask {
 	private Map<String,StreamLatencyTracker> streamIdToStreamLatencyTracker = new ConcurrentHashMap<String,StreamLatencyTracker>();
 
 	public Master() throws MessageBusException {
-		this("edu.cmu.mdnsim.messagebus.MessageBusServerWarpImpl");
+		this("edu.cmu.mdnsim.messagebus.MessageBusServerRMBImpl");
 	}
 
 	public Master(String msgBusSvrClassName) throws MessageBusException {
@@ -121,20 +120,22 @@ public class Master extends TimerTask {
 
 	/**
 	 * 
-	 * Initialize the message bus server
+	 * Initialize the central master of MSNSim.
+	 * <p>
+	 * Specifically, it does the following things:
+	 * <ul>
+	 * 	<li>Starts an instance of {@link MessageBusServer}.</li>
+	 * 	<li>Registers method listeners for requests from web client, {@link NodeContainer} and {@link AbstractNode}in 
+	 * 		the control message layer</li>
+	 * </ul>
 	 * 
-	 * Initialization of MdnMaster. Specifically, it registers itself with 
-	 * Warp domain and obtain the WarpURI. Warp provides straightforward WarpURI
-	 * for service("warp://provider_name:service_name"); It also registers some
-	 * method listener to handle requests from Web interface and MDNNode in the
-	 * control message layer
-	 * 
-	 * @throws WarpException. IOException and TrapException
-	 * @throws MessageBusException 
+	 * @throws MessageBusException    
 	 */
-	public void init() throws WarpException, IOException, TrapException, MessageBusException {
+	public void init() throws MessageBusException {
 
 		msgBusSvr.config();
+		
+		System.out.println(msgBusSvr.getURL());
 
 		/* Register a new node. This is called from a real Node */
 		msgBusSvr.addMethodListener("/nodes", "PUT", this, "registerNode");
@@ -161,6 +162,7 @@ public class Master extends TimerTask {
 
 		/* Stream report listener */
 		msgBusSvr.addMethodListener("/stream_report", "POST", this, "streamReport");
+		
 	}
 
 
@@ -168,7 +170,7 @@ public class Master extends TimerTask {
 	 * Takes in the MessageBus class name used for communicating among the nodes and 
 	 * initializes the MessageBusServer interface with object of that class
 	 * To add a new MessageBus implementation, simply add a class to the "edu.cmu.messagebus" 
-	 * package and pass that class name to this method
+	 * package and pass that class name to this method.
 	 * Currently the following MessageBus implementations are supported
 	 * 1) Warp [Ericsson's system][ClassName: "MessageBusServerWarpImpl"]
 	 * 
@@ -244,12 +246,12 @@ public class Master extends TimerTask {
 		String containerLabel = req.getNcLabel();
 		String ncURI = nodeContainerTbl.get(containerLabel);
 
-		logger.debug("[DEBUG]Master.createNode(): To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
+		logger.debug("To create a " + req.getNodeType() + " in label " + req.getNcLabel() + " named " + req.getNodeId() + " at " + ncURI);
 
 		try {
 			msgBusSvr.send("/", ncURI + NodeContainer.NODE_COLLECTION_PATH + "/" + req.getNodeId(), "PUT", req);
 		} catch (MessageBusException e) {
-			//logger.error(Utility.getFormattedErrorMessage(e));
+			logger.error(e.toString());
 		}
 
 	}
@@ -264,15 +266,17 @@ public class Master extends TimerTask {
 	 * @param registMsg The NodeRegistrationRequest which is encapsulated in 
 	 * request
 	 */    
-	public synchronized void registerNode(Message request, RegisterNodeRequest registMsg) {
+	public synchronized void registerNode(RegisterNodeRequest registMsg) {
 
 		String nodeName = registMsg.getNodeName();
+		
 		nodeNameToURITbl.put(nodeName, registMsg.getURI());
 		nodeURIToNameTbl.put(registMsg.getURI(), nodeName);
+		
 		logger.debug("[DEBUG] MDNManager.registerNode(): Register new "
 				+ "node:" + nodeName + " from " + registMsg.getURI());
 		try {
-			msgBusSvr.send("/nodes", registMsg.getURI()+"/confirm_node", "PUT", registMsg);
+			msgBusSvr.send("/nodes", registMsg.getURI() + "/confirm_node", "PUT", registMsg);
 		} catch (MessageBusException e) {
 			e.printStackTrace();
 		}
@@ -332,7 +336,7 @@ public class Master extends TimerTask {
 		String sinkUri;
 		try {
 			sinkUri = flow.getSinkNodeURI();
-			logger.info("Starting Flow " + flow.getFlowId() + " for Stream: " + flow.getStreamId());
+			logger.debug("runFlow():\tStarting flow " + flow.getFlowId() + " for Stream: " + flow.getStreamId());
 			msgBusSvr.send("/"+ flow.getFlowId(), sinkUri + "/tasks", "PUT", this.streamMap.get(flow.getStreamId()));
 			flowMap.remove(flow.getFlowId());
 			runningFlowMap.put(flow.getFlowId(), flow);
@@ -348,7 +352,7 @@ public class Master extends TimerTask {
 	 * @param msg
 	 * @param req
 	 */
-	public void registerNodeContainer(Message msg, RegisterNodeContainerRequest req) {
+	public void registerNodeContainer(RegisterNodeContainerRequest req) {
 		if (nodeContainerTbl.containsKey(req.getLabel())) {
 			logger.info("NodeContainer with label " + req.getLabel() 
 					+ " already exists");
@@ -402,7 +406,7 @@ public class Master extends TimerTask {
 		for (String key : nodeContainerTbl.keySet()) {
 			String nodeURI = nodeContainerTbl.get(key);
 			try {
-				msgBusSvr.send("/", nodeURI + NodeContainer.NODE_COLLECTION_PATH, "DELETE", null);
+				msgBusSvr.send("/", nodeURI + NodeContainer.NODE_COLLECTION_PATH, "DELETE", new MbMessage());
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}
@@ -416,8 +420,10 @@ public class Master extends TimerTask {
 	 * @param Message
 	 * @param WorkConfig
 	 */
-	public synchronized void startWorkConfig(Message mesg, WorkConfig wc) {
-
+	public synchronized void startWorkConfig(WorkConfig wc) {
+		
+		logger.debug("startWorkConfig(): Receive a simulation request.");
+		
 		for (Stream stream : wc.getStreamList()) {
 			String streamId = stream.getStreamId();
 			String kiloBitRate = stream.getKiloBitRate();
@@ -494,9 +500,8 @@ public class Master extends TimerTask {
 	 * This method (listener) is for accepting registration from web client.
 	 * @param msg
 	 */
-	public void registerWebClient(Message request, String webClientUri) {
+	public void registerWebClient(String webClientUri) {
 		webClientURI = webClientUri;
-		logger.info("Web client URI is "+webClientURI.toString());
 	}
 
 	/**
@@ -523,7 +528,7 @@ public class Master extends TimerTask {
 	 * @throws WarpException
 	 */
 
-	public void startSimulation(Message msg) throws MessageBusException {
+	public void startSimulation() throws MessageBusException {
 
 		for (Flow flow : flowMap.values()) {
 			String sinkUri = updateFlow(flow);
@@ -541,13 +546,15 @@ public class Master extends TimerTask {
 	/**
 	 * 
 	 * This method is a helper method that performs 2 functions:
-	 * [1] Maps the upstream id to its URI so the node along the chain can send
-	 * the data to the destination
-	 * [2] Automatically fills in the downstream id and downstream URI based on
-	 * the relationship specified by upstream.
+	 * <ul>
+	 * 	<li>Maps the upstream id to its URI so the node along the chain can send the data to the destination.</li>
+	 * 	<li>Automatically fills in the downstream id and downstream URI based on the relationship specified by 
+	 * 	upstream.</li>
+	 * </ul>
 	 * 
-	 * @param flow Flow to be updated
-	 * @return the URI of the sink node (starting point of the control message).
+	 * @param	flow	Flow to be updated
+	 * 
+	 * @return	the URI of the sink node (starting point of the control message).
 	 */
 	private String updateFlow(Flow flow) {
 
@@ -573,16 +580,18 @@ public class Master extends TimerTask {
 
 		}
 
-		if (ClusterConfig.DEBUG) {
-			assert flow.isValidFlow();
-		}
+		assert flow.isValidFlow();
+		
 		return sinkUri;
 	}
 
 	/**
-	 * Sends Update message (updated graph) to the web client 
-	 * @param webClientUpdateMessage
-	 * @throws MessageBusException 
+	 * 
+	 * Sends Update message (updated graph) to the web client .
+	 * 
+	 * @param	webClientUpdateMessage
+	 * 
+	 * @throws	MessageBusException 
 	 */
 	private void updateWebClient(WebClientUpdateMessage webClientUpdateMessage)
 			throws MessageBusException {
@@ -598,8 +607,8 @@ public class Master extends TimerTask {
 	 * @param request
 	 * @return NodeId
 	 */
-	private String getNodeId(Message request) {
-		String nodeId = request.getFrom().toString();
+	private String getNodeId(MbMessage request) {
+		String nodeId = request.source();
 		nodeId = nodeId.substring(0,nodeId.lastIndexOf('/'));
 		nodeId = nodeId.substring(nodeId.lastIndexOf('/')+1);
 		return nodeId;
@@ -661,9 +670,11 @@ public class Master extends TimerTask {
 	 * @param reportMsg
 	 * @throws MessageBusException
 	 */
-	public void streamReport(Message request, StreamReportMessage reportMsg) throws MessageBusException {
-		String nodeIdOfReportSender = getNodeId(request);		
-		String streamId = getStreamId(request);
+	public void streamReport(StreamReportMessage reportMsg) throws MessageBusException {
+		
+		String nodeIdOfReportSender = getNodeId(reportMsg);		
+		
+		String streamId = getStreamId(reportMsg);
 		//logger.debug("[Stream Report] Source NodeId: " + nodeIdOfReportSender + ", Destination NodeId:"  + reportMsg.getDestinationNodeId());
 		String sourceNodeId  = nodeIdOfReportSender;
 		String destinationNodeId = reportMsg.getDestinationNodeId();
@@ -784,13 +795,13 @@ public class Master extends TimerTask {
 	 * @param request
 	 * @return
 	 */
-	private String getStreamId(Message request) {
-		String streamId = request.getFrom().toString();
+	private String getStreamId(MbMessage request) {
+		String streamId = request.source();
 		streamId = streamId.substring(streamId.lastIndexOf('/')+1);
 		return streamId;
 	}
 
-	public static void main(String[] args) throws WarpException, InterruptedException, IOException, TrapException, MessageBusException {
+	public static void main(String[] args) throws InterruptedException, IOException, TrapException, MessageBusException {
 	
 		Master mdnDomain = new Master();
 		mdnDomain.init();

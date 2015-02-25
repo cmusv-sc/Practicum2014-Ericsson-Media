@@ -6,12 +6,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
-import com.ericsson.research.warp.api.message.Message;
-
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * A node that represents the source of a media network.
@@ -39,8 +38,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	 * 
 	 */
 	@Override
-	public void executeTask(Message request, Stream stream) {
-		logger.debug(this.getNodeId() + " received a work specification. StreamId: " + stream.getStreamId());
+	public void executeTask(MbMessage request, Stream stream) {
 
 		Flow flow = stream.findFlow(this.getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());

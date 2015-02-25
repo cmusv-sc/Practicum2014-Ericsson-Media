@@ -4,12 +4,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.Date;
 import java.util.concurrent.Future;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -118,6 +116,7 @@ class SinkRunnable extends NodeRunnable {
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 												.flowId(flow.getFlowId())
 												.build();
+				streamReportMessage.from(this.getNodeId());
 				this.sendStreamReport(streamReportMessage);
 				
 			}
@@ -156,6 +155,7 @@ class SinkRunnable extends NodeRunnable {
 		.flowId(flow.getFlowId())
 		.totalBytesTransferred(this.getTotalBytesTranfered())
 		.build();
+		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 
 		if (isUpstreamDone()) { //Simulation completes as informed by upstream.

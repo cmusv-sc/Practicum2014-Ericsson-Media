@@ -226,6 +226,8 @@ public abstract class NodeRunnable implements Runnable {
 	 */
 	protected void sendStreamReport(StreamReportMessage streamReportMessage) {
 		String fromPath = "/" + this.getNodeId() + "/" + this.getStreamId();
+		streamReportMessage.from(this.getNodeId());
+		
 		try {
 			msgBusClient.sendToMaster(fromPath, "/stream_report", "POST", streamReportMessage);
 		} catch (MessageBusException e) {

@@ -8,13 +8,12 @@ import java.net.UnknownHostException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ericsson.research.warp.api.message.Message;
-
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 
 /**
@@ -100,7 +99,7 @@ public abstract class AbstractNode {
 		this.nodeId = nodeId;
 	}	
 
-	public synchronized void setRegistered(Message msg) {
+	public synchronized void setRegistered() {
 		registered = true;
 		if (ClusterConfig.DEBUG) {
 			System.out.println("AbstractNode.setRegistered(): " + getNodeId() + " successfully registered");
@@ -119,7 +118,7 @@ public abstract class AbstractNode {
 	 * @param request is a message bus request
 	 * @param flow is a flow that is to be executed
 	 */
-	public abstract void executeTask(Message request, Stream stream);
+	public abstract void executeTask(MbMessage request, Stream stream);
 	
 	/**
 	 * Stops sending/receiving data at functional node.
@@ -149,20 +148,19 @@ public abstract class AbstractNode {
 	 * @return the DatagramSocket that the stream is binded with
 	 */
 	public DatagramSocket getAvailableSocket(String streamId) {
-		
+		logger.debug("AbstractNode.getAvailableSocket(): Obtain available socket for receiving upstreaming data.");
 		DatagramSocket udpSocket = null;
 		for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
 			try {
 				udpSocket = new DatagramSocket(0, getHostAddr());
 			} catch (SocketException e) {
-				if (ClusterConfig.DEBUG) {
-					System.out.println("Failed" + (i + 1) + "times to bind a port to a socket");
-				}
+				logger.warn("Failed" + (i + 1) + "times to bind a port to a socket");
 				e.printStackTrace();
 				continue;
 			}
 			break;
 		}
+		logger.debug("AbstractNode.getAvailableSocket(): Available socket obtained.");
 		return udpSocket;
 	}
 	
@@ -172,10 +170,12 @@ public abstract class AbstractNode {
 	 * @param request the request to fetch the flow id from
 	 * @return flow id
 	 */
-	protected String getFlowId(Message request) {
-		String flowId = request.getFrom().toString();
-		flowId = flowId.substring(flowId.lastIndexOf('/')+1);
-		logger.debug("[RELAY] Flow Id: " + flowId);
+	protected String getFlowId(MbMessage request) {
+		String source = request.source();
+		logger.debug("Source Id: " + source);
+		
+		String flowId = source.substring(source.lastIndexOf('/')+1);
+		logger.debug("Flow Id: " + flowId);
 		return flowId;
 	}	
 }

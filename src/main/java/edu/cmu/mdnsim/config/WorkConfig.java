@@ -3,8 +3,7 @@ package edu.cmu.mdnsim.config;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.ericsson.research.warp.util.JSON;
-
+import us.yamb.mb.util.JSON;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /*

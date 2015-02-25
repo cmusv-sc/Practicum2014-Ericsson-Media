@@ -58,22 +58,22 @@ public class MessageBusClientRMBImplTest {
 		TestObject obj = null;
 		
 		obj = new TestObject();
-		client.addMethodListener("hello", "GET", obj, "helloMethod");
+		client.addMethodListener("/hello", "GET", obj, "helloMethod");
 		server.send("/master", client.getURI() + "/hello", "GET", new TestMessage(data));
 		assertEquals(obj.getResult(), data);
 		
 		obj = new TestObject();
-		client.addMethodListener("hello", "PUT", obj, "helloMethod");
+		client.addMethodListener("/hello", "PUT", obj, "helloMethod");
 		server.send("/master", client.getURI() + "/hello", "PUT", new TestMessage(data));
 		assertEquals(obj.getResult(), data);
 		
 		obj = new TestObject();
-		client.addMethodListener("hello", "DELETE", obj, "helloMethod");
+		client.addMethodListener("/hello", "DELETE", obj, "helloMethod");
 		server.send("/master", client.getURI() + "/hello", "DELETE", new TestMessage(data));
 		assertEquals(obj.getResult(), data);
 		
 		obj = new TestObject();
-		client.addMethodListener("hello", "POST", obj, "helloMethod");
+		client.addMethodListener("/hello", "POST", obj, "helloMethod");
 		server.send("/master", client.getURI() + "/hello", "POST", new TestMessage(data));
 		assertEquals(obj.getResult(), data);
 	}

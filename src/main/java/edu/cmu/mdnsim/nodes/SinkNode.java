@@ -6,12 +6,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
-import com.ericsson.research.warp.api.message.Message;
-
 import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
+import edu.cmu.mdnsim.messagebus.message.MbMessage;
 
 /**
  * A node that can receive packets. 
@@ -40,7 +39,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	
 
 	@Override
-	public void executeTask(Message request, Stream stream) {
+	public void executeTask(MbMessage request, Stream stream) {
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 

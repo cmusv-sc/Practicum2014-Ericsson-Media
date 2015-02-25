@@ -1,7 +1,8 @@
 package edu.cmu.mdnsim.messagebus.message;
 
+import edu.cmu.mdnsim.nodes.AbstractNode;
+import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.server.Master;
-import edu.cmu.mdnsim.nodes.*;
 
 /**
  * 
