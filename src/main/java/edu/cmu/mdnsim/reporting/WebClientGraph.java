@@ -122,12 +122,18 @@ public class WebClientGraph {
 			res = res*31 + this.id.hashCode();
 			return res;
 		}
+		
 		@Override
 		public boolean equals(Object other){
-			if(this == other)
-				return true;
+			if (other == null) {
+				return false;
+			}
+			
 			if(!(other instanceof Node))
 				return false;
+			if(this == other)
+				return true;
+			
 			Node otherNode = (Node)other;
 			return this.id.equals(otherNode.id);
 		}
