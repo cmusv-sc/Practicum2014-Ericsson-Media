@@ -1,6 +1,7 @@
 //used to show logs in the web client
-// var loggerResource = Warp.rootResource.createResource("/logger");
-var loggerResource = RMB.builder().seed("http://127.0.0.1:8888/_connectTrap\nws://127.0.0.1:8888/_connectTrapWS").id("webclient").build();
+var loggerResource = RMB.builder().seed("http://127.0.0.1:8888/_connectTrap\nws://127.0.0.1:8888/_connectTrapWS")
+		.id("webclient").build();
+
 //Represents Sigma object - Main object which holds the graph
 var s = null;
 //Represents the camera object used by sigma library
@@ -16,6 +17,7 @@ var cam = null;
 //	]}
  */
 function createGraph(initial_data){
+	console.log("createGraph(): Start");
 	if(s){
 		s.graph.clear();		
 		s.graph.read(initial_data);		
@@ -33,6 +35,7 @@ function createGraph(initial_data){
 	s.refresh();   
 	attachNodeEvents();
 	attachEdgeEvents();
+	console.log("createGraph(): End");
 }
 /**
  * Attaches event handlers for all Events (currently mouse over and out) for each Node in the graph

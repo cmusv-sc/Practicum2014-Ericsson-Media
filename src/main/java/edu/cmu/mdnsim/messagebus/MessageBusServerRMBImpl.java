@@ -5,6 +5,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.logging.Level;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import us.yamb.mb.util.JSON;
 import us.yamb.rmb.RMB;
 import us.yamb.rmb.builders.RMBBuilder;
@@ -30,6 +33,8 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 
 	private Broker broker;
 	private RMB rmb;
+	
+	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 	
 	public void config() throws MessageBusException {
 		
@@ -77,12 +82,19 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	public void send(String fromPath, String dstURI, String method,
 			MbMessage msg) throws MessageBusException {
 		
+		if (msg == null) {
+			throw new MessageBusException("MbMessage is null.");
+		}
+		
+		
 		RMB from = rmb.create(fromPath);
 		if (msg != null) {
 			msg.from(from.id());
 		}
+		
 		try {
 			from.message().to(dstURI).method(method).data(JSON.toJSON(msg)).send();
+			logger.debug("MessageBusServerRMBImpl.send(): sends from " + from.id() + " to " + dstURI + " method: " + method + " msg " + msg);
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}

@@ -501,6 +501,7 @@ public class Master extends TimerTask {
 	 * @param msg
 	 */
 	public void registerWebClient(String webClientUri) {
+		System.out.println("webclient: " + webClientUri);
 		webClientURI = webClientUri;
 	}
 
