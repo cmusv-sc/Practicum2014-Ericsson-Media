@@ -179,7 +179,7 @@ class SinkRunnable extends NodeRunnable {
 	private boolean initializeSocketAndPacket(){
 		
 		try {
-			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000 * 4);
+			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000);
 		} catch (SocketException e1) {
 			return false;
 		}
