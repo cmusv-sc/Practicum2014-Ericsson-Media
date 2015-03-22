@@ -62,7 +62,7 @@ class ProcessRunnable extends NodeRunnable {
 		
 		super(stream, msgBusClient, nodeId, cleaner);
 		
-		logger.debug("ProcessRunnable.constructor(): called.");
+		
 		
 
 		this.totalData = totalData;
@@ -81,7 +81,9 @@ class ProcessRunnable extends NodeRunnable {
 	 */
 	@Override
 	public void run() {
-
+		
+		logger.debug("ProcessRunnable.run(): called.");
+		
 		PacketLostTracker packetLostTracker = null;
 		if(!initializeSocketAndPacket()){
 			return;
@@ -137,7 +139,8 @@ class ProcessRunnable extends NodeRunnable {
 			 */
 			if(reportTask == null) {
 								
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * 1000 / NodePacket.MAX_PACKET_LENGTH / 8 * 2;				
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;				
+				System.out.println("ProcessRunnable.run(): windowSize=" + windowSize);
 				packetLostTracker = new PacketLostTracker(windowSize);
 				
 				reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
@@ -239,7 +242,7 @@ class ProcessRunnable extends NodeRunnable {
 	private boolean initializeSocketAndPacket(){
 
 		try {
-			receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000);
 		} catch (SocketException se) {
 			logger.error( se.toString());
 			return false;

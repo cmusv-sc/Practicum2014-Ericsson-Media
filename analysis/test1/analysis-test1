@@ -1,0 +1,19 @@
+[Param]
+stream rate: 5000(kbps)
+Packet size: 1000(bytes)
+time-out: 4(s)
+window-size: 2500(packets)
+
+[Result]
+The dropped number of packet loss at source node: 23781
+The observed nubmer of packet loss at sink node: 23028
+The difference: 753
+
+[Log]
+	sink:	Last observed lost packet ID[77494]
+	source:	The next dropped pakcet after ID[77494]: {ID[77504], Line[23029]}
+			The last dropped pakcet: {ID[79995], Line[23781]}
+			The unobserved lost packet number: Line[23781] - Line[23029] + 1 = 753
+
+[Analysis]
+The difference comes from the window of the most recent received packet ID. When most recent packet is received with ID[79999], the window becomes [77500, 79999]. The the non-received packet in such window is not considered lost.

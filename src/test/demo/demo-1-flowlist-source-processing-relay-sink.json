@@ -6,7 +6,7 @@
 	{
 		"StreamId":"Stream1",
 		"DataSize":"2000000000",
-		"KiloBitRate":"100000",
+		"KiloBitRate":"10000",
 		"FlowList":
 		[
 
@@ -132,7 +132,7 @@
 	},
 	{
 		"StreamId":"Stream2",
-		"DataSize":"60000",
+		"DataSize":"6000000",
 		"KiloBitRate":"20",
 		"FlowList":
 		[

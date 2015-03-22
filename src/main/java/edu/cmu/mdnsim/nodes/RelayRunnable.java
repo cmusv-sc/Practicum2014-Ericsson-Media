@@ -61,20 +61,7 @@ class RelayRunnable extends NodeRunnable {
 	@Override
 	public void run() {
 		
-		File logFile = new File("relay-" + System.currentTimeMillis() + ".log");
-		FileOutputStream out = null;
-		try {
-			out = new FileOutputStream(logFile);
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		
 		//TODO: remove the dropped packet counter;
-		int dorppedPacketsCounter = 0;
-		boolean firstSentPacket = false;
-		int firstPacketId = 0;
-		int lastPacketId = 0;
 		int highestPacketId = 0;
 		
 		if(!initializeSocketAndPacket()){
@@ -107,7 +94,8 @@ class RelayRunnable extends NodeRunnable {
 			
 
 			if(reportTaskHandler == null) {
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate()) * 1000 / NodePacket.MAX_PACKET_LENGTH / 8 * 2;	
+				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;	
+				System.out.println("RelayRunnable.run(): windowSize=" + windowSize);
 				packetLostTracker = new PacketLostTracker(windowSize);
 				ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
@@ -132,25 +120,14 @@ class RelayRunnable extends NodeRunnable {
 				packet.setData(nodePacket.serialize());	
 				packet.setAddress(destination.getAddress());
 				packet.setPort(destination.getPort());
-				if (randomGen.nextDouble() > 0.3) {
-					try {
-						if (!firstSentPacket) {
-							firstPacketId = nodePacket.getMessageId();
-							firstSentPacket = true;
-						}
-						sendSocket.send(packet);
-						out.write(("Relay sends packet ID:\t" + nodePacket.getMessageId() + "\n").getBytes());
-						
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
+				
+				try {
+					sendSocket.send(packet);
 					
-				} else {
-//					logger.debug(edu.cmu.util.Utility.getFormattedLogMessage("Drop a packet", super.getNodeId()));
-					dorppedPacketsCounter++;
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 				
-				lastPacketId = nodePacket.getMessageId();
 				highestPacketId = highestPacketId < nodePacket.getMessageId() ? nodePacket.getMessageId() : highestPacketId;
 			}
 
@@ -215,16 +192,6 @@ class RelayRunnable extends NodeRunnable {
 			 */
 			logger.debug("Relay Runnbale has been killed for stream " + this.getStreamId());
 		}
-		
-		System.err.println("RelayRunnable.run(): dropped packets: " + dorppedPacketsCounter);
-		System.err.println("RelayRunnable.run(): first packet ID: " + firstPacketId + "  last packet ID: " + lastPacketId + "  highest packet ID: " + highestPacketId);
-		
-		try {
-			out.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 
 	}
 
@@ -279,7 +246,7 @@ class RelayRunnable extends NodeRunnable {
 	private boolean initializeSocketAndPacket(){
 
 		try {
-			receiveSocket.setSoTimeout(MAX_WAITING_TIME_IN_MILLISECOND);
+			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000);
 		} catch (SocketException e1) {
 			e1.printStackTrace();
 			return false;

@@ -1,5 +1,8 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -55,6 +58,15 @@ class SourceRunnable extends NodeRunnable {
 			return;
 		}
 		
+//		File logFile = new File("src -" + System.currentTimeMillis() + ".log");
+//		FileOutputStream out = null;
+//		try {
+//			out = new FileOutputStream(logFile);
+//		} catch (FileNotFoundException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
+		
 		StreamReportMessage streamReportMessage = 
 				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
 						.flowId(flow.getFlowId())
@@ -72,20 +84,19 @@ class SourceRunnable extends NodeRunnable {
 		long droppedPktCnt = 0;
 		
 		//TOOD: FOR DEBUG
-		long packetCounter = 0L;
 		while (bytesToTransfer > 0 && !isKilled()) {	
 			
-			packetCounter++;
+
 			NodePacket nodePacket = 
 					bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? new NodePacket(1, packetId, (int)bytesToTransfer) : new NodePacket(0, packetId);
 			
 			packet.setData(nodePacket.serialize());
 			
-			
 			try {
 				if (ranGen.nextDouble() > 0.3) {
 					sendSocket.send(packet);
 				} else {
+//					out.write(("![" + nodePacket.getMessageId() + "]\n").getBytes());
 					droppedPktCnt++;
 				}
 				
@@ -93,7 +104,6 @@ class SourceRunnable extends NodeRunnable {
 				break;
 			}
 			
-
 			bytesToTransfer -= packet.getLength();
 			setTotalBytesTranfered(getTotalBytesTranfered() + packet.getLength());
 

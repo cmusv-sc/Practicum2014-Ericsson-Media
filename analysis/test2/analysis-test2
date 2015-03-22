@@ -1,0 +1,19 @@
+[Param]
+stream rate: 5000(kbps)
+Packet size: 1000(bytes)
+time-out: 4(s)
+window-size: 2500(packets)
+
+[Result]
+The dropped number of packet loss at source node: 24128
+The observed nubmer of packet loss at sink node: 23372
+The difference: 756
+
+[Log]
+	sink:	Last observed lost packet ID[77496]
+	source:	The next dropped pakcet after ID[77496]: {ID[77504], Line[23373]}
+			The last dropped pakcet: {ID[79999], Line[24128]}
+			The unobserved lost packet number: Line[24128] - Line[23373] + 1 = 756
+
+[Analysis]
+As analysis-test1

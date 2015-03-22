@@ -1,12 +1,18 @@
 package edu.cmu.mdnsim.reporting;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+import edu.cmu.mdnsim.nodes.NodePacket;
+
 
 
 /**
- * A tracker for packet lost at nodes. It will calculate the packet lost number based on packet id given in two update methods.
  * 
- * This class is not thread safe except getter and setter of lostPacketNum and highestPacketId.
- * All applicable methods throw a NullPointerException if null is passed in any parameter
+ * A tracker for packet lost. It calculates the packet lost number based on packet id given.
+ * 
  *
  * @author Geng Fu
  *
@@ -22,18 +28,29 @@ public class PacketLostTracker {
 	
 	private final long NOT_RCVED = -1;
 	
+//	FileOutputStream out = null;
+	
 	
 
 
 	/**
 	 * 
-	 * @param windowSize The size of the window
-	 * @throws IllegalArgumentException if any of the four parameters is invalid
+	 * @param	windowSize	The size of the window. The larger the window is, the timeout for each packet is larger.
+	 * 
 	 */
 	public PacketLostTracker(int windowSize){
 		
+//		File logFile = new File("sink -" + System.currentTimeMillis() + ".log");
+//		try {
+//			out = new FileOutputStream(logFile);
+//		} catch (FileNotFoundException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//		}
+		
+		
 		if(windowSize <= 0){
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("windowSize is less than or equal to 0");
 		}
 		this.windowSize = windowSize;
 		buff = new long[windowSize];
@@ -41,47 +58,65 @@ public class PacketLostTracker {
 	}
 
 	/**
-	 * Judge the status of the packet based on id and update the packet lost according to 3 situations
-	 * @param packetId, equal or above 0 and equal or lower than max expected id
-	 * @throws IllegalArgumentException if packetId is not in valid range which is [0, expectedMaxPacketId]
-	 * @throws IllegalStateException if called after timeout
+	 * Update the receiving buffer with most recent received packetId.
+	 * 
+	 * @param	packetId	The packetId that is received
+	 * 
 	 */
 	public synchronized void updatePacketLost(long packetId){ 
 		
-		if (packetId == 0) {
-			System.out.println("Recived 0.");
-		}
-		
+		StringBuffer sb = new StringBuffer();
+		sb.append("[" + packetId + "]:\t");
 		if(packetId < 0){
 			throw new IllegalArgumentException("Invalid packed id. " + packetId);
 		}
 		
 		/*
 		 * A new packet arrives out of (larger) current window, do following steps:
-		 * [1] calculate not RCV till minNonRecvedPacketId to packetId - windowSize;
-		 * [2] set current window to packetId - windowSize + 1;
+		 * [1] calculate not RCV till minNonRecvedPacketId equals to packetId - windowSize;
+		 * [2] set current window as [packetId - windowSize + 1, packetId];
 		 */
-		if (minNonRcvedPacketId + windowSize <= packetId) { //If packetId = 14, minRcvedPacketId = 4, slide to at least [5 - 14]
+		
+		//If packetId = 14, minRcvedPacketId = 4, and windowSize = 10, slide window to [5, 14].
+		if (minNonRcvedPacketId + windowSize <= packetId) {
 			//Step[1]
 			while(minNonRcvedPacketId + windowSize <= packetId) {
 				long lastPacketId = buff[(int)(minNonRcvedPacketId % windowSize)];
 				if (lastPacketId == NOT_RCVED) {
 					packetLostCounter++;
+					sb.append("![" + minNonRcvedPacketId + "] ");
 				} else {
 					buff[(int)(minNonRcvedPacketId % windowSize)] = NOT_RCVED;
 				}
 				incrementMinNonRcvedPacketId();
 			}
+			//Step[2]
 			assert(packetId - windowSize + 1 == minNonRcvedPacketId);
 			
 		} 
+		
 		/*
-		 * A new packet arrives out of (smaller) current window, ignore
+		 * A new packet arrives out of (smaller) current window, the packet is timeout and regarded as a packet loss.
 		 */
 		else if (minNonRcvedPacketId > packetId){
-			System.out.println("Obselete: " + packetId);
+//			sb.append("@[" + packetId + "]");
+//			sb.append("minN[" + minNonRcvedPacketId + "] ");
+//			try {
+//				out.write((sb.toString() + "\n").getBytes());
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
 			return;
 		} 
+		
+//		sb.append("minN[" + minNonRcvedPacketId + "] ");
+//		try {
+//			out.write((sb.toString() + "\n").getBytes());
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 		/*
 		 * A new packet arrives in current window, update the window and might slide
 		 */
@@ -91,20 +126,11 @@ public class PacketLostTracker {
 	}
 		
 	public synchronized long getLostPacketNum() {
-		/*int packetLostCounterInCurrWindow = 0;
-		for (long i = minNonRcvedPacketId; i <= maxRcvedPacketId; i++) {
-			long lastPacketId = buff[(int)(i % windowSize)];
-			if (lastPacketId == NOT_RCVED || lastPacketId < minNonRcvedPacketId) {
-				packetLostCounterInCurrWindow++;
-			}
-		}
-//		System.out.println("min: " + minNonRcvedPacketId + "\tmax: " + maxRcvedPacketId);
-		return packetLostCounter + packetLostCounterInCurrWindow;*/
 		return packetLostCounter;
 	}
 
 	
-	public void reset() {
+	public synchronized void reset() {
 		for (int i = 0; i < windowSize; i++) {
 			buff[i] = NOT_RCVED;
 		}

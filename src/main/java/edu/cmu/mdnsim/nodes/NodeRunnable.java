@@ -27,7 +27,11 @@ import edu.cmu.mdnsim.reporting.PacketLostTracker;
  */
 public abstract class NodeRunnable implements Runnable {
 	
-	public static final int MAX_WAITING_TIME_IN_MILLISECOND = 1000;
+	
+	/**
+	 * If a packet is not received within {@link TIMEOUT_FOR_PACKET_LOSS} seconds, the packet is regarded lost.
+	 */
+	public static final int TIMEOUT_FOR_PACKET_LOSS = 1;
 	
 	public static final int INTERVAL_IN_MILLISECOND = 1000;
 	
