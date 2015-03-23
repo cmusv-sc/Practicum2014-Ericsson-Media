@@ -16,10 +16,14 @@ public class NodeMetrics {
 
 	public String streamStatus;
 	public String latency;
+	public String cpuUsage;
+	public String memUsage;
 	
 	public NodeMetrics(){
 		this.streamStatus = "NA"; //Not Available
 		this.latency = "";
+		cpuUsage = "";
+		memUsage = "";
 	}
 
 }

@@ -40,6 +40,18 @@ public class StreamReportMessage extends MbMessage{
 	 * Total Bytes transfered can be either sent or received depending on type of event
 	 */
 	private long totalBytesTransferred;
+	
+	/**
+	 * This is to report CPU usage (unit: percent) of a node;
+	 */
+	private float cpuUsage = -1;
+	
+	/**
+	 * This is to report memory usage (unit: percent) of a node;
+	 */
+	private float memUsage = -1;
+	
+	
 	/**
 	 * Following fields are used by all nodes which receive some data. 
 	 */
@@ -47,6 +59,9 @@ public class StreamReportMessage extends MbMessage{
 	private double currentPacketLossRate= 0.0;
 	private double averageTransferRate= 0.0;
 	private double currentTransferRate= 0.0;
+	
+	
+	
 	
 	public StreamReportMessage(){
 		

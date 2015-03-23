@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -673,6 +674,11 @@ public class Master extends TimerTask {
 	 */
 	public void streamReport(StreamReportMessage reportMsg) throws MessageBusException {
 		
+		//TODO: Remove the dummy code
+		int counter = new Random().nextInt();
+		
+		
+		
 		String nodeIdOfReportSender = getNodeId(reportMsg);		
 		
 		String streamId = getStreamId(reportMsg);
@@ -706,12 +712,12 @@ public class Master extends TimerTask {
 					}
 				}
 			}
-			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_START);
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_START, "N/A", "N/A");
 			logMsg = "Started sending data for stream " + streamId;
 			break;
 		case SEND_END:
 			logMsg = "Stopped sending data for stream " + streamId;
-			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_END);
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.SEND_END, "N/A", "N/A");
 			break;
 		case PROGRESS_REPORT:
 			logMsg = "Stream Id: " + streamId +"\t" + 
@@ -721,7 +727,7 @@ public class Master extends TimerTask {
 					"Packet Loss Rate (Average, Current) = " 
 					+ 	String.format("%.2f",reportMsg.getAveragePacketLossRate()) + "," + 
 					String.format("%.2f", reportMsg.getCurrentPacketLossRate()); 
-
+			
 			sourceNodeId  = reportMsg.getDestinationNodeId();
 			destinationNodeId = nodeIdOfReportSender;
 			//Make the edge red when packet loss rate is higher than a certain threshold
@@ -734,6 +740,11 @@ public class Master extends TimerTask {
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, streamId, edgeColor,
 					reportMsg.getAveragePacketLossRate(), reportMsg.getCurrentPacketLossRate(),
 					reportMsg.getAverageTransferRate(), reportMsg.getCurrentTransferRate());
+			
+			String cpuUsage = "cpu-" + counter++;
+			String memUsage = "mem-" + counter++;
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.PROGRESS_REPORT, cpuUsage, memUsage);
+			System.err.println("Master.streamReport(): cpuUsage=" + memUsage +  "  memUsage=" + memUsage);
 			break;
 		case RECEIVE_START:
 			logMsg = "Started receiving data for stream " + streamId;
@@ -742,6 +753,7 @@ public class Master extends TimerTask {
 			destinationNodeId = nodeIdOfReportSender;
 			//Mark the edge green to indicate end of flow
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId,streamId, edgeColor, EventType.RECEIVE_START);
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_START, "N/A", "N/A");
 			break;
 		case RECEIVE_END:
 			if(reportMsg.getFlowId() != null){
@@ -766,7 +778,7 @@ public class Master extends TimerTask {
 				}
 			}
 
-			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_END);
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.RECEIVE_END, "N/A", "N/A");
 			logMsg = "Stopped receiving data for stream " + streamId;
 			edgeColor = "rgb(0,0,0)";
 			sourceNodeId  = reportMsg.getDestinationNodeId();

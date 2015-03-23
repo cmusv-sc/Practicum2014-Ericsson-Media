@@ -14,6 +14,10 @@ import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.mdnsim.reporting.CPUUsageTracker;
+import edu.cmu.mdnsim.reporting.MemUsageTracker;
+import edu.cmu.mdnsim.reporting.NodeReporter;
+import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
@@ -78,7 +82,6 @@ class SinkRunnable extends NodeRunnable {
 			NodePacket nodePacket = new NodePacket(packet.getData());
 
 
-
 			if(reportTaksHandler == null){
 //				
 //				System.out.println("kpbs: " + this.getStream().getKiloBitRate());
@@ -86,8 +89,12 @@ class SinkRunnable extends NodeRunnable {
 				
 				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;	
 				System.out.println("Window Size: " + windowSize);
+				
+				CPUUsageTracker cpuTracker = new CPUUsageTracker();
+				MemUsageTracker memTracker = new MemUsageTracker();
+				
 				packetLostTracker = new PacketLostTracker(windowSize);
-				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(packetLostTracker);					
+				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(cpuTracker, memTracker, packetLostTracker);					
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
 												.flowId(flow.getFlowId())
@@ -179,7 +186,7 @@ class SinkRunnable extends NodeRunnable {
 	private boolean initializeSocketAndPacket(){
 		
 		try {
-			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000);
+			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 20000);
 		} catch (SocketException e1) {
 			return false;
 		}
@@ -196,11 +203,11 @@ class SinkRunnable extends NodeRunnable {
 	 * @return Future of the report thread
 	 */
 
-	private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(PacketLostTracker packetLostTracker){	
+	private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(CPUUsageTracker cpuTracker, MemUsageTracker memTracker, PacketLostTracker packetLostTracker){	
 
-		ReportRateRunnable reportTransportationRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
-		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportTransportationRateRunnable));
-		return new ReportTaskHandler(reportFuture, reportTransportationRateRunnable);
+		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).packetLostTracker(packetLostTracker).build();
+		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
+		return new ReportTaskHandler(reportFuture, reportThread);
 	}
 
 	void clean() {

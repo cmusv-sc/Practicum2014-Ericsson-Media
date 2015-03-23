@@ -17,7 +17,7 @@ var cam = null;
 //	]}
  */
 function createGraph(initial_data){
-	console.log("createGraph(): Start");
+	
 	if(s){
 		s.graph.clear();		
 		s.graph.read(initial_data);		
@@ -35,7 +35,7 @@ function createGraph(initial_data){
 	s.refresh();   
 	attachNodeEvents();
 	attachEdgeEvents();
-	console.log("createGraph(): End");
+	
 }
 /**
  * Attaches event handlers for all Events (currently mouse over and out) for each Node in the graph

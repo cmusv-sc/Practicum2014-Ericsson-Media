@@ -14,14 +14,14 @@ public class CPUMemTrackerTest {
 
 	@Test
 	public final void testTrackCPU() {
-		CPUMemTracker cpuMemTracker = new CPUMemTracker();
+		CPUUsageTracker cpuMemTracker = new CPUUsageTracker();
 		cpuMemTracker.trackCPU();
 		assertEquals("should return initial value because failed to use top command in Windows", cpuMemTracker.getCpuUsage(), -1, 0.001);
 	}
 
 	@Test
 	public final void testTrackMem() {
-		CPUMemTracker cpuMemTracker = new CPUMemTracker();
+		CPUUsageTracker cpuMemTracker = new CPUUsageTracker();
 		cpuMemTracker.trackMem();
 		assertEquals("should return initial value because failed to use top command in Windows", cpuMemTracker.getCpuUsage(), -1, 0.001);
 	}

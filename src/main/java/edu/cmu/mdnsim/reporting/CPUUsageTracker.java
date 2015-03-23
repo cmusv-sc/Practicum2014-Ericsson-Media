@@ -12,7 +12,7 @@ import java.io.InputStreamReader;
  * @author Vinay Kumar Vavili
  * @author Hao Wang
  */
-public class CPUMemTracker {
+public class CPUUsageTracker {
 
 	// Initialize with invalid numbers
 	private double cpuUsage = -1;

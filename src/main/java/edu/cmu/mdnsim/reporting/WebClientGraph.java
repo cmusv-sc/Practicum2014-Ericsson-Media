@@ -142,14 +142,19 @@ public class WebClientGraph {
 		 * @param streamId
 		 * @param eventType
 		 */
-		public void updateToolTip(String streamId, EventType eventType) {
+		public void updateToolTip(String streamId, EventType eventType, String cpuUsage, String memUsage) {
 			NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
 			if(nodeMetrics == null){
 				nodeMetrics = new NodeMetrics();
 				this.streamMetricsMap.put(streamId, nodeMetrics);
 			}
 			nodeMetrics.streamStatus = eventType.toString();
-			this.tag = this.buildTagHtml();
+			nodeMetrics.cpuUsage = cpuUsage;
+			nodeMetrics.memUsage = memUsage;
+			
+			System.err.println("WebClientGraph.Node.updateToolTip(): cpuUsage=" + cpuUsage + "  memUsage=" + memUsage);
+
+			this.tag = this.buildNodeTagHtml();
 		}
 		/**
 		 * Updates the latency (for the given stream) in Tooltip table shown on hover of node 
@@ -163,25 +168,37 @@ public class WebClientGraph {
 				this.streamMetricsMap.put(streamId, nodeMetrics);
 			}
 			nodeMetrics.latency = String.valueOf(latency);
-			this.tag = this.buildTagHtml();
+			this.tag = this.buildNodeTagHtml();
 		}
 		/**
 		 * Builds HTML table to be shown on hover of node 
 		 * Latency is shown only for sink nodes and status and id are shown for all nodes.
 		 * @return String containing full HTML table element
 		 */
-		private String buildTagHtml(){
+		private String buildNodeTagHtml(){
 			StringBuilder sb = new StringBuilder();
 			sb.append(HtmlTags.TABLE_BEGIN);
 			sb.append(generateHeaderRow());
 			for(Map.Entry<String, NodeMetrics> entry : streamMetricsMap.entrySet()){
 				sb.append(HtmlTags.TR_BEGIN);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getKey()); //Stream Id
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().streamStatus);
+				sb.append(entry.getValue().streamStatus); //Stream Status
 				sb.append(HtmlTags.TD_END);
+				
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().cpuUsage);
+				sb.append(HtmlTags.TD_END);
+				
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().memUsage);
+				sb.append(HtmlTags.TD_END);
+				
+				
 				if(this.nodeType.toLowerCase().equals("sinknode")){
 					sb.append(HtmlTags.TD_BEGIN);
 					if(entry.getValue().latency != null){
@@ -201,8 +218,23 @@ public class WebClientGraph {
 		private String generateHeaderRow() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(HtmlTags.TR_BEGIN);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Stream");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Status");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("CPU Usage");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Memory Usage");
+			sb.append(HtmlTags.TD_END);
+			
 			if(this.nodeType.toLowerCase().equals("sinknode")){
 				sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
 			}
@@ -290,7 +322,7 @@ public class WebClientGraph {
 				this.streamMetricsMap.put(streamId, edgeMetrics);
 			}
 			edgeMetrics.streamStatus = eventType.toString();
-			this.tag = this.buildTagHtml();
+			this.tag = this.buildEdgeTagHtml();
 		}
 		/**
 		 * Updates the different metrics of given stream in Tooltip table shown on hover of edge
@@ -311,36 +343,43 @@ public class WebClientGraph {
 			edgeMetrics.currentPacketLoss = currentPacketLoss;
 			edgeMetrics.averageTransferRate = averageTransferRate;
 			edgeMetrics.currentTransferRate = currentTransferRate;
-			this.tag = this.buildTagHtml();
+			this.tag = this.buildEdgeTagHtml();
 		}
 		/**
 		 * Builds HTML table to be shown on hover of edge 
 		 * @return String containing full HTML table element
 		 */
-		private String buildTagHtml(){
+		private String buildEdgeTagHtml(){
 			StringBuilder sb = new StringBuilder();
 			sb.append(HtmlTags.TABLE_BEGIN);
 			sb.append(generateHeaderRow());
 			for(Map.Entry<String, EdgeMetrics> entry : streamMetricsMap.entrySet()){
 				sb.append(HtmlTags.TR_BEGIN);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getKey()); //Stream Id
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().streamStatus);
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().averagePacketLoss);
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().currentPacketLoss);
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().averageTransferRate);
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TD_BEGIN);
 				sb.append(entry.getValue().currentTransferRate);
 				sb.append(HtmlTags.TD_END);
+				
 				sb.append(HtmlTags.TR_END);
 			}
 			sb.append(HtmlTags.TABLE_END);
@@ -718,11 +757,11 @@ public class WebClientGraph {
 	 * @param eventType
 	 */
 	public void updateNode(String nodeId, String streamId,
-			EventType eventType) {
+			EventType eventType, String cpuUsage, String memUsage) {
 		Node n = this.getNode(nodeId);
 		if(n != null){
 			synchronized(n){
-				n.updateToolTip(streamId, eventType);
+				n.updateToolTip(streamId, eventType, cpuUsage, memUsage);
 			}
 		}
 	}

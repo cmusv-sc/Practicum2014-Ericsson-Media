@@ -2,14 +2,14 @@ package edu.cmu.mdnsim.nodes;
 
 import java.util.concurrent.Future;
 
-import edu.cmu.mdnsim.nodes.NodeRunnable.ReportRateRunnable;
+import edu.cmu.mdnsim.reporting.NodeReporter;
 
 class ReportTaskHandler {
 
 	Future<?> reportFuture;
-	ReportRateRunnable reportRunnable;
+	NodeReporter reportRunnable;
 
-	public ReportTaskHandler(Future<?> future, ReportRateRunnable runnable) {
+	public ReportTaskHandler(Future<?> future, NodeReporter runnable) {
 		this.reportFuture = future;
 		reportRunnable = runnable;
 	}

@@ -14,6 +14,8 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.mdnsim.reporting.CPUUsageTracker;
+import edu.cmu.mdnsim.reporting.MemUsageTracker;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
@@ -82,7 +84,7 @@ public abstract class NodeRunnable implements Runnable {
 		this.cleaner = cleaner;
 	}
 
-	String getNodeId() {
+	public String getNodeId() {
 		return nodeId;
 	}
 
@@ -175,7 +177,7 @@ public abstract class NodeRunnable implements Runnable {
 	 * Gets up stream node id for the current node
 	 * @return null if not found
 	 */
-	protected String getUpStreamId() {
+	public String getUpStreamId() {
 		Stream stream = NodeRunnable.this.getStream();
 		for(Flow flow : stream.getFlowList()){
 			Map<String, String> nodeMap = flow.findNodeMap(nodeId);
@@ -228,7 +230,7 @@ public abstract class NodeRunnable implements Runnable {
 	 * management layer.
 	 * @param streamReportMessage
 	 */
-	protected void sendStreamReport(StreamReportMessage streamReportMessage) {
+	public void sendStreamReport(StreamReportMessage streamReportMessage) {
 		String fromPath = "/" + this.getNodeId() + "/" + this.getStreamId();
 		streamReportMessage.from(this.getNodeId());
 		
@@ -241,97 +243,5 @@ public abstract class NodeRunnable implements Runnable {
 	}
 	
 	abstract void clean();
-	
-	/**
-	 * A runnable that reports statistical rate.
-	 * <p>Package private class could not be accessed by outside subclasses
-	 */
-	protected class ReportRateRunnable implements Runnable {
 
-		private long lastRecordedHighestPacketId = 0;
-		private long lastRecordedTotalBytes = 0;
-
-		private long lastRecordedPacketLost = 0;
-
-		PacketLostTracker packetLostTracker;
-		// -1 to avoid time difference to be 0 when used as a divider
-		private long lastRecordedTime = System.currentTimeMillis() - 1;
-
-		private final long startedTime;
-
-		private int intervalInMillisecond;
-
-		private volatile boolean killed = false;
-
-		public ReportRateRunnable(int intervalInMillisecond, PacketLostTracker packetLostTracker) {
-			this.intervalInMillisecond = intervalInMillisecond;
-			this.packetLostTracker = packetLostTracker;
-			startedTime = System.currentTimeMillis();
-		}
-
-		/**
-		 * Reports statistical rate as long as the current thread is not interrupted.
-		 * Note, the packet lost in the last moment(several millisecond could be very large, since time spent is
-		 * short)
-		 */
-		@Override
-		public void run() {
-
-			while (!killed) {
-				calculateAndReport();
-				try {
-					Thread.sleep(intervalInMillisecond);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					continue;
-				}
-			}
-			calculateAndReport();
-			System.out.println("ReportRateRunnable.run(): " + NodeRunnable.this.nodeId + " report thread has been interrupted.");
-			System.err.println("ReportRateRunnable.run(): Total recorded packet loss:" + packetLostTracker.getLostPacketNum());
-			
-		}
-
-		public void kill() {
-			this.killed = true;
-		}
-
-		/**
-		 * Calculates the transfer rate and packet lost rate。
-		 */
-		private void calculateAndReport() {
-			long currentTime = System.currentTimeMillis();
-			long timeDiffInMillisecond = currentTime - lastRecordedTime;
-			long totalTimeDiffInMillisecond = currentTime - startedTime;
-
-			long localToTalBytesTransfered = getTotalBytesTranfered();
-			long bytesDiff = localToTalBytesTransfered - lastRecordedTotalBytes;
-			double transportationInstantRate = ((double)bytesDiff/ timeDiffInMillisecond) * 1000;
-			double transportationAverageRate = 
-					((double)localToTalBytesTransfered / totalTimeDiffInMillisecond) * 1000;
-
-			long localPacketLostNum = packetLostTracker.getLostPacketNum();
-			long lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			long localHighestPacketId = packetLostTracker.getHighestPacketId();
-			long packetNumDiff = localHighestPacketId - lastRecordedHighestPacketId ;
-			double currentPacketLossRatio = packetNumDiff==0 ? 0 : (lostDiff * 1.0 / packetNumDiff);
-			double averagePacketLossRatio = packetLostTracker.getLostPacketNum() * 1.0 / packetLostTracker.getHighestPacketId();
-			lastRecordedTotalBytes = localToTalBytesTransfered;
-			lastRecordedTime = currentTime;
-			lastRecordedPacketLost = localPacketLostNum;
-			lastRecordedHighestPacketId = localHighestPacketId;
-			if (startedTime != 0) {
-				double averageRateInKiloBitsPerSec = transportationAverageRate / 128;
-				double currentRateInKiloBitsPerSec = transportationInstantRate / 128;
-				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, getUpStreamId())
-				.averagePacketLossRate(averagePacketLossRatio)
-				.averageTransferRate(averageRateInKiloBitsPerSec)
-				.currentPacketLossRate(currentPacketLossRatio)
-				.currentTransferRate(currentRateInKiloBitsPerSec)
-				.build();
-				sendStreamReport(streamReportMessage);
-			}
-		}
-	}
 }

@@ -14,6 +14,10 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.mdnsim.reporting.CPUUsageTracker;
+import edu.cmu.mdnsim.reporting.MemUsageTracker;
+import edu.cmu.mdnsim.reporting.NodeReporter;
+import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
@@ -141,9 +145,12 @@ class ProcessRunnable extends NodeRunnable {
 								
 				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;				
 				System.out.println("ProcessRunnable.run(): windowSize=" + windowSize);
+				
+				CPUUsageTracker cpuTracker = new CPUUsageTracker();
+				MemUsageTracker memTracker = new MemUsageTracker();
 				packetLostTracker = new PacketLostTracker(windowSize);
 				
-				reportTask = createAndLaunchReportRateRunnable(packetLostTracker);
+				reportTask = createAndLaunchReportRateRunnable(cpuTracker, memTracker, packetLostTracker);
 				
 				StreamReportMessage streamReportMessage = new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId()).build();
 				
@@ -266,10 +273,12 @@ class ProcessRunnable extends NodeRunnable {
 	 * @return Future of the reporting thread
 	 */
 
-	private ReportTaskHandler createAndLaunchReportRateRunnable(PacketLostTracker packetLostTracker){
-		ReportRateRunnable reportRateRunnable = new ReportRateRunnable(INTERVAL_IN_MILLISECOND, packetLostTracker);
-		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportRateRunnable));
-		return new ReportTaskHandler(reportFuture, reportRateRunnable);
+	private ReportTaskHandler createAndLaunchReportRateRunnable(CPUUsageTracker cpuTrakcer, MemUsageTracker memTracker, PacketLostTracker packetLostTracker){
+		
+		//int intervalInMillisecond, NodeRunnable nodeRunnable, CPUUsageTracker cpuTracker, MemUsageTracker memTracker
+		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTrakcer, memTracker).packetLostTracker(packetLostTracker).build();
+		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
+		return new ReportTaskHandler(reportFuture, reportThread);
 	}
 
 	/**
