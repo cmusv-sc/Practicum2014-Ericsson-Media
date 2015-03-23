@@ -96,7 +96,7 @@ class SinkRunnable extends NodeRunnable {
 				packetLostTracker = new PacketLostTracker(windowSize);
 				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(cpuTracker, memTracker, packetLostTracker);					
 				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
+						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId(), "N/A", "N/A")
 												.flowId(flow.getFlowId())
 												.build();
 				streamReportMessage.from(this.getNodeId());
@@ -134,7 +134,7 @@ class SinkRunnable extends NodeRunnable {
 		 * 
 		 */
 		StreamReportMessage streamReportMessage = 
-				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
+				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId(), "N/A", "N/A")
 		.flowId(flow.getFlowId())
 		.totalBytesTransferred(this.getTotalBytesTranfered())
 		.build();

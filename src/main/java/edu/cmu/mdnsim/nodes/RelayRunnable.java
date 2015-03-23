@@ -108,7 +108,7 @@ class RelayRunnable extends NodeRunnable {
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
 				reportTaskHandler = new ReportTaskHandler(reportFuture, reportThread);
 				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId())
+						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId(), "N/A", "N/A")
 				.build();
 				streamReportMessage.from(this.getNodeId());
 				this.sendStreamReport(streamReportMessage);
@@ -166,13 +166,13 @@ class RelayRunnable extends NodeRunnable {
 		 * 
 		 */
 		StreamReportMessage streamReportMessage = 
-				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
+				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId(), "N/A", "N/A")
 		.build();
 		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);
 		for(String downStreamId : this.getDownStreamIds()){
 			streamReportMessage = 
-					new StreamReportMessage.Builder(EventType.SEND_END, downStreamId)
+					new StreamReportMessage.Builder(EventType.SEND_END, downStreamId, "N/A", "N/A")
 			.build();
 			streamReportMessage.from(this.getNodeId());
 			this.sendStreamReport(streamReportMessage);

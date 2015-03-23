@@ -1,5 +1,12 @@
 package edu.cmu.mdnsim.reporting;
 
-public class MemUsageTracker {
+import java.util.Random;
 
+public class MemUsageTracker {
+	
+	public double getMemUsage() {
+		
+		return new Random().nextDouble();
+	}
+	
 }

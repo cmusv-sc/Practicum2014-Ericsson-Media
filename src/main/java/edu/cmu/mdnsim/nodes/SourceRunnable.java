@@ -1,21 +1,24 @@
 package edu.cmu.mdnsim.nodes;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.Random;
+import java.util.concurrent.Future;
 
+import edu.cmu.mdnsim.concurrent.MDNTask;
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
+import edu.cmu.mdnsim.reporting.CPUUsageTracker;
+import edu.cmu.mdnsim.reporting.MemUsageTracker;
+import edu.cmu.mdnsim.reporting.NodeReporter;
+import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
 
 class SourceRunnable extends NodeRunnable {
 
@@ -68,7 +71,7 @@ class SourceRunnable extends NodeRunnable {
 //		}
 		
 		StreamReportMessage streamReportMessage = 
-				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
+				new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next(), "N/A", "N/A")
 						.flowId(flow.getFlowId())
 						.build();
 		streamReportMessage.from(this.getNodeId());
@@ -82,6 +85,14 @@ class SourceRunnable extends NodeRunnable {
 		long expectedTime = System.nanoTime();
 		Random ranGen = new Random();
 		long droppedPktCnt = 0;
+		
+		CPUUsageTracker cpuTracker = new CPUUsageTracker();
+		MemUsageTracker memTracker = new MemUsageTracker();
+		
+		//TOOD: Remever to kill this thread!
+		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).build();
+		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
+		ReportTaskHandler reportTaskHandler = new ReportTaskHandler(reportFuture, reportThread);
 		
 		//TOOD: FOR DEBUG
 		while (bytesToTransfer > 0 && !isKilled()) {	
@@ -125,12 +136,16 @@ class SourceRunnable extends NodeRunnable {
 			}
 			packetId++;
 		}
+		
+		reportTaskHandler.kill();
+		while(!reportTaskHandler.isDone());
+		
 		/*
 		 * No mater what final state is, the NodeRunnable should always
 		 * report to Master that it is going to end.
 		 */
 		streamReportMessage = 
-				new StreamReportMessage.Builder(EventType.SEND_END, this.getDownStreamIds().iterator().next())
+				new StreamReportMessage.Builder(EventType.SEND_END, this.getDownStreamIds().iterator().next(), "N/A", "N/A")
 						.flowId(flow.getFlowId())
 						.build();
 		streamReportMessage.from(this.getNodeId());

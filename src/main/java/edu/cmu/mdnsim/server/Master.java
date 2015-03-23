@@ -674,10 +674,6 @@ public class Master extends TimerTask {
 	 */
 	public void streamReport(StreamReportMessage reportMsg) throws MessageBusException {
 		
-		//TODO: Remove the dummy code
-		int counter = new Random().nextInt();
-		
-		
 		
 		String nodeIdOfReportSender = getNodeId(reportMsg);		
 		
@@ -740,11 +736,9 @@ public class Master extends TimerTask {
 			webClientGraph.updateEdge(sourceNodeId,destinationNodeId, streamId, edgeColor,
 					reportMsg.getAveragePacketLossRate(), reportMsg.getCurrentPacketLossRate(),
 					reportMsg.getAverageTransferRate(), reportMsg.getCurrentTransferRate());
-			
-			String cpuUsage = "cpu-" + counter++;
-			String memUsage = "mem-" + counter++;
-			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.PROGRESS_REPORT, cpuUsage, memUsage);
-			System.err.println("Master.streamReport(): cpuUsage=" + memUsage +  "  memUsage=" + memUsage);
+
+			webClientGraph.updateNode(nodeIdOfReportSender, streamId, EventType.PROGRESS_REPORT, reportMsg.getCPUUsage(), reportMsg.getMemUsage());
+
 			break;
 		case RECEIVE_START:
 			logMsg = "Started receiving data for stream " + streamId;

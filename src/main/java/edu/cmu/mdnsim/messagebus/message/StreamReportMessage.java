@@ -44,12 +44,12 @@ public class StreamReportMessage extends MbMessage{
 	/**
 	 * This is to report CPU usage (unit: percent) of a node;
 	 */
-	private float cpuUsage = -1;
+	private String cpuUsage = "N/A";
 	
 	/**
 	 * This is to report memory usage (unit: percent) of a node;
 	 */
-	private float memUsage = -1;
+	private String memUsage = "N/A";
 	
 	
 	/**
@@ -61,13 +61,13 @@ public class StreamReportMessage extends MbMessage{
 	private double currentTransferRate= 0.0;
 	
 	
-	
-	
-	public StreamReportMessage(){
-		
-		super();	
+	/**
+	 * This default constructor is reserved for JSON
+	 */
+	private StreamReportMessage() {
 		
 	}
+
 	private StreamReportMessage(Builder builder){
 		super();
 		this.setFlowId(builder.flowId);
@@ -79,6 +79,11 @@ public class StreamReportMessage extends MbMessage{
 		this.setAverageTransferRate(builder.averageTransferRate);
 		this.setCurrentPacketLossRate(builder.currentPacketLossRate);
 		this.setCurrentTransferRate(builder.currentTransferRate);
+		
+		
+		cpuUsage = builder.cpuUsage;
+		memUsage = builder.memUsage;
+		
 	}
 	public String getFlowId() {
 		return flowId;
@@ -134,6 +139,23 @@ public class StreamReportMessage extends MbMessage{
 	public void setCurrentTransferRate(double currentTransferRate) {
 		this.currentTransferRate = currentTransferRate;
 	}
+	
+	public void setCPUUsage(String cpuUsage) {
+		this.cpuUsage = cpuUsage;
+	}
+	
+	public void setMemUsage(String memUsage) {
+		this.memUsage = memUsage;
+	}
+	
+	public String getCPUUsage() {
+		return cpuUsage;
+	}
+	
+	public String getMemUsage() {
+		return memUsage;
+	}
+	
 	/**
 	 * Builder class used to build Stream Report Message
 	 * Use the build method of this class to get a new StreamReportMessage object.
@@ -152,10 +174,17 @@ public class StreamReportMessage extends MbMessage{
 		private double currentPacketLossRate = -1;
 		private double averageTransferRate = -1;
 		private double currentTransferRate = -1;
+		
+		
+		private String cpuUsage;
+		private String memUsage;
+		
 		//Required Parameters
-		public Builder(EventType eventType, String destinationNodeId){
+		public Builder(EventType eventType, String destinationNodeId, String cpuUsage, String memUsage){
 			this.eventType = eventType;
 			this.destinationNodeId = destinationNodeId;
+			this.cpuUsage = cpuUsage;
+			this.memUsage = memUsage;
 		}
 		//Optional Parameters
 		public Builder flowId(String flowId){

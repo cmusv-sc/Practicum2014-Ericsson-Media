@@ -152,7 +152,7 @@ class ProcessRunnable extends NodeRunnable {
 				
 				reportTask = createAndLaunchReportRateRunnable(cpuTracker, memTracker, packetLostTracker);
 				
-				StreamReportMessage streamReportMessage = new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId()).build();
+				StreamReportMessage streamReportMessage = new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId(), "N/A", "N/A").build();
 				
 				streamReportMessage.from(this.getNodeId());
 				
@@ -171,7 +171,7 @@ class ProcessRunnable extends NodeRunnable {
 			if(!isStarted) {
 				
 				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next())
+						new StreamReportMessage.Builder(EventType.SEND_START, this.getDownStreamIds().iterator().next(), "N/A", "N/A")
 								.build();
 				streamReportMessage.from(this.getNodeId());
 				this.sendStreamReport(streamReportMessage);
@@ -208,7 +208,7 @@ class ProcessRunnable extends NodeRunnable {
 		 * 
 		 */
 		StreamReportMessage streamReportMessage = 
-				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId())
+				new StreamReportMessage.Builder(EventType.RECEIVE_END, this.getUpStreamId(), "N/A", "N/A")
 						.build();
 		streamReportMessage.from(this.getNodeId());
 		this.sendStreamReport(streamReportMessage);

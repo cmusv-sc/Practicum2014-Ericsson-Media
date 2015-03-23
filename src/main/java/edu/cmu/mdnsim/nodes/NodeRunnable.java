@@ -12,11 +12,7 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
-import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
-import edu.cmu.mdnsim.reporting.CPUUsageTracker;
-import edu.cmu.mdnsim.reporting.MemUsageTracker;
-import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
  * A runnable that represents an individual Stream.

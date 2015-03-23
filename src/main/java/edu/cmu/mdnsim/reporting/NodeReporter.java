@@ -87,6 +87,10 @@ public class NodeReporter implements Runnable {
 		double transportationAverageRate = 
 				((double)localToTalBytesTransfered / totalTimeDiffInMillisecond) * 1000;
 		
+		
+		StreamReportMessage.Builder reportMsgBuilder = 
+				new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, this.nodeRunnable.getUpStreamId(), String.format("%s-%.2f",nodeRunnable.getNodeId(), cpuTracker.getCPUUsage()), String.format("%s-%.2f",nodeRunnable.getNodeId(), memTracker.getMemUsage()));
+		
 		if (packetLostTracker != null) {
 			long localPacketLostNum = packetLostTracker.getLostPacketNum();
 			long lostDiff = localPacketLostNum - lastRecordedPacketLost;
@@ -101,17 +105,15 @@ public class NodeReporter implements Runnable {
 			if (startedTime != 0) {
 				double averageRateInKiloBitsPerSec = transportationAverageRate / 128;
 				double currentRateInKiloBitsPerSec = transportationInstantRate / 128;
-				StreamReportMessage streamReportMessage = 
-						new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, this.nodeRunnable.getUpStreamId())
-				.averagePacketLossRate(averagePacketLossRatio)
-				.averageTransferRate(averageRateInKiloBitsPerSec)
-				.currentPacketLossRate(currentPacketLossRatio)
-				.currentTransferRate(currentRateInKiloBitsPerSec)
-				.build();
+				reportMsgBuilder.averagePacketLossRate(averagePacketLossRatio)
+					.averageTransferRate(averageRateInKiloBitsPerSec)
+					.currentPacketLossRate(currentPacketLossRatio)
+					.currentTransferRate(currentRateInKiloBitsPerSec);
 				
-				this.nodeRunnable.sendStreamReport(streamReportMessage);
 			}
 		}
+		
+		this.nodeRunnable.sendStreamReport(reportMsgBuilder.build());
 	}
 	
 	public static class NodeReporterBuilder {
