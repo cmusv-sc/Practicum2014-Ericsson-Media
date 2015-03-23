@@ -89,7 +89,7 @@ public class NodeReporter implements Runnable {
 		
 		
 		StreamReportMessage.Builder reportMsgBuilder = 
-				new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, this.nodeRunnable.getUpStreamId(), String.format("%s-%.2f",nodeRunnable.getNodeId(), cpuTracker.getCPUUsage()), String.format("%s-%.2f",nodeRunnable.getNodeId(), memTracker.getMemUsage()));
+				new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, this.nodeRunnable.getUpStreamId(), String.format("%.2f", cpuTracker.getCPUUsage() * 100) + "%", memTracker.getMemUsage() + "MB");
 		
 		if (packetLostTracker != null) {
 			long localPacketLostNum = packetLostTracker.getLostPacketNum();
