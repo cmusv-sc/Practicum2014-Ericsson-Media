@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import us.yamb.rmb.RMB;
 import us.yamb.rmb.annotations.DELETE;
 import us.yamb.rmb.annotations.PUT;
 import us.yamb.rmb.annotations.Path;
@@ -24,6 +23,7 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
+import edu.cmu.mdnsim.reporting.SystemClock;
 import edu.cmu.mdnsim.server.Master;
 
 /**
@@ -67,11 +67,13 @@ public class NodeContainer {
 	
 	private String nodeContainerIP;
 	
+	
 	public NodeContainer(String messageBusImpl, String label, String masterIP, String nodeContainerIP) throws MessageBusException {
 		msgBusClient= instantiateMsgBusClient(messageBusImpl, masterIP);
 		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
 		this.label = label;
 		this.nodeContainerIP = nodeContainerIP;
+		SystemClock.currentTimeMillis();
 	}
 	
 	/**

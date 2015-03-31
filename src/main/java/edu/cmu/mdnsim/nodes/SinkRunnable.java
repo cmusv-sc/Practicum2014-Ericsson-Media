@@ -18,6 +18,7 @@ import edu.cmu.mdnsim.reporting.CPUUsageTracker;
 import edu.cmu.mdnsim.reporting.MemUsageTracker;
 import edu.cmu.mdnsim.reporting.NodeReporter;
 import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
+import edu.cmu.mdnsim.reporting.PacketLatencyTracker;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
@@ -52,7 +53,9 @@ class SinkRunnable extends NodeRunnable {
 		if(!initializeSocketAndPacket()){
 			return;
 		}
+		
 		PacketLostTracker packetLostTracker = null;
+		PacketLatencyTracker packetLatencyTracker = null;
 		
 		boolean isFinalWait = false;			
 		ReportTaskHandler reportTaksHandler = null;
@@ -94,7 +97,9 @@ class SinkRunnable extends NodeRunnable {
 				MemUsageTracker memTracker = new MemUsageTracker();
 				
 				packetLostTracker = new PacketLostTracker(windowSize);
-				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(cpuTracker, memTracker, packetLostTracker);					
+				packetLatencyTracker = new PacketLatencyTracker();
+				
+				reportTaksHandler = createAndLaunchReportTransportationRateRunnable(cpuTracker, memTracker, packetLostTracker, packetLatencyTracker);					
 				StreamReportMessage streamReportMessage = 
 						new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId(), "N/A", "N/A")
 												.flowId(flow.getFlowId())
@@ -103,8 +108,10 @@ class SinkRunnable extends NodeRunnable {
 				this.sendStreamReport(streamReportMessage);
 				
 			}
+			
 			packetLostTracker.updatePacketLost(nodePacket.getMessageId());
-
+			packetLatencyTracker.newPacket(nodePacket);
+			
 			if(nodePacket.isLast()){
 				super.setUpstreamDone();
 				break;
@@ -203,9 +210,9 @@ class SinkRunnable extends NodeRunnable {
 	 * @return Future of the report thread
 	 */
 
-	private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(CPUUsageTracker cpuTracker, MemUsageTracker memTracker, PacketLostTracker packetLostTracker){	
+	private ReportTaskHandler createAndLaunchReportTransportationRateRunnable(CPUUsageTracker cpuTracker, MemUsageTracker memTracker, PacketLostTracker packetLostTracker, PacketLatencyTracker packetLatencyTracker){	
 
-		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).packetLostTracker(packetLostTracker).build();
+		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).packetLostTracker(packetLostTracker).packetLatencyTracker(packetLatencyTracker).build();
 		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
 		return new ReportTaskHandler(reportFuture, reportThread);
 	}

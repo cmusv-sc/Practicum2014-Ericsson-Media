@@ -61,14 +61,19 @@ public class StreamReportMessage extends MbMessage{
 	private double currentTransferRate= 0.0;
 	
 	
+	private double avrEnd2EndPacketLatency =  0.0;
+	private double avrLnk2LnkPacketLatency = 0.0;
+	
+	
 	/**
-	 * This default constructor is reserved for JSON
+	 * This default constructor is reserved for JSON parser
 	 */
 	private StreamReportMessage() {
 		
 	}
 
 	private StreamReportMessage(Builder builder){
+		
 		super();
 		this.setFlowId(builder.flowId);
 		this.setEventType(builder.eventType);
@@ -79,10 +84,16 @@ public class StreamReportMessage extends MbMessage{
 		this.setAverageTransferRate(builder.averageTransferRate);
 		this.setCurrentPacketLossRate(builder.currentPacketLossRate);
 		this.setCurrentTransferRate(builder.currentTransferRate);
-		
-		
 		cpuUsage = builder.cpuUsage;
 		memUsage = builder.memUsage;
+		
+		if (builder.avrEnd2EndPacketLatency != Long.MIN_VALUE) {
+			avrEnd2EndPacketLatency = builder.avrEnd2EndPacketLatency;
+		}
+		
+		if (builder.avrLnk2LnkPacketLatency != Long.MIN_VALUE) {
+			avrLnk2LnkPacketLatency = builder.avrLnk2LnkPacketLatency;
+		}
 		
 	}
 	public String getFlowId() {
@@ -140,9 +151,10 @@ public class StreamReportMessage extends MbMessage{
 		this.currentTransferRate = currentTransferRate;
 	}
 	
-	public void setCPUUsage(String cpuUsage) {
-		this.cpuUsage = cpuUsage;
+	public void setAvrEnd2EndPacketLatency(double avrEnd2EndPacketLatency) {
+		this.avrEnd2EndPacketLatency = avrEnd2EndPacketLatency;
 	}
+	
 	
 	public void setMemUsage(String memUsage) {
 		this.memUsage = memUsage;
@@ -154,6 +166,22 @@ public class StreamReportMessage extends MbMessage{
 	
 	public String getMemUsage() {
 		return memUsage;
+	}
+	
+	public double getAvrEnd2EndPacketLatency() {
+		return this.avrEnd2EndPacketLatency;
+	}
+	
+	public void setCPUUsage(String cpuUsage) {
+		this.cpuUsage = cpuUsage;
+	}
+	
+	public void setAvrLnk2LnkPacketLatency(double avrLnk2LnkPacketLatency) {
+		this.avrLnk2LnkPacketLatency = avrLnk2LnkPacketLatency;
+	}
+	
+	public double getAvrLnk2LnkPacketLatency() {
+		return this.avrLnk2LnkPacketLatency;
 	}
 	
 	/**
@@ -174,6 +202,10 @@ public class StreamReportMessage extends MbMessage{
 		private double currentPacketLossRate = -1;
 		private double averageTransferRate = -1;
 		private double currentTransferRate = -1;
+		
+		private double avrEnd2EndPacketLatency = Long.MIN_VALUE;
+		private double avrLnk2LnkPacketLatency = Long.MIN_VALUE;
+		
 		
 		
 		private String cpuUsage;

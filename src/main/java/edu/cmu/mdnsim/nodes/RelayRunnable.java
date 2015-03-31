@@ -23,6 +23,7 @@ import edu.cmu.mdnsim.reporting.CPUUsageTracker;
 import edu.cmu.mdnsim.reporting.MemUsageTracker;
 import edu.cmu.mdnsim.reporting.NodeReporter;
 import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
+import edu.cmu.mdnsim.reporting.PacketLatencyTracker;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 class RelayRunnable extends NodeRunnable {
@@ -67,8 +68,12 @@ class RelayRunnable extends NodeRunnable {
 		
 		if(!initializeSocketAndPacket()){
 			return;
-		}		
+		}
+		
 		PacketLostTracker packetLostTracker = null;
+		PacketLatencyTracker packetLatencyTracker = null;
+		
+		
 		boolean isFinalWait = false;
 		ReportTaskHandler reportTaskHandler = null;
 		while (!isKilled()) {
@@ -102,9 +107,10 @@ class RelayRunnable extends NodeRunnable {
 				CPUUsageTracker cpuTracker = new CPUUsageTracker();
 				MemUsageTracker memTracker = new MemUsageTracker();
 				packetLostTracker = new PacketLostTracker(windowSize);
+				packetLatencyTracker = new PacketLatencyTracker();
 				
 				
-				NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).packetLostTracker(packetLostTracker).build();
+				NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker).packetLostTracker(packetLostTracker).packetLatencyTracker(packetLatencyTracker).build();
 				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
 				reportTaskHandler = new ReportTaskHandler(reportFuture, reportThread);
 				StreamReportMessage streamReportMessage = 
@@ -117,12 +123,13 @@ class RelayRunnable extends NodeRunnable {
 			}
 
 			packetLostTracker.updatePacketLost(nodePacket.getMessageId());
-
+			packetLatencyTracker.newPacket(nodePacket);
+			
 			//Send data to all destination nodes
 			DatagramPacket packet ;
 			for(InetSocketAddress destination : downStreamUriToReceiveSocketAddress.values()){
 				byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
-
+				nodePacket.setForwardTime();
 				packet = new DatagramPacket(buf, buf.length);
 				packet.setData(nodePacket.serialize());	
 				packet.setAddress(destination.getAddress());

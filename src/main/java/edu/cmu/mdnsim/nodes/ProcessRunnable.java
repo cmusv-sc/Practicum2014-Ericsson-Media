@@ -18,6 +18,7 @@ import edu.cmu.mdnsim.reporting.CPUUsageTracker;
 import edu.cmu.mdnsim.reporting.MemUsageTracker;
 import edu.cmu.mdnsim.reporting.NodeReporter;
 import edu.cmu.mdnsim.reporting.NodeReporter.NodeReporterBuilder;
+import edu.cmu.mdnsim.reporting.PacketLatencyTracker;
 import edu.cmu.mdnsim.reporting.PacketLostTracker;
 
 /**
@@ -89,6 +90,8 @@ class ProcessRunnable extends NodeRunnable {
 		logger.debug("ProcessRunnable.run(): called.");
 		
 		PacketLostTracker packetLostTracker = null;
+		PacketLatencyTracker packetLatencyTracker = null;
+		
 		if(!initializeSocketAndPacket()){
 			return;
 		}
@@ -144,11 +147,14 @@ class ProcessRunnable extends NodeRunnable {
 			if(reportTask == null) {
 								
 				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;				
+				
 				System.out.println("ProcessRunnable.run(): windowSize=" + windowSize);
 				
 				CPUUsageTracker cpuTracker = new CPUUsageTracker();
 				MemUsageTracker memTracker = new MemUsageTracker();
 				packetLostTracker = new PacketLostTracker(windowSize);
+				
+				packetLatencyTracker = new PacketLatencyTracker();
 				
 				reportTask = createAndLaunchReportRateRunnable(cpuTracker, memTracker, packetLostTracker);
 				
@@ -156,16 +162,16 @@ class ProcessRunnable extends NodeRunnable {
 				
 				streamReportMessage.from(this.getNodeId());
 				
-				
-				
 				this.sendStreamReport(streamReportMessage);
 				
 			}
 			
 			packetLostTracker.updatePacketLost(nodePacket.getMessageId());
+			packetLatencyTracker.newPacket(nodePacket);
 			
 			processNodePacket(nodePacket);
 			
+			nodePacket.setForwardTime();
 			sendPacket(packet, nodePacket);
 			
 			if(!isStarted) {

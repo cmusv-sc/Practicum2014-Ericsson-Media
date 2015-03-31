@@ -333,7 +333,9 @@ public class WebClientGraph {
 		 * @param currentTransferRate
 		 */
 		public void updateToolTip(String streamId, String averagePacketLoss, String currentPacketLoss,
-				String averageTransferRate, String currentTransferRate) {
+				String averageTransferRate, String currentTransferRate, String avrLnk2LnkLatency, 
+				String avrEnd2EndLatency) {
+			
 			EdgeMetrics edgeMetrics = this.streamMetricsMap.get(streamId);
 			if(edgeMetrics == null){
 				edgeMetrics = new EdgeMetrics();
@@ -343,6 +345,9 @@ public class WebClientGraph {
 			edgeMetrics.currentPacketLoss = currentPacketLoss;
 			edgeMetrics.averageTransferRate = averageTransferRate;
 			edgeMetrics.currentTransferRate = currentTransferRate;
+			edgeMetrics.avrLnk2LnkLatency = avrLnk2LnkLatency;
+			edgeMetrics.avrEnd2EndLatency = avrEnd2EndLatency;
+			
 			this.tag = this.buildEdgeTagHtml();
 		}
 		/**
@@ -380,6 +385,15 @@ public class WebClientGraph {
 				sb.append(entry.getValue().currentTransferRate);
 				sb.append(HtmlTags.TD_END);
 				
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().avrLnk2LnkLatency);
+				sb.append(HtmlTags.TD_END);
+				
+				sb.append(HtmlTags.TD_BEGIN);
+				sb.append(entry.getValue().avrEnd2EndLatency);
+				sb.append(HtmlTags.TD_END);
+				
+				
 				sb.append(HtmlTags.TR_END);
 			}
 			sb.append(HtmlTags.TABLE_END);
@@ -390,14 +404,43 @@ public class WebClientGraph {
 		 * @return String containing full HTML table element
 		 */
 		private String generateHeaderRow() {
+			
 			StringBuilder sb = new StringBuilder();
+			
 			sb.append(HtmlTags.TR_BEGIN);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Stream");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Status");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Packet Loss");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Current Packet Loss");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Avg Transfer Rate");sb.append(HtmlTags.TD_END);
-			sb.append(HtmlTags.TD_BEGIN);sb.append("Current Transfer Rate");sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Stream");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Status");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Avg Packet Loss");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Instant Packet Loss");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Avg Transfer Rate");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Instant Transfer Rate");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Avg Link Latency");
+			sb.append(HtmlTags.TD_END);
+			
+			sb.append(HtmlTags.TD_BEGIN);
+			sb.append("Instant End2End Latency");
+			sb.append(HtmlTags.TD_END);
+			
 			sb.append(HtmlTags.TR_END);
 			return sb.toString();
 		}
@@ -716,8 +759,11 @@ public class WebClientGraph {
 	 */
 	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
 			String edgeColor, double averagePacketLoss, double currentPacketLoss,
-			double averageTransferRate, double currentTransferRate) {
+			double averageTransferRate, double currentTransferRate, double avrLnk2LnkLatency, 
+			double avrEnd2EndLatency) {
+		
 		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
+		
 		if (e != null) {
 			synchronized(e){
 				String streamStatus = e.getStreamStatus(streamId);
@@ -726,7 +772,8 @@ public class WebClientGraph {
 					if(!streamStatus.equals(EventType.RECEIVE_END.toString())){
 						e.color = edgeColor;
 						e.updateToolTip(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
-								String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate));
+								String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate),
+								String.format("%.2f", avrLnk2LnkLatency), String.format("%.2f", avrEnd2EndLatency));
 					}
 				}
 			}
@@ -765,21 +812,7 @@ public class WebClientGraph {
 			}
 		}
 	}
-	/**
-	 * Used to update tooltop of the node. Called when node reports latency metrics
-	 * @param nodeId
-	 * @param streamId
-	 * @param latency
-	 */
-	public void updateNode(String nodeId, String streamId,
-			long latency) {
-		Node n = this.getNode(nodeId);
-		if(n != null){
-			synchronized(n){
-				n.updateToolTip(streamId, latency);
-			}
-		}
-	}
+
 	public synchronized WebClientUpdateMessage resetWebClientGraph() {
 		nodesMap.clear();
 		edgesMap.clear();

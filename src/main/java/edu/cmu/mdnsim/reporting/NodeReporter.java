@@ -10,16 +10,15 @@ import edu.cmu.mdnsim.nodes.NodeRunnable;
  */
 public class NodeReporter implements Runnable {
 
-	private long lastRecordedHighestPacketId = 0;
 	private long lastRecordedTotalBytes = 0;
 
-	private long lastRecordedPacketLost = 0;
 	
 	private final NodeRunnable nodeRunnable;
 	
 	private final CPUUsageTracker cpuTracker;
 	private final MemUsageTracker memTracker;
 	private final PacketLostTracker packetLostTracker;
+	private final PacketLatencyTracker packetLatencyTracker;
 	
 	
 	
@@ -38,10 +37,17 @@ public class NodeReporter implements Runnable {
 		this.nodeRunnable = builder.nodeRunnable;
 		this.cpuTracker = builder.cpuTracker;
 		this.memTracker = builder.memTracker;
+		
 		if (builder.packetLostTracker != null) {
 			this.packetLostTracker = builder.packetLostTracker;
 		} else {
 			this.packetLostTracker = null;
+		}
+		
+		if (builder.packetLatencyTracker != null) {
+			this.packetLatencyTracker = builder.packetLatencyTracker;
+		} else {
+			this.packetLatencyTracker = null;
 		}
 	}
 
@@ -91,26 +97,35 @@ public class NodeReporter implements Runnable {
 		StreamReportMessage.Builder reportMsgBuilder = 
 				new StreamReportMessage.Builder(EventType.PROGRESS_REPORT, this.nodeRunnable.getUpStreamId(), String.format("%.2f", cpuTracker.getCPUUsage() * 100) + "%", memTracker.getMemUsage() + "MB");
 		
+		lastRecordedTotalBytes = localToTalBytesTransfered;
+		lastRecordedTime = currentTime;
+
+		double averageRateInKiloBitsPerSec = 0, currentRateInKiloBitsPerSec = 0;
+		
+		if (startedTime != 0) {
+			averageRateInKiloBitsPerSec = transportationAverageRate / 128;
+			currentRateInKiloBitsPerSec = transportationInstantRate / 128;
+
+		}
+		
+		reportMsgBuilder.averageTransferRate(averageRateInKiloBitsPerSec)
+			.currentTransferRate(currentRateInKiloBitsPerSec);
+		
 		if (packetLostTracker != null) {
-			long localPacketLostNum = packetLostTracker.getLostPacketNum();
-			long lostDiff = localPacketLostNum - lastRecordedPacketLost;
-			long localHighestPacketId = packetLostTracker.getHighestPacketId();
-			long packetNumDiff = localHighestPacketId - lastRecordedHighestPacketId ;
-			double currentPacketLossRatio = packetNumDiff==0 ? 0 : (lostDiff * 1.0 / packetNumDiff);
-			double averagePacketLossRatio = packetLostTracker.getLostPacketNum() * 1.0 / packetLostTracker.getHighestPacketId();
-			lastRecordedTotalBytes = localToTalBytesTransfered;
-			lastRecordedTime = currentTime;
-			lastRecordedPacketLost = localPacketLostNum;
-			lastRecordedHighestPacketId = localHighestPacketId;
-			if (startedTime != 0) {
-				double averageRateInKiloBitsPerSec = transportationAverageRate / 128;
-				double currentRateInKiloBitsPerSec = transportationInstantRate / 128;
-				reportMsgBuilder.averagePacketLossRate(averagePacketLossRatio)
-					.averageTransferRate(averageRateInKiloBitsPerSec)
-					.currentPacketLossRate(currentPacketLossRatio)
-					.currentTransferRate(currentRateInKiloBitsPerSec);
+			
+			double currentPacketLossRatio = packetLostTracker.getInstantPacketLossRate();
+			double averagePacketLossRatio = packetLostTracker.getAvrPacketLossRate();
+			
+			
+			reportMsgBuilder.averagePacketLossRate(averagePacketLossRatio)
+				.currentPacketLossRate(currentPacketLossRatio);
 				
-			}
+		}
+		
+		if (packetLatencyTracker != null) {
+			
+			reportMsgBuilder.avrEnd2EndPacketLatency(packetLatencyTracker.getAvrEnd2EndLatency())
+				.avrLnk2LnkPacketLatency(packetLatencyTracker.getAvrLnk2LnkLatency());
 		}
 		
 		this.nodeRunnable.sendStreamReport(reportMsgBuilder.build());
@@ -124,6 +139,7 @@ public class NodeReporter implements Runnable {
 		private NodeRunnable nodeRunnable;
 		
 		private PacketLostTracker packetLostTracker;
+		private PacketLatencyTracker packetLatencyTracker;
 		
 		public NodeReporterBuilder(int intervalInMillisecond, NodeRunnable nodeRunnable, CPUUsageTracker cpuTracker, MemUsageTracker memTracker) {
 			this.intervalInMillisecon = intervalInMillisecond;
@@ -134,6 +150,12 @@ public class NodeReporter implements Runnable {
 		
 		public NodeReporterBuilder packetLostTracker(PacketLostTracker packetLostTracker) {
 			this.packetLostTracker = packetLostTracker;
+			return this;
+		}
+		
+		
+		public NodeReporterBuilder packetLatencyTracker(PacketLatencyTracker tracker) {
+			packetLatencyTracker = tracker;
 			return this;
 		}
 		

@@ -1,11 +1,5 @@
 package edu.cmu.mdnsim.reporting;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
-import edu.cmu.mdnsim.nodes.NodePacket;
 
 
 
@@ -25,14 +19,17 @@ public class PacketLostTracker {
 	private long maxRcvedPacketId = 0;
 	
 	private long packetLostCounter = 0L;
-	
+
 	private final long NOT_RCVED = -1;
 	
-//	FileOutputStream out = null;
+	private long rcvedPackedIdInPrevPeriod = 0;
+	private long lostPakcetNumInPrevPeriod = 0;
 	
+	//TODO: finish this method
+	public static int calculateWindowSize() {
+		return 0;
+	}
 	
-
-
 	/**
 	 * 
 	 * @param	windowSize	The size of the window. The larger the window is, the timeout for each packet is larger.
@@ -143,30 +140,65 @@ public class PacketLostTracker {
 		return this.maxRcvedPacketId;
 	}
 	
-	@Override
-	public String toString() {
-		StringBuffer sb = new StringBuffer();
-		sb.append("min_non_rcved_id: " + this.minNonRcvedPacketId + "\t");
-		sb.append("max_rcved_id: " + this.maxRcvedPacketId + "\t");
-		sb.append("\nBuff: [");
-		for (int i = 0; i < this.windowSize; i++) {
-			if (buff[i] == -1)
-				sb.append("_");
-				else
-			sb.append(this.buff[i]);
-			sb.append(",");
+	/**
+	 * 
+	 * Get the average packet loss rate of the stream.
+	 * 
+	 * The divider is {@link minNonRcvedPacketId} because the area {0, {@link minNonRcvedPacketId}} contains the packets
+	 * that are either received or regarded as lost or timeout.
+	 * 
+	 * The dividend is the return value of getLostPacketNum().
+	 * 
+	 * @return
+	 */
+	public synchronized double getAvrPacketLossRate() {
+		if (this.minNonRcvedPacketId == 0) {
+			return 0;
+		} else {
+			return ((double)packetLostCounter / (double)minNonRcvedPacketId);
 		}
-		sb.deleteCharAt(sb.length()-1);
-		sb.append("]");
-		return sb.toString();
 	}
+	
+	public synchronized double getInstantPacketLossRate() {
+		
+		if (minNonRcvedPacketId - rcvedPackedIdInPrevPeriod == 0) {
+			return 0;
+		} else {
+			
+			long lostPakcetNumInCurrPeriod = packetLostCounter - lostPakcetNumInPrevPeriod;
+			lostPakcetNumInPrevPeriod = packetLostCounter;
+			
+			long rcvedPacketNumInCurrPeriod = minNonRcvedPacketId - rcvedPackedIdInPrevPeriod;
+			rcvedPackedIdInPrevPeriod = minNonRcvedPacketId;
+			
+			return (double)lostPakcetNumInCurrPeriod / (double)rcvedPacketNumInCurrPeriod;
+		}
+		
+		
+	}
+	
+	
+//	@Override
+//	public String toString() {
+//		StringBuffer sb = new StringBuffer();
+//		sb.append("min_non_rcved_id: " + this.minNonRcvedPacketId + "\t");
+//		sb.append("max_rcved_id: " + this.maxRcvedPacketId + "\t");
+//		sb.append("\nBuff: [");
+//		for (int i = 0; i < this.windowSize; i++) {
+//			if (buff[i] == -1)
+//				sb.append("_");
+//				else
+//			sb.append(this.buff[i]);
+//			sb.append(",");
+//		}
+//		sb.deleteCharAt(sb.length()-1);
+//		sb.append("]");
+//		return sb.toString();
+//	}
 	
 	
 	private void incrementMinNonRcvedPacketId() {
 		this.minNonRcvedPacketId++;
-//		if (this.minNonRcvedPacketId % windowSize == 0) {
-//			System.out.println("offset == 0");
-//		}
 	}
 
 }

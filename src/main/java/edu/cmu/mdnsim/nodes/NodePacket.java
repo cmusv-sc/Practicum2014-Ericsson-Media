@@ -4,6 +4,8 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import edu.cmu.mdnsim.reporting.SystemClock;
+
 /**
  *	A packet that can hold a flag, packet id and data length fields as well as the payload.
  *  <p>The header of the packet takes 12 bytes. The total size of the packet is limited by PACKET_MAX_LENGTH.
@@ -35,8 +37,13 @@ public class NodePacket {
 	private int packetId;
 	private int dataLength;
 	private byte[] data;
+	private long transmitTime;
+	private long forwardTime;
 	
-	public static final int HEADER_LENGTH = 12;
+	
+	
+	//TODO: Update the HEADER_LENGTH
+	public static final int HEADER_LENGTH = 28;
 	public static final int MAX_PACKET_LENGTH = 1000;
 	
 	/**
@@ -75,12 +82,15 @@ public class NodePacket {
 	 * @throws IllegalArgumentException when packetId is lower than zero or totalLength is out the range[HEADER_LENGTH, MAX_PACKET_LENGTH]
 	 */
 	public NodePacket(byte[] rawData){
+		
 		if(rawData == null){
 			throw new NullPointerException("input null as a byte array for raw data");
 		}
+		
 		if(rawData.length < HEADER_LENGTH || rawData.length > MAX_PACKET_LENGTH){
 			throw new IllegalArgumentException();
 		}
+		
 		this.deserialize(rawData);
 	}
 	
@@ -95,6 +105,8 @@ public class NodePacket {
 		byteBuffer.putInt(flag);
 		byteBuffer.putInt(packetId);
 		byteBuffer.putInt(dataLength);
+		byteBuffer.putLong(transmitTime);
+		byteBuffer.putLong(forwardTime);
 		byteBuffer.put(data);
 		
 		return byteBuffer.array();
@@ -106,17 +118,24 @@ public class NodePacket {
 	 * @return length of the total length
 	 */
 	private int deserialize(byte[] rawData){
+		
 		assert(rawData != null);
+		
 		assert(rawData.length >= HEADER_LENGTH && rawData.length <= MAX_PACKET_LENGTH);
 
 		ByteBuffer byteBuffer = ByteBuffer.wrap(rawData, 0, HEADER_LENGTH);
 		flag = byteBuffer.getInt();
 		packetId = byteBuffer.getInt();
 		dataLength = byteBuffer.getInt();
+		transmitTime = byteBuffer.getLong();
+		forwardTime = byteBuffer.getLong();
+		
 		if(dataLength >  MAX_PACKET_LENGTH - HEADER_LENGTH){
 			dataLength =  MAX_PACKET_LENGTH - HEADER_LENGTH;
 		}
+		
 		data = Arrays.copyOfRange(rawData, HEADER_LENGTH, HEADER_LENGTH + dataLength);
+		
 		return HEADER_LENGTH + dataLength;
 	}
 	
@@ -166,6 +185,23 @@ public class NodePacket {
 
 	public int size(){
 		return dataLength + HEADER_LENGTH;
+	}
+	
+	public long getTransmitTime() {
+		return this.transmitTime;
+	}
+	
+	public long getForwardTime() {
+		return this.forwardTime;
+	}
+	
+	public void setTransmitTime() {
+		transmitTime = SystemClock.currentTimeMillis();
+		forwardTime = transmitTime;
+	}
+	
+	public void setForwardTime() {
+		this.forwardTime = SystemClock.currentTimeMillis();
 	}
 	
 }
