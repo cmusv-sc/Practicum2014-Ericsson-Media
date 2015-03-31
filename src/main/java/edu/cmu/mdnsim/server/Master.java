@@ -126,9 +126,9 @@ public class Master extends TimerTask {
 	 * 
 	 * @throws MessageBusException    
 	 */
-	public void init() throws MessageBusException {
+	public void init(String masterIP) throws MessageBusException {
 
-		msgBusSvr.config();
+		msgBusSvr.config(masterIP);
 		
 		System.out.println(msgBusSvr.getURL());
 
@@ -762,7 +762,7 @@ public class Master extends TimerTask {
 	public static void main(String[] args) throws InterruptedException, IOException, TrapException, MessageBusException {
 	
 		Master mdnDomain = new Master();
-		mdnDomain.init();
+		mdnDomain.init(args[0]);
 		//Timer used to update the web client every 1 sec
 		Timer reportTimer = new Timer();
 		reportTimer.scheduleAtFixedRate(mdnDomain, 0, 1000);

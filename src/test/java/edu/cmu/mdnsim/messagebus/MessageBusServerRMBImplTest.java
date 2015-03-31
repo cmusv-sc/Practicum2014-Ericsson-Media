@@ -32,7 +32,7 @@ public class MessageBusServerRMBImplTest {
 	public void broker() throws Exception
 	{
 		server = new MessageBusServerRMBImpl();
-		server.config();
+		server.config("127.0.0.1");
 	}
 	
 	@org.junit.Test

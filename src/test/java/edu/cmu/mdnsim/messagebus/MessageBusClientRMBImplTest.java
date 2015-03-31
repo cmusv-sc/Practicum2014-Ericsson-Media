@@ -23,7 +23,7 @@ public class MessageBusClientRMBImplTest {
 	{
 		if (server == null) {
 			server = new MessageBusServerRMBImpl();
-			server.config();
+			server.config("127.0.0.1");
 		}
 	}
 	

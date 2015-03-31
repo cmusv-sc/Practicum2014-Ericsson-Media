@@ -438,7 +438,7 @@ public class WebClientGraph {
 			sb.append(HtmlTags.TD_END);
 			
 			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Instant End2End Latency");
+			sb.append("Avg End2End Latency");
 			sb.append(HtmlTags.TD_END);
 			
 			sb.append(HtmlTags.TR_END);

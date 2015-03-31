@@ -26,7 +26,7 @@ public interface MessageBusServer {
 	 * 
 	 * @throws MessageBusException
 	 */
-	public void config() throws MessageBusException;
+	public void config(String brokerIP) throws MessageBusException;
 	
 	/**
 	 * 

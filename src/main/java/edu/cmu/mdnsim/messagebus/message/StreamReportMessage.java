@@ -247,9 +247,20 @@ public class StreamReportMessage extends MbMessage{
 			this.currentTransferRate = currentTransferRate;
 			return this;
 		}
+		public Builder avrEnd2EndPacketLatency(double avrEnd2EndPacketLatency) {
+			this.avrEnd2EndPacketLatency = avrEnd2EndPacketLatency;
+			return this;
+		}
+		
+		public Builder avrLnk2LnkPacketLatency(double avrLnk2LnkPacketLatency) {
+			this.avrLnk2LnkPacketLatency = avrLnk2LnkPacketLatency;
+			return this;
+		}
+		
 		public StreamReportMessage build(){
 			return new StreamReportMessage(this);
 		}
+		
 		
 	}
 }

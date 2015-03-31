@@ -1,5 +1,5 @@
 //used to show logs in the web client
-var loggerResource = RMB.builder().seed("http://127.0.0.1:8888/_connectTrap\nws://127.0.0.1:8888/_connectTrapWS")
+var loggerResource = RMB.builder().seed("http://128.2.13.133:8888/_connectTrap\nws://128.2.13.133:8888/_connectTrapWS")
 		.id("webclient").build();
 
 //Represents Sigma object - Main object which holds the graph

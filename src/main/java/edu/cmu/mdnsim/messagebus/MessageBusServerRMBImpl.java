@@ -36,7 +36,7 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 	
 	static Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.master");
 	
-	public void config() throws MessageBusException {
+	public void config(String brokerIP) throws MessageBusException {
 		
 		JDKLoggerConfig.initForPrefixes(Level.FINE, "embedded");
 		JDKLoggerConfig.initForPrefixes(Level.INFO, "com.ericsson");
@@ -44,7 +44,7 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 		this.broker = new Broker();
 		
 		try {
-			broker.listen("127.0.0.1", 8888).get();
+			broker.listen(brokerIP, 8888).get();
 		} catch (InterruptedException e) {
 			throw new MessageBusException("Broker is threaded while waiting for broker.listen().", e);
 		}
