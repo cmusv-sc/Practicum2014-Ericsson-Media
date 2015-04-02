@@ -1,5 +1,5 @@
 //used to show logs in the web client
-var loggerResource = RMB.builder().seed("http://128.2.13.133:8888/_connectTrap\nws://128.2.13.133:8888/_connectTrapWS")
+var loggerResource = RMB.builder().seed("trap.transport.http.url=/_connectTrap\ntrap.transport.websocket.wsuri=/_connectTrapWS")
 		.id("webclient").build();
 
 //Represents Sigma object - Main object which holds the graph
@@ -187,7 +187,7 @@ function handleWsFileSelect(evt, action) {
 		reader.onload = (function(theFile) {
 			return function(e) {
 				if (action == 'Start') {
-					loggerResource.message().to("/mdnsim/work_config").data(e.target.result).send();
+					loggerResource.message().method("POST").to("/mdnsim/work_config").data(e.target.result).send();
 					console.log("Start flows");
 				} else if (action == 'Stop') {
 					loggerResource.message().method("DELETE").to("/mdnsim/work_config").data(e.target.result).send();
