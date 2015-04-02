@@ -23,7 +23,7 @@ public class NodeReporter implements Runnable {
 	
 	
 	// -1 to avoid time difference to be 0 when used as a divider
-	private long lastRecordedTime = System.currentTimeMillis() - 1;
+	private long lastRecordedTime = SystemClock.currentTimeMillis() - 1;
 
 	private final long startedTime;
 
@@ -32,7 +32,7 @@ public class NodeReporter implements Runnable {
 	private volatile boolean killed = false;
 
 	NodeReporter(NodeReporterBuilder builder) {
-		this.startedTime = System.currentTimeMillis();
+		this.startedTime = SystemClock.currentTimeMillis();
 		this.intervalInMillisecond = builder.intervalInMillisecon;
 		this.nodeRunnable = builder.nodeRunnable;
 		this.cpuTracker = builder.cpuTracker;
@@ -102,11 +102,9 @@ public class NodeReporter implements Runnable {
 
 		double averageRateInKiloBitsPerSec = 0, currentRateInKiloBitsPerSec = 0;
 		
-		if (startedTime != 0) {
-			averageRateInKiloBitsPerSec = transportationAverageRate / 128;
-			currentRateInKiloBitsPerSec = transportationInstantRate / 128;
+		averageRateInKiloBitsPerSec = transportationAverageRate / 128;
+		currentRateInKiloBitsPerSec = transportationInstantRate / 128;
 
-		}
 		
 		reportMsgBuilder.averageTransferRate(averageRateInKiloBitsPerSec)
 			.currentTransferRate(currentRateInKiloBitsPerSec);

@@ -151,8 +151,6 @@ public class WebClientGraph {
 			nodeMetrics.streamStatus = eventType.toString();
 			nodeMetrics.cpuUsage = cpuUsage;
 			nodeMetrics.memUsage = memUsage;
-			
-			System.err.println("WebClientGraph.Node.updateToolTip(): cpuUsage=" + cpuUsage + "  memUsage=" + memUsage);
 
 			this.tag = this.buildNodeTagHtml();
 		}

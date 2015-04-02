@@ -97,7 +97,6 @@ class SourceRunnable extends NodeRunnable {
 		
 		//TOOD: FOR DEBUG
 		while (bytesToTransfer > 0 && !isKilled()) {	
-//			System.out.println(SystemClock.currentTimeMillis() + ": start of loop");
 
 			NodePacket nodePacket = 
 					bytesToTransfer <= NodePacket.MAX_PACKET_LENGTH ? new NodePacket(1, packetId, (int)bytesToTransfer) : new NodePacket(0, packetId);
@@ -127,9 +126,7 @@ class SourceRunnable extends NodeRunnable {
 				try {
 					long millisec = nanosecondsRemaining / 1000000;
 					int nanosec = (int)(nanosecondsRemaining - (millisec * 1000000));
-//					System.out.println(SystemClock.currentTimeMillis() + ": ready to sleep for " + millisec + "/" + nanosec);
 					Thread.sleep(millisec, nanosec);
-//					System.out.println(SystemClock.currentTimeMillis() + ": wake up");
 				} catch (InterruptedException e) {
 					logger.error(e.toString());
 				}
@@ -139,7 +136,6 @@ class SourceRunnable extends NodeRunnable {
 				System.out.println("[SourceRunnable run] Last sent packet ID: " + packetId);
 			}
 			packetId++;
-//			System.out.println(SystemClock.currentTimeMillis() + ": end of loop");
 		}
 		
 		reportTaskHandler.kill();

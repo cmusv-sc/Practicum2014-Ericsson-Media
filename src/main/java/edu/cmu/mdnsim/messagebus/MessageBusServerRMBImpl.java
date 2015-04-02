@@ -94,7 +94,6 @@ public class MessageBusServerRMBImpl implements MessageBusServer {
 		
 		try {
 			from.message().to(dstURI).method(method).data(JSON.toJSON(msg)).send();
-			logger.debug("MessageBusServerRMBImpl.send(): sends from " + from.id() + " to " + dstURI + " method: " + method + " msg " + msg);
 		} catch (IOException e) {
 			throw new MessageBusException(e);
 		}
