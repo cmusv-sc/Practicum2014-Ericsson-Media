@@ -1,5 +1,10 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
@@ -15,6 +20,8 @@ import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
+import edu.cmu.mdnsim.server.Master;
+import edu.cmu.util.UDPHolePunchingServer.UDPInfo;
 
 /**
  * A abstract node that defines basic behavior of concrete nodes.
@@ -102,9 +109,6 @@ public abstract class AbstractNode {
 
 	public synchronized void setRegistered() {
 		registered = true;
-		if (ClusterConfig.DEBUG) {
-			System.out.println("AbstractNode.setRegistered(): " + getNodeId() + " successfully registered");
-		}
 	}
 	
 	public synchronized boolean isRegistered() {
@@ -171,12 +175,24 @@ public abstract class AbstractNode {
 	 * @param request the request to fetch the flow id from
 	 * @return flow id
 	 */
-	protected String getFlowId(MbMessage request) {
+	protected static String getFlowId(MbMessage request) {
 		String source = request.source();
-		logger.debug("Source Id: " + source);
-		
 		String flowId = source.substring(source.lastIndexOf('/')+1);
-		logger.debug("Flow Id: " + flowId);
 		return flowId;
-	}	
+	}
+	
+	protected UDPInfo getUDPInfo(DatagramSocket socket, String masterIP) throws IOException, ClassNotFoundException {
+
+		DatagramPacket packet = new DatagramPacket(new byte[1024], 1024);
+		InetAddress iaddr = InetAddress.getByName(masterIP);
+		packet.setAddress(iaddr);
+		packet.setPort(Master.UDP_HOLE_PUNCHING_SERVER_PORT);
+		socket.send(packet);
+		socket.receive(packet);
+		byte[] bytes = packet.getData();
+		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+		ObjectInput in = null;
+		in = new ObjectInputStream(bis);
+		return (UDPInfo)in.readObject(); 
+	}
 }

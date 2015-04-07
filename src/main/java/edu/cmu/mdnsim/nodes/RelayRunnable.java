@@ -100,8 +100,7 @@ class RelayRunnable extends NodeRunnable {
 			
 
 			if(reportTaskHandler == null) {
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;	
-				System.out.println("RelayRunnable.run(): windowSize=" + windowSize);
+				int windowSize = PacketLostTracker.calculateWindowSize(Integer.parseInt(this.getStream().getKiloBitRate()), TIMEOUT_FOR_PACKET_LOSS, NodePacket.MAX_PACKET_LENGTH);
 				
 				
 				CPUUsageTracker cpuTracker = new CPUUsageTracker();

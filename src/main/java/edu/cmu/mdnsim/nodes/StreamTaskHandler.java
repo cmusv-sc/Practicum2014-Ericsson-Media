@@ -17,7 +17,9 @@ class StreamTaskHandler<T extends NodeRunnable> {
 	 * and set reset flag as actions for clean up is different from being killed.
 	 */
 	public void reset() {
+		
 		streamTask.reset();
+		
 	}
 
 	public void kill() {

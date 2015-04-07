@@ -3,6 +3,7 @@ package edu.cmu.mdnsim.server;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.ListIterator;
@@ -33,7 +34,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.reporting.WebClientGraph;
-import edu.cmu.util.Utility;
+import edu.cmu.util.UDPHolePunchingServer;
 /**
  * It represents the Master Node of the Simulator.
  * Some of the major responsibilities include: 
@@ -50,6 +51,9 @@ import edu.cmu.util.Utility;
  */
 public class Master extends TimerTask {
 
+	
+	public static final int UDP_HOLE_PUNCHING_SERVER_PORT = 12345;
+	
 	private static final double PACKET_LOSS_THRESHOLD = 0.16;
 	private static final Object streamLatencyTrackerLock = new Object();
 
@@ -59,6 +63,13 @@ public class Master extends TimerTask {
 	 * The Message Bus Server is part of the master node and is started along with master
 	 */
 	MessageBusServer msgBusSvr;
+	
+	
+	/**
+	 * 
+	 */
+	UDPHolePunchingServer udpServer;
+	
 	/**
 	 * Contains a mapping of the node container label to the URI
 	 */
@@ -124,10 +135,14 @@ public class Master extends TimerTask {
 	 * </ul>
 	 * 
 	 * @throws MessageBusException    
+	 * @throws SocketException 
 	 */
-	public void init(String masterIP) throws MessageBusException {
+	public void init(String masterIP) throws MessageBusException, SocketException {
 
 		msgBusSvr.config(masterIP);
+		
+		udpServer = new UDPHolePunchingServer(UDP_HOLE_PUNCHING_SERVER_PORT);
+		new Thread(udpServer).start();
 		
 		System.out.println(msgBusSvr.getURL());
 

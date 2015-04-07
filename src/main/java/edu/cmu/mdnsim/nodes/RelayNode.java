@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -12,6 +13,7 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.util.UDPHolePunchingServer.UDPInfo;
 
 /**
  * A Node can send data to multiple flows for the same stream. 
@@ -25,8 +27,12 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 
 	private Map<String, StreamTaskHandler<RelayRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<RelayRunnable>>();
 
-	public RelayNode(String nodePublicIP) throws UnknownHostException {
+	private String masterIP;
+	
+	public RelayNode(String nodePublicIP, String masterIP) throws UnknownHostException {
 		super(nodePublicIP);
+		this.masterIP = masterIP;
+		
 	}
 	/**
 	 * Executes a task.
@@ -36,7 +42,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 	@Override
 	public synchronized void executeTask(MbMessage request, Stream stream) {
 
-		Flow flow = stream.findFlow(this.getFlowId(request));
+		Flow flow = stream.findFlow(getFlowId(request));
 		//Get the relay node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		//Open a socket for receiving data only if it is not already open
@@ -45,13 +51,32 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 			//TODO: this is an exception
 			return;
 		}
+		
+		Map<String, String> upstreamNodePropertiesMap = 
+				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+		UDPInfo udpInfo = null;
+		try {
+			udpInfo = getUDPInfo(receiveSocket, masterIP);
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_PUBLIC_IP_PORT, 
+					udpInfo.getYourPublicIP()+":"+udpInfo.getYourPublicPort());
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
+					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+			logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+		} catch (ClassNotFoundException | IOException e1) {
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
+					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
+		}
 
-		String[] destinationAddressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
+		String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT).split(":");
+		if (udpInfo != null && udpInfo.getYourPublicIP().equals(addressAndPort[0])) {
+			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
+		}
+		
 		InetAddress destAddress = null;
 		int destPort;
 		try {
-			destAddress = InetAddress.getByName(destinationAddressAndPort[0]);
-			destPort = Integer.valueOf(destinationAddressAndPort[1]);
+			destAddress = InetAddress.getByName(addressAndPort[0]);
+			destPort = Integer.valueOf(addressAndPort[1]);
 			String downStreamUri = nodePropertiesMap.get(Flow.DOWNSTREAM_URI);
 
 			if(streamIdToRunnableMap.get(stream.getStreamId()) != null){
@@ -66,10 +91,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 				Future<?> relayFuture = NodeContainer.ThreadPool.submit(new MDNTask(relayRunnable));
 				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<RelayRunnable>(relayFuture, relayRunnable));
 
-				Map<String, String> upstreamNodePropertiesMap = 
-						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-				upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
-						super.getHostAddr().getHostAddress()+":" + receiveSocket.getLocalPort());
+				
 				try {
 					msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 							nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
@@ -152,7 +174,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			logger.debug(this.getNodeId() + " [DEBUG]RelayNode.cleanUp(): Stops streamRunnable:" + streamTask.getStreamId());
+			logger.debug("Reset streamRunnable:" + streamTask.getStreamId());
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());

@@ -19,6 +19,7 @@ public class NodeReporter implements Runnable {
 	private final MemUsageTracker memTracker;
 	private final PacketLostTracker packetLostTracker;
 	private final PacketLatencyTracker packetLatencyTracker;
+	private final RateTracker rateTracker;
 	
 	
 	
@@ -49,6 +50,14 @@ public class NodeReporter implements Runnable {
 		} else {
 			this.packetLatencyTracker = null;
 		}
+		
+		if (builder.rateTracker != null) {
+			this.rateTracker = builder.rateTracker;
+		} else {
+			this.rateTracker = null;
+		}
+		
+		
 	}
 
 	/**
@@ -138,6 +147,7 @@ public class NodeReporter implements Runnable {
 		
 		private PacketLostTracker packetLostTracker;
 		private PacketLatencyTracker packetLatencyTracker;
+		private RateTracker rateTracker;
 		
 		public NodeReporterBuilder(int intervalInMillisecond, NodeRunnable nodeRunnable, CPUUsageTracker cpuTracker, MemUsageTracker memTracker) {
 			this.intervalInMillisecon = intervalInMillisecond;
@@ -154,6 +164,11 @@ public class NodeReporter implements Runnable {
 		
 		public NodeReporterBuilder packetLatencyTracker(PacketLatencyTracker tracker) {
 			packetLatencyTracker = tracker;
+			return this;
+		}
+		
+		public NodeReporterBuilder rateTracker(RateTracker tracker) {
+			rateTracker = tracker;
 			return this;
 		}
 		

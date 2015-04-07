@@ -3,9 +3,10 @@ package edu.cmu.mdnsim.reporting;
 
 
 
+
 /**
  * 
- * A tracker for packet lost. It calculates the packet lost number based on packet id given.
+ * A tracker for packet loss. It calculates the packet lost number based on packet id given.
  * 
  *
  * @author Geng Fu
@@ -25,9 +26,22 @@ public class PacketLostTracker {
 	private long rcvedPackedIdInPrevPeriod = 0;
 	private long lostPakcetNumInPrevPeriod = 0;
 	
-	//TODO: finish this method
-	public static int calculateWindowSize() {
-		return 0;
+	/**
+	 * 
+	 * The window size calculation helper. The window size is determined by the stream bit rate, time out and size of
+	 * each packet.
+	 * 
+	 * @param		kbps		kilobits per second of the stream
+	 * @param		timeout		the time in seconds after which the packet is regarded as lost if is not received
+	 * 							<p>As MDNSim uses UDP as transport for media data, the packet might be received out-of-
+	 * 							order or lost. The timeout indicates the maximum of delay of each packet. </p>
+	 * @param		packetSize	the size in bytes of each packet
+	 * @return
+	 */
+	public static int calculateWindowSize(int kbps, int timeout, int packetSize) {
+		
+		return kbps * 1000 * timeout / packetSize / 8;
+		
 	}
 	
 	/**

@@ -1,5 +1,7 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
@@ -11,6 +13,7 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.util.UDPHolePunchingServer.UDPInfo;
 
 /**
  * A node that represents the source of a media network.
@@ -24,8 +27,11 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 
 	private Map<String, StreamTaskHandler<SourceRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SourceRunnable>>();
 
-	public SourceNode(String nodePublicIP) throws UnknownHostException {
+	private String masterIP;
+	
+	public SourceNode(String nodePublicIP, String masterIP) throws UnknownHostException {
 		super(nodePublicIP);
+		this.masterIP = masterIP;
 	}	
 	
 	/**
@@ -40,11 +46,27 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 	@Override
 	public void executeTask(MbMessage request, Stream stream) {
 
-		Flow flow = stream.findFlow(this.getFlowId(request));
+		Flow flow = stream.findFlow(getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
-		String[] ipAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
-		String destAddrStr = ipAndPort[0];
-		int destPort = Integer.parseInt(ipAndPort[1]);
+		
+		
+		
+		DatagramSocket receiveSocket = this.getAvailableSocket(stream.getStreamId());
+		UDPInfo udpInfo = null;
+		try {
+			udpInfo = getUDPInfo(receiveSocket, masterIP);
+		} catch (ClassNotFoundException | IOException e) {
+			e.printStackTrace();
+		}
+		logger.debug("For flow: " + flow.getFlowId() + "\t" + nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT));
+		
+		String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT).split(":");
+		if (udpInfo != null && udpInfo.getYourPublicIP().equals(addressAndPort[0])) {
+			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
+		}
+		
+		String destAddrStr = addressAndPort[0];
+		int destPort = Integer.parseInt(addressAndPort[1]);
 		long dataSizeInBytes = Long.parseLong(flow.getDataSize());
 		int rateInKiloBitsPerSec = Integer.parseInt(flow.getKiloBitRate());
 		int rateInBytesPerSec = rateInKiloBitsPerSec * 128;  //Assumed that KiloBits = 1024 bits
@@ -109,7 +131,9 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 
 	@Override
 	public synchronized void reset() {
+		
 		for (StreamTaskHandler<SourceRunnable> streamTask : streamIdToRunnableMap.values()) {
+			
 			streamTask.reset();
 
 			while(!streamTask.isDone());

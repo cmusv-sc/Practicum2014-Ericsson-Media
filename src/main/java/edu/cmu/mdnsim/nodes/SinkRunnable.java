@@ -86,12 +86,8 @@ class SinkRunnable extends NodeRunnable {
 
 
 			if(reportTaksHandler == null){
-//				
-//				System.out.println("kpbs: " + this.getStream().getKiloBitRate());
-//				System.out.println("MAX_PACKET_LENGTH: " + NodePacket.MAX_PACKET_LENGTH);
 				
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;	
-				System.out.println("Window Size: " + windowSize);
+				int windowSize = PacketLostTracker.calculateWindowSize(Integer.parseInt(this.getStream().getKiloBitRate()), TIMEOUT_FOR_PACKET_LOSS, NodePacket.MAX_PACKET_LENGTH);
 				
 				CPUUsageTracker cpuTracker = new CPUUsageTracker();
 				MemUsageTracker memTracker = new MemUsageTracker();
@@ -193,7 +189,7 @@ class SinkRunnable extends NodeRunnable {
 	private boolean initializeSocketAndPacket(){
 		
 		try {
-			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 20000);
+			receiveSocket.setSoTimeout(TIMEOUT_FOR_PACKET_LOSS * 1000);
 		} catch (SocketException e1) {
 			return false;
 		}

@@ -66,9 +66,6 @@ class ProcessRunnable extends NodeRunnable {
 		
 		
 		super(stream, msgBusClient, nodeId, cleaner);
-		
-		
-		
 
 		this.totalData = totalData;
 		this.dstAddress = destAddress;
@@ -87,8 +84,6 @@ class ProcessRunnable extends NodeRunnable {
 	@Override
 	public void run() {
 		
-		logger.debug("ProcessRunnable.run(): called.");
-		
 		PacketLostTracker packetLostTracker = null;
 		PacketLatencyTracker packetLatencyTracker = null;
 		
@@ -98,13 +93,14 @@ class ProcessRunnable extends NodeRunnable {
 
 		boolean isFinalWait = false;
 		boolean isStarted = false;
+		
 		ReportTaskHandler reportTask = null;
 
 		while (!isKilled()) {
 			try {
 				receiveSocket.receive(packet);
 			} catch(SocketTimeoutException ste){
-				logger.warn("ProcessRunnable.run(): catch exception: " + ste.toString());
+				logger.warn("ProcessRunnable.run(): catch exception[" + this.getStreamId() + "]: " + ste.toString());
 				/*
 				 * When socket doesn't receive any packet before time out,
 				 * check whether Upstream has informed the NodeRunnable that
@@ -126,6 +122,7 @@ class ProcessRunnable extends NodeRunnable {
 					 * If the upstream hsan't finished, continue waiting for
 					 * upcoming packet.
 					 */
+					System.out.println("IS KILLED ? " + isKilled());
 					continue;
 				}
 			} catch (IOException e) {
@@ -141,12 +138,11 @@ class ProcessRunnable extends NodeRunnable {
 			setTotalBytesTranfered(this.getTotalBytesTranfered() + nodePacket.size());
 
 			/*
-			 * If reportTaskHandler is null, the packet is the first packet 
-			 * received.
+			 * If reportTaskHandler is null, the packet is the first packet received and NodeReporter should be configured.
 			 */
 			if(reportTask == null) {
 								
-				int windowSize = Integer.parseInt(this.getStream().getKiloBitRate())  * 1000 * TIMEOUT_FOR_PACKET_LOSS / NodePacket.MAX_PACKET_LENGTH / 8;				
+				int windowSize = PacketLostTracker.calculateWindowSize(Integer.parseInt(this.getStream().getKiloBitRate()), TIMEOUT_FOR_PACKET_LOSS, NodePacket.MAX_PACKET_LENGTH);				
 				
 				System.out.println("ProcessRunnable.run(): windowSize=" + windowSize);
 				
@@ -156,7 +152,11 @@ class ProcessRunnable extends NodeRunnable {
 				
 				packetLatencyTracker = new PacketLatencyTracker();
 				
-				reportTask = createAndLaunchReportRateRunnable(cpuTracker, memTracker, packetLostTracker);
+				NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTracker, memTracker)
+					.packetLostTracker(packetLostTracker).packetLatencyTracker(packetLatencyTracker).build();
+				
+				Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
+				reportTask = new ReportTaskHandler(reportFuture, reportThread);
 				
 				StreamReportMessage streamReportMessage = new StreamReportMessage.Builder(EventType.RECEIVE_START, this.getUpStreamId(), "N/A", "N/A").build();
 				
@@ -274,18 +274,6 @@ class ProcessRunnable extends NodeRunnable {
 		return true;
 	}
 
-	/**
-	 * Creates and Launches a reporting thread
-	 * @return Future of the reporting thread
-	 */
-
-	private ReportTaskHandler createAndLaunchReportRateRunnable(CPUUsageTracker cpuTrakcer, MemUsageTracker memTracker, PacketLostTracker packetLostTracker){
-		
-		//int intervalInMillisecond, NodeRunnable nodeRunnable, CPUUsageTracker cpuTracker, MemUsageTracker memTracker
-		NodeReporter reportThread = new NodeReporterBuilder(INTERVAL_IN_MILLISECOND, this, cpuTrakcer, memTracker).packetLostTracker(packetLostTracker).build();
-		Future<?> reportFuture = NodeContainer.ThreadPool.submit(new MDNTask(reportThread));
-		return new ReportTaskHandler(reportFuture, reportThread);
-	}
 
 	/**
 	 * Sends the NodePacket embedded into DatagramPacket

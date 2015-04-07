@@ -1,10 +1,11 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 import edu.cmu.mdnsim.concurrent.MDNTask;
@@ -12,6 +13,7 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.util.UDPHolePunchingServer.UDPInfo;
 
 /**
  * A node which can process packets with some amout of resource such as CPU and memory.
@@ -23,10 +25,14 @@ import edu.cmu.mdnsim.messagebus.message.MbMessage;
  */
 public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 
-	private Map<String, StreamTaskHandler<ProcessRunnable>> streamIdToRunnableMap = new HashMap<String, StreamTaskHandler<ProcessRunnable>>();
+	private Map<String, StreamTaskHandler<ProcessRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<ProcessRunnable>>();
 
-	public ProcessingNode(String nodePublicIP) throws UnknownHostException {	
+	
+	private String masterIP;
+	
+	public ProcessingNode(String nodePublicIP, String masterIP) throws UnknownHostException {	
 		super(nodePublicIP);
+		this.masterIP = masterIP;
 	}
 
 	/**
@@ -37,7 +43,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	@Override
 	public void executeTask(MbMessage request, Stream stream) {
 
-		Flow flow = stream.findFlow(this.getFlowId(request));
+		Flow flow = stream.findFlow(getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
 		/* Open a socket for receiving data from upstream node */
 		DatagramSocket receiveSocket = this.getAvailableSocket(flow.getStreamId());
@@ -46,12 +52,38 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 			//TODO: report to the management layer, we failed to bind a port to a socket
 			logger.error("ProcessionNode.executeTask(): unable return a receive socket");
 		}else{
-
+			
+			Map<String, String> upstreamNodePropertiesMap = 
+					flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+			UDPInfo udpInfo = null;
+			try {
+				udpInfo = getUDPInfo(receiveSocket, masterIP);
+				upstreamNodePropertiesMap.put(Flow.RECEIVER_PUBLIC_IP_PORT, 
+						udpInfo.getYourPublicIP()+":"+udpInfo.getYourPublicPort());
+				upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+				logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+			} catch (ClassNotFoundException | IOException e1) {
+				logger.warn("UDPINFO EXCEPTION: " + e1.getMessage());
+				upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
+						super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
+				
+			}
+			
 			/* Get processing parameters */
 			long processingLoop = Long.valueOf(nodePropertiesMap.get(Flow.PROCESSING_LOOP));
 			int processingMemory = Integer.valueOf(nodePropertiesMap.get(Flow.PROCESSING_MEMORY));
-			/* Get the IP:port */
-			String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_IP_PORT).split(":");
+			
+			/* Get the IP:port reported by downstream*/
+			
+			String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT).split(":");
+			if (udpInfo != null && udpInfo.getYourPublicIP().equals(addressAndPort[0])) {
+				addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
+			}
+			
+			
+//			if (udpInfo != null && udpInfo.getYourPublicIP().equals(u))
+			
+			
 			/* Get the expected rate */
 			int rate = Integer.parseInt(flow.getKiloBitRate());
 			
@@ -60,12 +92,11 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 						new ProcessRunnable(stream, Long.parseLong(stream.getDataSize()), InetAddress.getByName(addressAndPort[0]), Integer.valueOf(addressAndPort[1]), processingLoop, processingMemory, rate, msgBusClient, nodeId, this, receiveSocket);
 				Future<?> procFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
 				streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<ProcessRunnable>(procFuture, procRunnable));
+				System.out.println("ProcessingNode.run(): Add stream " + stream.getStreamId());
 
 				//Send the stream specification to upstream node
-				Map<String, String> upstreamNodePropertiesMap = 
-						flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-				upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
-						super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
+				
+				
 				try {
 					msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 							nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
@@ -128,7 +159,11 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	@Override
 	public synchronized void reset() {
-
+		
+		System.out.println("Total streamTask num: " + streamIdToRunnableMap.size());
+		for (String streamId : this.streamIdToRunnableMap.keySet()) {
+			System.out.println(streamId);
+		}
 		for (StreamTaskHandler<ProcessRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
@@ -147,6 +182,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	@Override
 	public void removeNodeRunnable(String streamId) {
+		System.out.println("ProcessingNode.removeNodeRunnable(): " + streamId);
 		this.streamIdToRunnableMap.remove(streamId);
 		
 	}

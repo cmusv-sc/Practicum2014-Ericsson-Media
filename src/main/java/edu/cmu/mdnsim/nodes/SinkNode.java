@@ -1,5 +1,6 @@
 package edu.cmu.mdnsim.nodes;
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.UnknownHostException;
 import java.util.Map;
@@ -11,6 +12,7 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.util.UDPHolePunchingServer.UDPInfo;
 
 /**
  * A node that can receive packets. 
@@ -27,14 +29,17 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	private Map<String, StreamTaskHandler<SinkRunnable>> streamIdToRunnableMap = new ConcurrentHashMap<String, StreamTaskHandler<SinkRunnable>>();
 	
+	private String masterIP;
+	
 	/**
 	 * 
 	 * @param nodePublicIP This IP address is used to bound to a socket to transfer media data.
 	 * 
 	 * @throws UnknownHostException
 	 */
-	public SinkNode(String nodePublicIP) throws UnknownHostException {
+	public SinkNode(String nodePublicIP, String masterIP) throws UnknownHostException {
 		super(nodePublicIP);
+		this.masterIP = masterIP;
 	}
 	
 
@@ -43,19 +48,36 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
-		Flow flow = stream.findFlow(this.getFlowId(request));
+		Flow flow = stream.findFlow(getFlowId(request));
+		
+		
 		//Get the sink node properties
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());
+		
 		DatagramSocket receiveSocket = getAvailableSocket(flow.getStreamId());
+		
+		
+		Map<String, String> upstreamNodePropertiesMap = 
+				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
+		UDPInfo udpInfo;
+		try {
+			udpInfo = getUDPInfo(receiveSocket, masterIP);
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_PUBLIC_IP_PORT, 
+					udpInfo.getYourPublicIP()+":"+udpInfo.getYourPublicPort());
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
+					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+			logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+		} catch (ClassNotFoundException | IOException e1) {
+			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
+					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
+		}
+		
+		
 		SinkRunnable rcvRunnable = new SinkRunnable(stream, flow, msgBusClient, nodeId, this, receiveSocket);
 		Future<?> rcvFuture = NodeContainer.ThreadPool.submit(new MDNTask(rcvRunnable));
 		streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<SinkRunnable>(rcvFuture, rcvRunnable));
-		//Send the stream spec to upstream node
-		Map<String, String> upstreamNodePropertiesMap = 
-				flow.findNodeMap(nodePropertiesMap.get(Flow.UPSTREAM_ID));
-		upstreamNodePropertiesMap.put(Flow.RECEIVER_IP_PORT, 
-				super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
-
+		
+		/*Send the stream spec to upstream node */
 		try {
 			msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 					nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);

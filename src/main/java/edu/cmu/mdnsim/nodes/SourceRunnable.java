@@ -301,7 +301,7 @@ class SourceRunnable extends NodeRunnable {
 				//The offset cannot be less than -targeRate because the runningRate should be non-negative.
 				long offset = Math.max(-targetRate, cumulativeDeficit);
 				
-				logger.debug(String.format("RateMonitor.updateRunningNspp(): target:%d, running:%d, observed:%d, offset:%d, cumulativeOffset:%d", targetRate, runningRate, lastSecondRate, offset, this.cumulativeDeficit));
+//				logger.debug(String.format("RateMonitor.updateRunningNspp(): target:%d, running:%d, observed:%d, offset:%d, cumulativeOffset:%d", targetRate, runningRate, lastSecondRate, offset, this.cumulativeDeficit));
 				
 				//Adjust the running rate to meet the target rate on average.
 				runningRate = targetRate + offset;

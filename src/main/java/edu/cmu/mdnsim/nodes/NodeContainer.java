@@ -11,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import us.yamb.rmb.annotations.DELETE;
 import us.yamb.rmb.annotations.PUT;
 import us.yamb.rmb.annotations.Path;
@@ -43,6 +46,9 @@ public class NodeContainer {
 		
 	public static ExecutorService ThreadPool = Executors.newCachedThreadPool();
 	
+	private Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.node-container");
+	
+	
 	public static final String NODE_COLLECTION_PATH = "/nodes";
 	
 	
@@ -68,12 +74,17 @@ public class NodeContainer {
 	private String nodeContainerIP;
 	
 	
+	private String masterIP;
+	
+	
 	public NodeContainer(String messageBusImpl, String label, String masterIP, String nodeContainerIP) throws MessageBusException {
+		this.masterIP = masterIP;
 		msgBusClient= instantiateMsgBusClient(messageBusImpl, masterIP);
 		nodeMap = new ConcurrentHashMap<String, AbstractNode>();
 		this.label = label;
 		this.nodeContainerIP = nodeContainerIP;
 		SystemClock.currentTimeMillis();
+		
 	}
 	
 	/**
@@ -140,9 +151,9 @@ public class NodeContainer {
 					+ " be found.");
 		}
 		
-		Constructor<?> constructor = objectiveNodeClass.getConstructor(new Class<?>[] {String.class});
+		Constructor<?> constructor = objectiveNodeClass.getConstructor(new Class<?>[] {String.class, String.class});
 		
-		AbstractNode newNode = (AbstractNode)constructor.newInstance(nodeContainerIP);
+		AbstractNode newNode = (AbstractNode)constructor.newInstance(nodeContainerIP, masterIP);
 		
 		try {
 			newNode.config(msgBusClient, req.getNodeType(), req.getNodeId());
@@ -154,11 +165,8 @@ public class NodeContainer {
 		
 		
 		nodeMap.put(newNode.getNodeId(), newNode);
+		logger.debug("Instantiate a new node (nodeInfo=" + newNode.getNodeId());
 		
-		if (ClusterConfig.DEBUG) {
-			System.out.format("[DEBUG] NodeContainer.createNode(): Instantiate"
-					+ " a new node (param=%s; newNodeInfo=%s)\n", nodeId, newNode.getNodeId());
-		}
 		
 	}
 	

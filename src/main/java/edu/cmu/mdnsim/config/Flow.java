@@ -27,7 +27,8 @@ public class Flow extends MbMessage {
 	public static final String UPSTREAM_URI = "UpstreamUri";
 	public static final String DOWNSTREAM_ID = "DownstreamId";
 	public static final String DOWNSTREAM_URI = "DownstreamUri";
-	public static final String RECEIVER_IP_PORT = "ReceiverIpPort";
+	public static final String RECEIVER_PUBLIC_IP_PORT = "ReceiverPublicIpPort";
+	public static final String RECEIVER_LOCAL_IP_PORT = "ReceiverLocalIpPort";
 	public static final String PROCESSING_LOOP = "ProcessingLoop";
 	public static final String PROCESSING_MEMORY = "ProcessingMemory";
 	public static final String SOURCE_UPSTREAM_ID = "NULL";
