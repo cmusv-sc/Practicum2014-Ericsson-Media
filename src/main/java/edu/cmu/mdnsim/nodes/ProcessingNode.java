@@ -159,11 +159,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 */
 	@Override
 	public synchronized void reset() {
-		
-		System.out.println("Total streamTask num: " + streamIdToRunnableMap.size());
-		for (String streamId : this.streamIdToRunnableMap.keySet()) {
-			System.out.println(streamId);
-		}
+
 		for (StreamTaskHandler<ProcessRunnable> streamTask : streamIdToRunnableMap.values()) {
 			streamTask.reset();
 			while(!streamTask.isDone());
