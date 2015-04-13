@@ -65,6 +65,8 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
 		}
 		
+		logger.debug(String.format("SourceNode.run(): For stream[%s] as node[%s] to downstream at[%s:%s]", stream.getStreamId(),nodePropertiesMap.get(Flow.NODE_ID), addressAndPort[0], addressAndPort[1]));
+		
 		String destAddrStr = addressAndPort[0];
 		int destPort = Integer.parseInt(addressAndPort[1]);
 		long dataSizeInBytes = Long.parseLong(flow.getDataSize());

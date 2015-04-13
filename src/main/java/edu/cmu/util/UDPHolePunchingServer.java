@@ -1,7 +1,10 @@
 package edu.cmu.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -29,7 +32,7 @@ public class UDPHolePunchingServer implements Runnable{
 		while(true) {
 			try {
 				work();
-			} catch(IOException e) {
+			} catch(IOException | ClassNotFoundException e) {
 				e.printStackTrace();
 				break;
 			}
@@ -39,21 +42,34 @@ public class UDPHolePunchingServer implements Runnable{
 		
 	}
 	
-	private void work() throws IOException {
-		DatagramPacket packet = new DatagramPacket(new byte[1024], 1024);
-		serverSocket.receive(packet);
-		InetAddress iaddr = packet.getAddress();
-		int port = packet.getPort();
+	private void work() throws IOException, ClassNotFoundException {
+		DatagramPacket rcvPacket = new DatagramPacket(new byte[1024], 1024);
+		serverSocket.receive(rcvPacket);
+		
+		byte[] bytes = rcvPacket.getData();
+		
+		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+		ObjectInput in = new ObjectInputStream(bis);
+		String nodeId = (String)in.readObject();
+		
+		
+		InetAddress iaddr = rcvPacket.getAddress();
+		int port = rcvPacket.getPort();
+		System.out.println("FROM " + nodeId + new String(iaddr.getHostAddress()) + ":" + port);
+		
+		DatagramPacket sndPacket = new DatagramPacket(new byte[1024], 1024);
 		
 		out = new ObjectOutputStream(bos);   
 		out.writeObject(new UDPInfo(iaddr.getHostAddress(), port));
-		System.out.println("FROM " + new String(packet.getAddress().getHostAddress()) + ":" + packet.getPort());
-		packet.setAddress(iaddr);
-		packet.setPort(port);
-		packet.setData(bos.toByteArray());
-//		System.out.println(bos.toByteArray().length);
+		
+		
+		
+		sndPacket.setAddress(iaddr);
+		sndPacket.setPort(port);
+		sndPacket.setData(bos.toByteArray());
+
 		bos.reset();
-		serverSocket.send(packet);
+		serverSocket.send(sndPacket);
 	}
 	
 	
@@ -74,15 +90,13 @@ public class UDPHolePunchingServer implements Runnable{
 		 */
 		private static final long serialVersionUID = -4951360107938806363L;
 		private String publicIP;
-//		private String localIP;
 		private int publicPort;
-//		private int localPort;
+
 		
 		public UDPInfo (String publicIP, int publicPort) {
 			this.publicIP = publicIP;
 			this.publicPort = publicPort;
-//			this.localIP = localIP;
-//			this.localPort = localPort;
+
 		}
 		
 		public String getYourPublicIP() {
@@ -93,13 +107,7 @@ public class UDPHolePunchingServer implements Runnable{
 			return this.publicPort;
 		}
 		
-//		public String getYourLocalIP() {
-//			return this.localIP;
-//		}
-//		
-//		public int getYourLocalPort() {
-//			return this.localPort;
-//		}
+
 	}
 
 	

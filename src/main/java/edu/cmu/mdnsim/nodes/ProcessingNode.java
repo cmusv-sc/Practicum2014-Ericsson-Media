@@ -63,7 +63,8 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 				logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 			} catch (ClassNotFoundException | IOException e1) {
-				logger.warn("UDPINFO EXCEPTION: " + e1.getMessage());
+				logger.warn("UDPINFO EXCEPTION: ");
+				e1.printStackTrace();
 				upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 						super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
 				
@@ -80,9 +81,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 				addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
 			}
 			
-			
-//			if (udpInfo != null && udpInfo.getYourPublicIP().equals(u))
-			
+			logger.debug(String.format("ProcessingNode.run(): For stream[%s] as node[%s] to downstream at[%s:%s]", stream.getStreamId(),nodePropertiesMap.get(Flow.NODE_ID), addressAndPort[0], addressAndPort[1]));
 			
 			/* Get the expected rate */
 			int rate = Integer.parseInt(flow.getKiloBitRate());

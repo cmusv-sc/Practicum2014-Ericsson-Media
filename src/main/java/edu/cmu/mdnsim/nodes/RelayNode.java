@@ -72,6 +72,8 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
 		}
 		
+		logger.debug(String.format("RelayNode.run(): For stream[%s] as node[%s] to downstream at[%s:%s]", stream.getStreamId(),nodePropertiesMap.get(Flow.NODE_ID), addressAndPort[0], addressAndPort[1]));
+		
 		InetAddress destAddress = null;
 		int destPort;
 		try {

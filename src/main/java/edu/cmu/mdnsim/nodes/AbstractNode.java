@@ -1,9 +1,11 @@
 package edu.cmu.mdnsim.nodes;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -15,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.Stream;
-import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
@@ -158,14 +159,27 @@ public abstract class AbstractNode {
 		for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
 			try {
 				udpSocket = new DatagramSocket(0, getHostAddr());
+				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket should be bind to: " + getHostAddr());
+				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket is bind to: " + udpSocket.getInetAddress());
 			} catch (SocketException e) {
 				logger.warn("Failed" + (i + 1) + "times to bind a port to a socket");
+				e.printStackTrace();
+				continue;
+			} catch (NullPointerException e) {
+				e.printStackTrace();
+				continue;
+			} catch (Throwable e) {
 				e.printStackTrace();
 				continue;
 			}
 			break;
 		}
-		logger.debug("AbstractNode.getAvailableSocket(): Available socket obtained.");
+		
+		if (udpSocket == null) {
+			logger.warn("AbstractNode.getAvailableSocket(): UDPSocket is null");
+		} else {
+			logger.debug("AbstractNode.getAvailableSocket(): Available socket obtained.");
+		}
 		return udpSocket;
 	}
 	
@@ -182,14 +196,26 @@ public abstract class AbstractNode {
 	}
 	
 	protected UDPInfo getUDPInfo(DatagramSocket socket, String masterIP) throws IOException, ClassNotFoundException {
-
-		DatagramPacket packet = new DatagramPacket(new byte[1024], 1024);
+		
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		ObjectOutputStream    out = new ObjectOutputStream(bos);
+		out.writeObject(this.nodeId);
+		
+		DatagramPacket sndPacket = new DatagramPacket(new byte[1024], 1024);
+		
+		
+		
 		InetAddress iaddr = InetAddress.getByName(masterIP);
-		packet.setAddress(iaddr);
-		packet.setPort(Master.UDP_HOLE_PUNCHING_SERVER_PORT);
-		socket.send(packet);
-		socket.receive(packet);
-		byte[] bytes = packet.getData();
+		sndPacket.setAddress(iaddr);
+		sndPacket.setPort(Master.UDP_HOLE_PUNCHING_SERVER_PORT);
+		sndPacket.setData(bos.toByteArray());
+		
+		socket.send(sndPacket);
+		
+		
+		DatagramPacket rcvPacket = new DatagramPacket(new byte[1024], 1024);
+		socket.receive(rcvPacket);
+		byte[] bytes = rcvPacket.getData();
 		ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
 		ObjectInput in = null;
 		in = new ObjectInputStream(bis);

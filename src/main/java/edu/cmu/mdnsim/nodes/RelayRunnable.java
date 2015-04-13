@@ -135,6 +135,9 @@ class RelayRunnable extends NodeRunnable {
 				packet.setPort(destination.getPort());
 				
 				try {
+					if (this.getNodeId().equals("orange:relay4")) {
+						logger.debug("RelayRunnable.run(): Send data to " + destination.getAddress() + ":" + destination.getPort());
+					}
 					sendSocket.send(packet);
 					
 				} catch (IOException e) {
