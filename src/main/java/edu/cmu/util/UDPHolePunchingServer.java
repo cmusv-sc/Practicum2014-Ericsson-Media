@@ -55,7 +55,7 @@ public class UDPHolePunchingServer implements Runnable{
 		
 		InetAddress iaddr = rcvPacket.getAddress();
 		int port = rcvPacket.getPort();
-		System.out.println("FROM " + nodeId + new String(iaddr.getHostAddress()) + ":" + port);
+		System.out.println(String.format("from node[%s]:\t%s:%d", nodeId, new String(iaddr.getHostAddress()), port));
 		
 		DatagramPacket sndPacket = new DatagramPacket(new byte[1024], 1024);
 		
