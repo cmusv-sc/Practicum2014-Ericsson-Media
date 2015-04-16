@@ -101,6 +101,7 @@ public class NodePacket {
 	 * If want to set a larger data into the instance, please first set the final variable  PACKET_MAX_LENGTH
 	 */
 	public byte[] serialize(){
+		
 		ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_LENGTH + dataLength);
 		byteBuffer.putInt(flag);
 		byteBuffer.putInt(packetId);
@@ -178,9 +179,12 @@ public class NodePacket {
 		if(data == null){
 			throw new NullPointerException("set null for data field");
 		}
-
+		
+		if (data.length != dataLength) {
+			throw new IllegalArgumentException("The data doesn't equal to the NodePacket capacity(" + this.dataLength + " bytes)");
+		}
+		
 		this.data = data.clone();
-		this.dataLength = data.length;
 	}
 
 	public int size(){
@@ -198,6 +202,10 @@ public class NodePacket {
 	public void setTransmitTime() {
 		transmitTime = SystemClock.currentTimeMillis();
 		forwardTime = transmitTime;
+	}
+	
+	public void setTransmitTime(long sourceTime) {
+		transmitTime = sourceTime;
 	}
 	
 	public void setForwardTime() {

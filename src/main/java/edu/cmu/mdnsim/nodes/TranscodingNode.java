@@ -88,7 +88,7 @@ public class TranscodingNode extends AbstractNode implements NodeRunnableCleaner
 			
 			
 			TranscodingRunnable procRunnable = 
-					new TranscodingRunnable(stream, Long.parseLong(stream.getDataSize()), InetAddress.getByName(downStreamIP), downStreamPort, msgBusClient, nodeId, this, receiveSocket);
+					new TranscodingRunnable(stream, Long.parseLong(stream.getDataSize()), InetAddress.getByName(downStreamIP), downStreamPort, msgBusClient, nodeId, this, receiveSocket, Double.parseDouble(nodePropertiesMap.get(Flow.TRANSCODING_ADAPTION_FACTOR)));
 			Future<?> streamFuture = NodeContainer.ThreadPool.submit(new MDNTask(procRunnable));
 			streamIdToRunnableMap.put(stream.getStreamId(), new StreamTaskHandler<TranscodingRunnable>(streamFuture, procRunnable));
 			System.out.println("TranscodingNode.run(): Add stream " + stream.getStreamId());

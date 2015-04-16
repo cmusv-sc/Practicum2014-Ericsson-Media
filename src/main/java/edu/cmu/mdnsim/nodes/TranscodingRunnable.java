@@ -47,7 +47,10 @@ class TranscodingRunnable extends NodeRunnable {
 	
 
 	private DatagramPacket packet;
+	private DatagramPacket sndDatagrapm;
 	private NodeRunnableCleaner cleaner;
+	
+	private NodePacket sndPacket;
 
 	/**
 	 * Constructor of TranscodingRunnable
@@ -64,7 +67,9 @@ class TranscodingRunnable extends NodeRunnable {
 	 * @param cleaner a cleaner to release resources
 	 * @param receiveSocket a Datagram socket that is used to receive packets in the runnable
 	 */
-	TranscodingRunnable(Stream stream, long totalData, InetAddress downStreamIP, int downStreamPort, MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket) {
+	TranscodingRunnable(Stream stream, long totalData, InetAddress downStreamIP, int downStreamPort, 
+			MessageBusClient msgBusClient, String nodeId, NodeRunnableCleaner cleaner, DatagramSocket receiveSocket,
+			double adaptiveFactor) {
 		
 		super(stream, msgBusClient, nodeId, cleaner);
 
@@ -74,7 +79,11 @@ class TranscodingRunnable extends NodeRunnable {
 		this.cleaner = cleaner;
 		this.receiveSocket = receiveSocket;
 		
+		
 		packet = new DatagramPacket(new byte[NodePacket.MAX_PACKET_LENGTH], NodePacket.MAX_PACKET_LENGTH);
+		int len = (int)(NodePacket.MAX_PACKET_LENGTH * adaptiveFactor);
+		sndPacket = new NodePacket(0, 0, len);
+		sndDatagrapm = new DatagramPacket(new byte[len], len);
 		
 	}
 
@@ -84,15 +93,6 @@ class TranscodingRunnable extends NodeRunnable {
 	@Override
 	public void run() {
 		
-		try {
-			work();
-		} catch (RuntimeException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private void work() {
-		logger.debug("TranscodingRunnable Started");
 		PacketLostTracker packetLostTracker = null;
 		PacketLatencyTracker packetLatencyTracker = null;
 		
@@ -182,7 +182,6 @@ class TranscodingRunnable extends NodeRunnable {
 			packetLatencyTracker.newPacket(nodePacket);
 			
 			
-			nodePacket.setForwardTime();
 			sendPacket(packet, nodePacket);
 
 			if(nodePacket.isLast()){
@@ -190,7 +189,7 @@ class TranscodingRunnable extends NodeRunnable {
 				break;
 			}
 			
-			logger.warn("TranscodingRunnable stopped");
+			
 		}	
 
 		/*
@@ -245,36 +244,8 @@ class TranscodingRunnable extends NodeRunnable {
 			 */
 			logger.debug("Transcoding Runnbale has been killed for stream " + this.getStreamId());
 		}
+		
 	}
-
-//	/**
-//	 * Initializes the receive and send DatagramSockets
-//	 * @return true if succeeds
-//	 * 	       false if acquiring an non-exist socket
-//	 * 					setting receive socket timeout encounters some exception
-//	 * 					initialize send socket encounters some exception 
-//	 */
-//	private boolean initializeSocketAndPacket(){
-//
-//		try {
-//			
-//		} catch (SocketException se) {
-//			logger.error( se.toString());
-//			return false;
-//		} 
-//
-//		try {
-//			sendSocket = new DatagramSocket();
-//		} catch (SocketException se) {
-//			logger.error(se.toString());
-//			return false;
-//		}
-//
-//		byte[] buf = new byte[NodePacket.MAX_PACKET_LENGTH]; 
-//		packet = new DatagramPacket(buf, buf.length);
-//
-//		return true;
-//	}
 
 
 	/**
@@ -283,11 +254,17 @@ class TranscodingRunnable extends NodeRunnable {
 	 * @param nodePacket
 	 */
 	private void sendPacket(DatagramPacket packet, NodePacket nodePacket){
-		packet.setData(nodePacket.serialize());	
-		packet.setAddress(downstreamIP);
-		packet.setPort(downstreamPort);
+		
+		sndPacket.setFlag(nodePacket.getFlag());
+		sndPacket.setMessageId(nodePacket.getMessageId());
+		sndPacket.setTransmitTime(nodePacket.getTransmitTime());
+		sndPacket.setForwardTime();
+		//sndPacket.setData(nodePacket.get(data));
+		sndDatagrapm.setData(sndPacket.serialize());
+		sndDatagrapm.setAddress(downstreamIP);
+		sndDatagrapm.setPort(downstreamPort);
 		try {
-			receiveSocket.send(packet);
+			receiveSocket.send(sndDatagrapm);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

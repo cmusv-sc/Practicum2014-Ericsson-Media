@@ -32,6 +32,7 @@ public class Flow extends MbMessage {
 	public static final String PROCESSING_LOOP = "ProcessingLoop";
 	public static final String PROCESSING_MEMORY = "ProcessingMemory";
 	public static final String SOURCE_UPSTREAM_ID = "NULL";
+	public static final String TRANSCODING_ADAPTION_FACTOR = "TranscodingFactor";
 	
 	/**
 	 * The FlowMemberList is ordered from sink -> middle nodes -> source (bottom-up)
