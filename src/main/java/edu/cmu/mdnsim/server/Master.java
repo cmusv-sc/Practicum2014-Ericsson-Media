@@ -430,17 +430,19 @@ public class Master extends TimerTask {
 	public synchronized void startWorkConfig(WorkConfig wc) {
 		
 		logger.debug("startWorkConfig(): Receive a simulation request.");
-		
+		try {
 		for (Stream stream : wc.getStreamList()) {
 			String streamId = stream.getStreamId();
 			String kiloBitRate = stream.getKiloBitRate();
 			String dataSize = stream.getDataSize();
+			logger.debug("startWorkConfig(): Try to start streamID: " + streamId);
 			for (Flow flow : stream.getFlowList()) {
 				flow.updateFlowWithDownstreamIds();
 				flow.setStreamId(streamId);
 				flow.setDataSize(dataSize);
 				flow.setKiloBitRate(kiloBitRate);
 				String flowId = flow.generateFlowId();
+				logger.debug("startWorkConfig(): Try to start flowID: " + flowId);
 				/* 
 				 * We are adding the nodes in reverse order because nodes are created in reverse order first sink then 
 				 * others and finally Source node. If the work config order changes then following code needs to be 
@@ -505,6 +507,9 @@ public class Master extends TimerTask {
 			for (Flow flow : stream.getFlowList()) {
 				if (flow.canRun()) { runFlow(flow); System.out.println("Master(): Started a flow as all nodes are available."); }
 			}
+		}
+		} catch (RuntimeException e) {
+			e.printStackTrace();
 		}
 		//Generate locations for all the nodes
 		webClientGraph.setLocations();

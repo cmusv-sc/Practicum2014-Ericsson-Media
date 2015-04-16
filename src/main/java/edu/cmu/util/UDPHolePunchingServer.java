@@ -52,6 +52,7 @@ public class UDPHolePunchingServer implements Runnable{
 		ObjectInput in = new ObjectInputStream(bis);
 		String nodeId = (String)in.readObject();
 		
+		in.close();
 		
 		InetAddress iaddr = rcvPacket.getAddress();
 		int port = rcvPacket.getPort();
@@ -99,11 +100,11 @@ public class UDPHolePunchingServer implements Runnable{
 
 		}
 		
-		public String getYourPublicIP() {
+		public String getPublicIP() {
 			return this.publicIP;
 		}
 		
-		public int getYourPublicPort() {
+		public int getPublicPort() {
 			return this.publicPort;
 		}
 		

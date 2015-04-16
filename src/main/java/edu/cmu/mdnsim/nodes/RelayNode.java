@@ -58,17 +58,17 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 		try {
 			udpInfo = getUDPInfo(receiveSocket, masterIP);
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_PUBLIC_IP_PORT, 
-					udpInfo.getYourPublicIP()+":"+udpInfo.getYourPublicPort());
+					udpInfo.getPublicIP()+":"+udpInfo.getPublicPort());
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
-			logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 		} catch (ClassNotFoundException | IOException e1) {
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
 		}
 
 		String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT).split(":");
-		if (udpInfo != null && udpInfo.getYourPublicIP().equals(addressAndPort[0])) {
+		if (udpInfo != null && udpInfo.getPublicIP().equals(addressAndPort[0])) {
 			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
 		}
 		

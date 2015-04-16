@@ -61,7 +61,7 @@ public class SourceNode extends AbstractNode implements NodeRunnableCleaner {
 		logger.debug("For flow: " + flow.getFlowId() + "\t" + nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT));
 		
 		String[] addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_PUBLIC_IP_PORT).split(":");
-		if (udpInfo != null && udpInfo.getYourPublicIP().equals(addressAndPort[0])) {
+		if (udpInfo != null && udpInfo.getPublicIP().equals(addressAndPort[0])) {
 			addressAndPort = nodePropertiesMap.get(Flow.RECEIVER_LOCAL_IP_PORT).split(":");
 		}
 		

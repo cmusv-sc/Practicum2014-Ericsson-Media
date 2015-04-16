@@ -40,6 +40,8 @@ public class PacketLostTracker {
 	 */
 	public static int calculateWindowSize(int kbps, int timeout, int packetSize) {
 		
+		assert (kbps * 1000 * timeout / packetSize / 8 > 0);
+		
 		return kbps * 1000 * timeout / packetSize / 8;
 		
 	}

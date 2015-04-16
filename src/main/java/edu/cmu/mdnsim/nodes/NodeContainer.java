@@ -140,6 +140,7 @@ public class NodeContainer {
 		
 		Class<?> objectiveNodeClass = null;
 		for (Class<?> nodeClass : scan) {
+			logger.debug("NodeContainer.createNode(): To instantiate " + nodeClass.getName());
 			if (nodeClass.getName().equals(req.getNodeClass())) {
 				objectiveNodeClass = nodeClass;
 				break;

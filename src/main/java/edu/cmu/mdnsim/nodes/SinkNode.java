@@ -63,10 +63,10 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 		try {
 			udpInfo = getUDPInfo(receiveSocket, masterIP);
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_PUBLIC_IP_PORT, 
-					udpInfo.getYourPublicIP()+":"+udpInfo.getYourPublicPort());
+					udpInfo.getPublicIP()+":"+udpInfo.getPublicPort());
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
-			logger.debug("UDPINFO: " + udpInfo.getYourPublicIP() + ":" + udpInfo.getYourPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 		} catch (ClassNotFoundException | IOException e1) {
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());

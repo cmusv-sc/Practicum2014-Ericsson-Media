@@ -105,6 +105,7 @@ public class WorkConfig extends MbMessage{
 	public static final String SINK_NODE_TYPE_INPUT = "SinkNode";
 	public static final String PROC_NODE_TYPE_INPUT = "ProcessingNode";
 	public static final String RELAY_NODE_TYPE_INPUT = "RelayNode";
+	public static final String TRANS_NODE_TYPE_INPUT = "TranscodingNode";
 	
 	private String simId;
 	private List<Stream> streamList = new LinkedList<Stream>();

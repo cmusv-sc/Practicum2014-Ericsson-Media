@@ -42,11 +42,13 @@ public class WebClientGraph {
 		public static final String SINK_RGB = "rgb(0,204,204)";
 		public static final String PROC_RGB = "rgb(204,204,0)";
 		public static final String RELAY_RGB = "rgb(204,0,204)";
+		public static final String TRANS_RGB = "rgb(102, 102, 0)";
 
 		public static final String SRC_MSG = "This is a Source Node";
 		public static final String SINK_MSG = "This is a Sink Node";
 		public static final String PROC_MSG = "This is a Processing Node";
 		public static final String RELAY_MSG = "This is a Relay Node";
+		public static final String TRANS_MSG = "This is a Transcoding Node";
 
 		public static final int NODE_SIZE_IN_GRAPH = 6;
 
@@ -504,6 +506,9 @@ public class WebClientGraph {
 		defaultNodeProperties.put(WorkConfig.SINK_NODE_TYPE_INPUT, 
 				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,Node.SINK_RGB,
 						Node.NODE_SIZE_IN_GRAPH,Node.SINK_MSG));
+		defaultNodeProperties.put(WorkConfig.TRANS_NODE_TYPE_INPUT, 
+				new Node("","",WorkConfig.TRANS_NODE_TYPE_INPUT,Node.TRANS_RGB,
+						Node.NODE_SIZE_IN_GRAPH,Node.TRANS_MSG));
 
 	}
 	public final static WebClientGraph INSTANCE = new WebClientGraph();
