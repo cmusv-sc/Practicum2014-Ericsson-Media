@@ -92,7 +92,6 @@ public class WebClient {
 	 */
 	public static void load(TrapHostingTransport domain) throws IOException, TrapException{
 		
-		
 		String indexUri = domain.addHostedObject(handler, "files").toString();
 		
 		System.out.println("client: " + indexUri);

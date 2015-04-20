@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Timer;
@@ -14,6 +15,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import us.yamb.mb.util.JSON;
 
 import com.ericsson.research.trap.TrapException;
 import com.ericsson.research.trap.utils.PackageScanner;
@@ -27,6 +30,7 @@ import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.MbMessage;
+import edu.cmu.mdnsim.messagebus.message.NodeContainerInfo;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeContainerRequest;
 import edu.cmu.mdnsim.messagebus.message.RegisterNodeRequest;
 import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
@@ -171,6 +175,10 @@ public class Master extends TimerTask {
 
 		/* Stream report listener */
 		msgBusSvr.addMethodListener("/stream_report", "POST", this, "streamReport");
+		
+		
+		/**/
+		msgBusSvr.addMethodListener("/nodes", "GET", this, "getNodes");
 		
 	}
 
@@ -774,6 +782,20 @@ public class Master extends TimerTask {
 			e.printStackTrace();
 		}
 	}
+	
+	
+	
+	public String getNodes() {
+		List<NodeContainerInfo> list = new ArrayList<NodeContainerInfo>();
+		for (String nc : nodeContainerTbl.keySet()) {
+			list.add(new NodeContainerInfo(nc, nodeContainerTbl.get(nc)));
+		}
+		System.out.println(JSON.toJSON(list));
+		return JSON.toJSON(list);
+	}
+	
+	
+	
 	/**
 	 * StreamId needs to be after last "/" in request.from
 	 * @param request
@@ -793,5 +815,8 @@ public class Master extends TimerTask {
 		Timer reportTimer = new Timer();
 		reportTimer.scheduleAtFixedRate(mdnDomain, 0, 1000);
 	}
+	
+	
+
 
 }

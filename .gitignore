@@ -11,3 +11,5 @@ RemoteSystemsTempFiles/
 
 #Ignore meta-data files on OSX
 .DS_Store
+/Jeremy-Singapore.pem
+/Jeremy-NCalifornia.pem
