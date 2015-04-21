@@ -393,6 +393,7 @@
 		this.parent = parent;
 		this._id = id;
 		this.ondispatch = dispatchFun;
+		this.children = {};
 	}
 
 	Child.prototype = new RMB;

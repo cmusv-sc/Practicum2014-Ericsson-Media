@@ -174,6 +174,14 @@ function resetSimulation(){
 	console.log("Reset Simulation");
 	loggerResource.message().to("/mdnsim/simulations").method("DELETE").data("reset").send();
 }
+
+var onResponse = function(msg) {
+	console.log("OnResponse: " + msg.object);
+}
+
+
+
+
 /**
  * Whenever new input file is selected, it asks Master to create/update the simulation parameters
  * @param evt
@@ -187,7 +195,7 @@ function handleWsFileSelect(evt, action) {
 		reader.onload = (function(theFile) {
 			return function(e) {
 				if (action == 'Start') {
-					loggerResource.message().method("POST").to("/mdnsim/work_config").data(e.target.result).send();
+					loggerResource.create("start").request().method("POST").to("/mdnsim/work_config").data(e.target.result).execute(onResponse);
 					console.log("Start flows");
 				} else if (action == 'Stop') {
 					loggerResource.message().method("DELETE").to("/mdnsim/work_config").data(e.target.result).send();
@@ -234,7 +242,6 @@ function initWarp(){
 	 */
 	loggerResource.create("create").on("message", function(m) {
 		console.log("Got initial graph: ");
-		console.log(m.object);
 		createGraph(m.object);
 	});
 	
@@ -246,7 +253,7 @@ function initWarp(){
 		console.log("Got update: ");
 		console.log(m.object);
 		refreshGraph(m.object);
-	})
+	});
 	/**
 	 * Log Resource Handler - used to display log messages
 	 */

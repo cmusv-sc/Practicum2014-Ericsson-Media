@@ -38,6 +38,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.reporting.WebClientGraph;
+import edu.cmu.mdnsim.topology.GraphChecker;
 import edu.cmu.util.UDPHolePunchingServer;
 /**
  * It represents the Master Node of the Simulator.
@@ -435,7 +436,23 @@ public class Master extends TimerTask {
 	 * @param Message
 	 * @param WorkConfig
 	 */
-	public synchronized void startWorkConfig(WorkConfig wc) {
+	public synchronized boolean startWorkConfig(WorkConfig wc) {
+		
+//		if (!wc.isValidWorkConfig()) {
+//			return false;
+//		}
+		
+//		if (!this.validateTopo(wc)) {
+//			return false;
+//		}
+		
+		validateTopo(wc);
+		
+		
+		
+		
+		
+		
 		
 		logger.debug("startWorkConfig(): Receive a simulation request.");
 		try {
@@ -523,6 +540,8 @@ public class Master extends TimerTask {
 		webClientGraph.setLocations();
 
 		instantiateNodes();
+		
+		return true;
 	}
 
 	/**
@@ -807,6 +826,15 @@ public class Master extends TimerTask {
 		return streamId;
 	}
 
+	
+	private boolean validateTopo(WorkConfig wc) {
+		System.out.println("validateTopo is called");
+		GraphChecker gc = new GraphChecker(wc); 
+		
+		
+		return false;
+	}
+	
 	public static void main(String[] args) throws InterruptedException, IOException, TrapException, MessageBusException {
 	
 		Master mdnDomain = new Master();

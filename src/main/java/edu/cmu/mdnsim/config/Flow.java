@@ -235,9 +235,8 @@ public class Flow extends MbMessage {
 	
 	/**
 	 * Validates the order of nodes in the NodeList of the flow
-	 * @return true, if the NodeList in the flow is ordered properly from 
-	 * 				 sink to source
-	 * false, if the Flow is not ordered from sink to source
+	 * @return	true	if the NodeList in the flow is ordered properly from sink to source;
+	 * 			false	if the Flow is not ordered from sink to source
 	 */
 	public boolean isValidFlow() {
 		
