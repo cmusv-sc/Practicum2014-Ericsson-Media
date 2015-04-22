@@ -38,6 +38,7 @@ import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 import edu.cmu.mdnsim.nodes.NodeContainer;
 import edu.cmu.mdnsim.reporting.WebClientGraph;
+import edu.cmu.mdnsim.topology.CheckerResult;
 import edu.cmu.mdnsim.topology.GraphChecker;
 import edu.cmu.util.UDPHolePunchingServer;
 /**
@@ -438,18 +439,18 @@ public class Master extends TimerTask {
 	 */
 	public synchronized boolean startWorkConfig(WorkConfig wc) {
 		
-//		if (!wc.isValidWorkConfig()) {
-//			return false;
-//		}
+		if (!wc.isValidWorkConfig()) {
+			System.out.println("WorkConfig is not valid");
+			return false;
+		}
 		
-//		if (!this.validateTopo(wc)) {
-//			return false;
-//		}
-		
-		validateTopo(wc);
-		
+		if (!validateTopo(wc)) {
+			System.out.println("Topo of workconfig is not valid");
+			return false;
+		}
 		
 		
+		System.err.println("Pass the test");
 		
 		
 		
@@ -830,9 +831,13 @@ public class Master extends TimerTask {
 	private boolean validateTopo(WorkConfig wc) {
 		System.out.println("validateTopo is called");
 		GraphChecker gc = new GraphChecker(wc); 
+		CheckerResult cr = gc.validate();
+		if (cr.hasError()) {
+			System.out.println(cr.errorMessage());
+			return false;
+		}
 		
-		
-		return false;
+		return true;
 	}
 	
 	public static void main(String[] args) throws InterruptedException, IOException, TrapException, MessageBusException {

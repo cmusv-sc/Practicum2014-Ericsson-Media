@@ -13,8 +13,18 @@ public class CheckerResult {
 	CheckerResult(String nodeID, String msg) {
 		this.nodeID = nodeID;
 		this.msg		= msg;
-		this.hasError = false;
+		this.hasError = true;
 	}
 	
+	public boolean hasError() {
+		return this.hasError;
+	}
+	
+	public String errorMessage() {
+		if (!hasError) {
+			throw new RuntimeException("CheckerResult doesn't have errorMessgae.");
+		}
+		return msg;
+	}
 	
 }

@@ -240,7 +240,7 @@ public class Flow extends MbMessage {
 	 */
 	public boolean isValidFlow() {
 		
-		String downStreamNodeId = null;
+//		String downStreamNodeId = null;
 		String upStreamIdOfDownStreamNode = null;
 		
 		int i = 0;
@@ -248,32 +248,33 @@ public class Flow extends MbMessage {
 		for (Map<String, String>nodeMap : getNodeList()) {
 			
 			if (i == 0) {
-				if (nodeMap.get(Flow.DOWNSTREAM_ID) != null) {
+				if (nodeMap.get(Flow.DOWNSTREAM_ID) != null && !nodeMap.get(Flow.DOWNSTREAM_ID).equals("NULL")) {
+					System.err.println(String.format("Flow.isValidFlow(): First node should be SinkNode and shoud not have downstream ID or downstream ID filed should be \"NULL\"\n"));
 					return false;
 				}
-				
-				downStreamNodeId = nodeMap.get(Flow.NODE_ID);
+//				downStreamNodeId = nodeMap.get(Flow.NODE_ID);
 				upStreamIdOfDownStreamNode = nodeMap.get(Flow.UPSTREAM_ID);
 				
 			} else if (i == getNodeList().size() - 1){
-				if (nodeMap.get(Flow.UPSTREAM_ID) != null) {
+				if (nodeMap.get(Flow.UPSTREAM_ID) != null && !nodeMap.get(Flow.UPSTREAM_ID).equals("NULL")) {
+					System.err.println(String.format("Flow.isValidFlow(): Last node[%s] should be SourceNode and shoud not have upstream ID or upstream ID field should be \"NULL\"\n", nodeMap.get(Flow.NODE_ID)));
 					return false;
 				}
-				if (nodeMap.get(Flow.DOWNSTREAM_ID) == null ||
-						!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
+				if (!nodeMap.get(Flow.NODE_ID).equals(upStreamIdOfDownStreamNode)) {
+					System.err.println(String.format("Flow.isValidFlow():  Last node ID[%s] is not consistent with value of the %s field of its previous(i.e. downstream) node\n", nodeMap.get(Flow.NODE_ID), Flow.UPSTREAM_ID));
 					return false;
 				}
 			} else {
-				if (nodeMap.get(Flow.NODE_ID) == null ||
-						!nodeMap.get(Flow.NODE_ID).equals(upStreamIdOfDownStreamNode)) {
+				if (nodeMap.get(Flow.NODE_ID) == null || nodeMap.get(Flow.NODE_ID).equals("NULL")) {
+					System.err.println(String.format("Flow.isValidFlow():  Intermediate node should have %s field and the value shouldn't be \"NULL\"\n", Flow.NODE_ID));
 					return false;
 				}
-				if (nodeMap.get(Flow.DOWNSTREAM_ID) == null ||
-						!nodeMap.get(Flow.DOWNSTREAM_ID).equals(downStreamNodeId)) {
+				if (!nodeMap.get(Flow.NODE_ID).equals(upStreamIdOfDownStreamNode)) {
+					System.err.println(String.format("Flow.isValidFlow():  Intermediate node ID[%s] is not consistent with value of the %s field of its previous(i.e. downstream) node\n", nodeMap.get(Flow.NODE_ID), Flow.UPSTREAM_ID));
 					return false;
 				}
 				upStreamIdOfDownStreamNode = nodeMap.get(Flow.UPSTREAM_ID);
-				downStreamNodeId = nodeMap.get(Flow.NODE_ID);
+//				downStreamNodeId = nodeMap.get(Flow.NODE_ID);
 			}
 			i++;
 		}

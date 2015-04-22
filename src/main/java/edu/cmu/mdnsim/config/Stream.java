@@ -101,8 +101,11 @@ public class Stream extends MbMessage {
 	 * @return
 	 */
 	public boolean isValidStream() {
-		if(this.streamId.contains("-"))
+		if(this.streamId.contains("-")) {
+			System.err.println(String.format("Stream.isValidStream(): streamId[%s] contains a \"-\"\n", streamId));
 			return false;
+		}
+			
 		for (Flow flow : flowList) {
 			if (!flow.isValidFlow()) {
 				return false;
