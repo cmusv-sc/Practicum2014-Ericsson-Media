@@ -98,11 +98,8 @@ class SourceRunnable extends NodeRunnable {
 			
 			try {
 				
-				if (ranGen.nextDouble() > 0.3) {
-					sendSocket.send(packet);
-				} else {
-					droppedPktCnt++;
-				}
+				sendSocket.send(packet);
+
 				
 			} catch (IOException e1) {
 				break;
