@@ -264,7 +264,7 @@ public class WebClientGraph {
 		 * Type of edge - can be used to draw different types of edges.
 		 * The value specified here can be used in javascript to modify the way edge is rendered.
 		 */
-		public String type;
+//		public final String type = "curve";
 		/**
 		 * Used to display tooltip when mouse hovered over the edge. Can have html tags.
 		 */
@@ -276,7 +276,8 @@ public class WebClientGraph {
 		/**
 		 * size of edge in numbers (it is relative size)
 		 */
-		public int size;
+		public final int size = 10;
+		
 
 		public static final String EDGE_COLOR = "rgb(84,84,84)"; //Grey
 
@@ -290,10 +291,10 @@ public class WebClientGraph {
 			this.id = id;
 			this.source = source;
 			this.target = target;
-			this.type = type;
+//			this.type = type;
 			this.tag = tag;
 			this.color = edgeColor;
-			this.size = size;
+//			this.size = size;
 		}
 		@Override
 		public int hashCode(){
@@ -737,14 +738,14 @@ public class WebClientGraph {
 			}
 			if(n.children.size() == 1){
 				//Place it just above the child
-				n.x = n.children.get(0).x;				
+				n.x = (n.children.get(0).x + 0.1);				
 			}else{
 				//Place the node in middle of leftmost and rightmost children
 				n.x = n.children.get(0).x + ((n.children.get(n.children.size()-1).x - n.children.get(0).x)/2); 
 			}			
 		}else{
 			//For leaf nodes, just add fixed value to last X value
-			n.x = this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;	
+			n.x = (this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES + 0.1);	
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
 		visitedNodes.add(n.id);

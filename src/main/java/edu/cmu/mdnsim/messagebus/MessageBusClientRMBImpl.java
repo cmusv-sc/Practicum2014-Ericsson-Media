@@ -142,7 +142,7 @@ public class MessageBusClientRMBImpl implements MessageBusClient {
 		try {
 			msg.from(from.id());
 			msg.to(dstPath);
-			from.message().to(MessageBusServer.SERVER_ID + dstPath).data(JSON.toJSON(msg)).method(method).send();
+			from.message().to("/"+ MessageBusServer.SERVER_ID + dstPath).data(JSON.toJSON(msg)).method(method).send();
 		} catch (IOException e) {
 			throw new MessageBusException("Failed to send data.", e);
 		

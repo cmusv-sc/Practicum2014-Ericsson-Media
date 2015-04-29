@@ -21,7 +21,6 @@ import us.yamb.rmb.annotations.PathParam;
 
 import com.ericsson.research.trap.utils.PackageScanner;
 
-import edu.cmu.mdnsim.global.ClusterConfig;
 import edu.cmu.mdnsim.messagebus.MessageBusClient;
 import edu.cmu.mdnsim.messagebus.exception.MessageBusException;
 import edu.cmu.mdnsim.messagebus.message.CreateNodeRequest;

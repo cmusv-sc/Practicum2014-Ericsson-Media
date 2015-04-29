@@ -18,24 +18,51 @@ var cam = null;
  */
 function createGraph(initial_data){
 	
+	console.log('createGraph called', initial_data);
+	
 	if(s){
 		s.graph.clear();		
 		s.graph.read(initial_data);		
 	}else{
+		
 		s = new sigma({
-			graph: initial_data
+			  graph: initial_data,
+			  renderer: {
+			    container: document.getElementById('svg'),
+			    type: 'canvas'
+			  },
+			  settings: {
+			    doubleClickEnabled: false,
+			    minEdgeSize: 0.5,
+			    maxEdgeSize: 4,
+			    enableEdgeHovering: true,
+			    edgeHoverColor: 'edge',
+			    defaultEdgeHoverColor: '#000',
+			    edgeHoverSizeRatio: 2,
+			    edgeHoverExtremities: true,
+			    edgeHoverPrecision: 200,
+			  }
 		});
-		cam = s.addCamera();
-		s.addRenderer({
-			container: $("#svg")[0],
-			type: 'svg',
-			camera: cam
-		});	
+
+		// Bind the events:
+		s.bind('overNode outNode clickNode doubleClickNode rightClickNode', function(e) {
+		  console.log(e.type, e.data.node.label, e.data.captor);
+		});
+		s.bind('overEdge outEdge clickEdge doubleClickEdge rightClickEdge', function(e) {
+		  console.log(e.type, e.data.edge, e.data.captor);
+		});
+		s.bind('clickStage', function(e) {
+		  console.log(e.type, e.data.captor);
+		});
+		s.bind('doubleClickStage rightClickStage', function(e) {
+		  console.log(e.type, e.data.captor);
+		});
+
 	}
-	s.refresh();   
-	attachNodeEvents();
-	attachEdgeEvents();
-	
+	s.refresh(); 
+
+//	attachNodeEvents();
+//	attachEdgeEvents();
 }
 /**
  * Attaches event handlers for all Events (currently mouse over and out) for each Node in the graph
@@ -66,7 +93,7 @@ function attachNodeEvents(){
 		$('#d' + jq(nodeId)).remove();
 		delete self.updateNodeTag;
 	}
-	);   
+	); 
 }
 
 
@@ -106,10 +133,6 @@ function attachEdgeEvents(){
  * @param updated_data Graph JSON
  */
 function refreshGraph(updated_data){
-//	updated_data = {"edges":[{"source":"1","target":"2","id":"100","type":"t"},{"source":"1","target":"3","id":"101"}],
-//	"nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
-//	{"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
-//	{"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}]};
 	//console.log(updated_data);
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
@@ -157,10 +180,8 @@ function refreshGraph(updated_data){
 				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
 				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
 			}
-			//s.graph.read(updated_data);		
-			//s.refresh();   
-			attachNodeEvents();
-			attachEdgeEvents();
+			s.graph.read(updated_data);		
+			s.refresh();   
 		}		
 	}else{
 		updated_data = {"nodes":nodes,"edges":edges};
@@ -212,6 +233,7 @@ function handleWsFileSelect(evt, action) {
  * Warp related functions
  */
 function initWarp(){
+	console.log("start init");
 	/**
 	 * Registers the WebClient to Master Node when it is connected to the Warp network
 	 */
@@ -220,27 +242,10 @@ function initWarp(){
 		loggerResource.message().to("/mdnsim/register_webclient").method("POST").data(loggerResource.id()).send();
 	});
 	/**
-	 * Generic Post and Message Handlers
-	 */
-	loggerResource.on({		
-		post: function(m) {
-			console.log("POST data: " + m.text); 
-		},
-		message: function(m) {
-			console.log("Got uncaught message: " + m.text); 			
-		},
-		delete: function(m) {
-			if(s != null) {		
-				s.graph.clear();
-				s.refresh();
-				$("#messages").html(""); //Clear the log messages
-			}
-		}
-	});
-	/**
 	 * Create Resource Handler - used to initialize the graph object 
 	 */
-	loggerResource.create("create").on("message", function(m) {
+	
+	loggerResource.create("create").on("POST", function(m) {
 		console.log("Got initial graph: ");
 		createGraph(m.object);
 	});
@@ -249,23 +254,25 @@ function initWarp(){
 	 * Update Resource Handler - used to refresh the graph to show current status
 	 */
 
-	loggerResource.create("update").on("message", function(m) {
+	loggerResource.create("update").on("POST", function(m) {
 		console.log("Got update: ");
-		console.log(m.object);
 		refreshGraph(m.object);
 	});
-	/**
-	 * Log Resource Handler - used to display log messages
-	 */
-	loggerResource.onmessage = function(m){
-		//console.log(m);
-		var entries = JSON.parse(m.dataAsString);
-		//console.log(entries);
-		for(var i=0; i<entries.length; i++){			
-			if(entries[i].logger === "webclientgraph" || entries[i].logger === "master")
-				$("#messages").prepend(entries[i].message + "<br/>");
-		}		
-	}
+	
+	console.log("finish init");
+
+//	/**
+//	 * Log Resource Handler - used to display log messages
+//	 */
+//	loggerResource.onmessage = function(m){
+//		//console.log(m);
+//		var entries = JSON.parse(m.dataAsString);
+//		//console.log(entries);
+//		for(var i=0; i<entries.length; i++){			
+//			if(entries[i].logger === "webclientgraph" || entries[i].logger === "master")
+//				$("#messages").prepend(entries[i].message + "<br/>");
+//		}		
+//	}
 	//Subscribe to logger plugin
 //	loggerResource.sendTo("warp://embedded:mdn-manager/_warp/plugins/logger", "POST");
 }
@@ -482,3 +489,11 @@ function getFlow(nodeList){
 	return new Flow("", "", "","",nodes.reverse());
 }
 
+
+function onClick(event) {
+    window.console.log("clicked!");
+} 
+
+function overEdge(event) {
+	console.log('over!');
+}
