@@ -256,7 +256,7 @@
 		
 		if (!!amb) {
 			var rmb = this;
-			Trap.EventObject.prototype.constructor(this);
+			Trap.EventObject.prototype.constructor.call(this);
 			this._amb = amb;
 			amb.onopen = function() { rmb._id = amb.id(); rmb._dispatchEvent({type: "open"}); };
 			amb.onmessage = function(msg) { 
@@ -389,7 +389,7 @@
 	};
 	
 	var Child = function(parent, id) {
-		Trap.EventObject.prototype.constructor(this);
+		Trap.EventObject.prototype.constructor.call(this);
 		this.parent = parent;
 		this._id = id;
 		this.ondispatch = dispatchFun;
