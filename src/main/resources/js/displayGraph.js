@@ -6,16 +6,13 @@ var loggerResource = RMB.builder().seed("trap.transport.http.url=/_connectTrap\n
 var s = null;
 //Represents the camera object used by sigma library
 var cam = null;
-/**
- * Renders Graph for first time 
- * @param initial_data The graph object in JSON format (sample given below)
- * //	initial_data = {"edges":
-//	[{"source":"1","target":"2","id":"100"},{"source":"1","target":"3","id":"101"}],
-//	"nodes":[{"label":"Source","x":0.1,"y":0.1,"id":"1","color":"rgb(0,204,0)","size":6,"tag":"This is source node"},
-//	{"label":"Client","x":0.5,"y":0.5,"id":"2","color":"rgb(0,204,204)","size":6,"tag":"This is client node"},
-//	{"label":"Client2","x":0.2,"y":0.6,"id":"3","color":"rgb(204,0,0)","size":6,"tag":"This is client node2"}
-//	]}
- */
+
+var clickNode = false;
+var nodeIdOnWatcher = null;
+
+var clickEdge = false;
+var edgeIdOnWatcher = null;
+
 function createGraph(initial_data){
 	
 	console.log('createGraph called', initial_data);
@@ -38,46 +35,184 @@ function createGraph(initial_data){
 		    edgeHoverPrecision: 5,
 		  }
 	});
-
+	
+	
+	
 	// Bind the events:
 	s.bind('overNode clickNode doubleClickNode rightClickNode', function(e) {
 	  console.log(e.type, e.data.node.label, e.data.captor);
-	  var nodeId = e.data.node.id;
 	  
-	  var x = e.pageX - e.captor.offsetLeft;
-	  var y = e.pageY - this.offsetTop;
-
-		if(s.graph.nodes(nodeId).tag){
-			$("<div id=d"+nodeId+" class='tag'></div>")
-			.html(s.graph.nodes(nodeId).tag)
-			.appendTo('body')
-			.fadeIn('slow');
-			$('#d' + jq(nodeId)).css({position: absolute, top: y, left: x, opacity:1 });
-		}
-		//This is used to update the tooltip automatically on hover
-		self.updateNodeTag = function() {
-			$(".tag").html(s.graph.nodes(nodeId).tag);
-		}
+	  if (clickNode) {
+		  return;
+	  }
+	  
+	  if (e.type === "clickNode" || e.type === "doubleClickNode") {
+		  clickNode = true;
+		  return;
+	  }
+	  
+	  var 	nodeId = e.data.node.id,
+	  		nodes  = s.graph.nodes(),
+	  		target = null;
+	  
+	  function addRow(id, attr, val) {
+		  return '<tr id=' + id + '><td>' + attr + '</td><td>' + val + '</td></tr>';
+	  }
+	  
+	  
+	  
+	  for (var i = 0; i < nodes.length; i++) {
+		  if (nodes[i].id === nodeId) {
+			  target = nodes[i];
+		  }
+	  }
+	  
+	  if (target === null) {
+		  console.log("ERR: cannot find the node");
+		  return;
+	  }
+	  
+	  
+	  
+	  for (var stream in target.streamMetricsMap) {
+		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'cpuUsage', 'CUP', target.streamMetricsMap[stream]['cpuUsage']));
+		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'memUsage', 'MEM', target.streamMetricsMap[stream]['memUsage']));
+		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'streamStatus', 'Status', target.streamMetricsMap[stream]['streamStatus']));
+	  }
+	  
+	  $("#node-watcher-table").children().filter("tbody").fadeIn();
+	  
+	  nodeIdOnWatcher = nodeId;
+	  
 	});
+	
+	
+	s.bind('overEdge clickEdge doubleClickEdge', function(e) {
+	  console.log(e.type, e.data.edge, e.data.captor);
+	  
+	  if (clickEdge) {
+		  return;
+	  }
+	  
+	  if (e.type === "clickEdge" || e.type === "doubleClickEdge") {
+		  clickEdge = true;
+		  return;
+	  }
+	  
+	  var 	edgeId = e.data.edge.id,
+	  		edges  = s.graph.edges(),
+	  		target = null,
+	  		counter = 0,
+	  		head    = "",
+	  		values  = null;
+	  
+	  for (var i = 0; i < edges.length; i++) {
+		  if (edges[i].id === edgeId) {
+			  target = edges[i];
+		  }
+	  }
+	  
+	  if (target === null) {
+		  console.log("ERR: cannot find the node");
+	  }
+	  
+	  function addRow(id, attr, vals) {
+		  var html = '<tr id=' + id + '><td>' + attr + '</td>';
+		  for (var i = 0; i < vals.length; i++) {
+			  html += "<td>" + vals[i] + "</td>";
+		  }
+		  return html + '</tr>';
+	  }
+	  
+	  function findValues(target, attr) {
+		  var values = [];
+		  for (var stream in target.streamMetricsMap) {
+			  values.push(target.streamMetricsMap[stream][attr]);
+		  }
+		  return values;
+	  }
+	  
+	  head = '<tr>';
+	  for (var stream in target.streamMetricsMap) {
+		  counter++;
+		  head += '<th>' + stream + '</th>';
+	  }
+	  head += '</tr>';
+	  console.log("head: ", head);
+	  $("#edge-watcher-table").children().filter('thead').append(head);
+	  $('#edge-watcher-table-value').attr("colspan", counter);
+	  
+	  
+	  values = findValues(target, 'averageTransferRate');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'averageTransferRate', 'Avg Rate', values));
+	  
+	  values = findValues(target, 'currentTransferRate');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'currentTransferRate', 'Imm Rate', values));
+	  
+	  values = findValues(target, 'averagePacketLoss');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'averagePacketLoss',   'Avg Loss', values));
+	  
+	  values = findValues(target, 'currentPacketLoss');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'currentPacketLoss',   'Imm Loss', values));
+	  
+	  values = findValues(target, 'avrEnd2EndLatency');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'avrEnd2EndLatency',   'E2E Delay', values));
+	  
+	  values = findValues(target, 'avrLnk2LnkLatency');
+	  $("#edge-watcher-table").children().filter("tbody").append(addRow(edgeId+'avrLnk2LnkLatency',   'L2L Delay', values));
+	  
+	  
+	  $("#edge-watcher-table").children().filter("tbody").fadeIn();
+	  
+	  edgeIdOnWatcher = edgeId;
+	  
+	});
+	
 	
 	s.bind('outNode', function(e) {
 		
+		if (clickNode === false) {
+			$("#node-watcher-table").children().filter("tbody").empty();
+			nodeIdOnWatcher = null;
+		}
+		
+		
+	
+	});
+
+
+	s.bind('outEdge', function(e) {
+		
+		if (clickEdge === false) {
+			$("#edge-watcher-table").children().filter("tbody").empty();
+			$('#edge-watcher-table').children().filter("thead").empty().append('<tr><th id="edge-watcher-table-metrics" rowspan="2" style="vertical-align: middle;">Metrics</th><th id="edge-watcher-table-value" colspan="1">Value</th></tr>');
+			edgeIdOnWatcher = null;
+		}
+		
 	});
 	
-	s.bind('overEdge outEdge clickEdge doubleClickEdge rightClickEdge', function(e) {
-	  console.log(e.type, e.data.edge, e.data.captor);
-	});
+	
 	s.bind('clickStage', function(e) {
-	  console.log(e.type, e.data.captor);
+//	  console.log(e.type, e.data.captor);
+	  clickNode = false;
+	  nodeIdOnWatcher = null;
+	  $("#node-watcher-table").children().filter("tbody").empty();
+	  
+	  
+	  clickEdge = false;
+	  edgeIdOnWatcher = null;
+	  $("#edge-watcher-table").children().filter("tbody").empty();
+	  $('#edge-watcher-table').children().filter("thead").empty().append('<tr><th id="edge-watcher-table-metrics" rowspan="2" style="vertical-align: middle;">Metrics</th><th id="edge-watcher-table-value" colspan="1">Value</th></tr>');
+	  
 	});
+	
+	
 	s.bind('doubleClickStage rightClickStage', function(e) {
 	  console.log(e.type, e.data.captor);
 	});
 
 	s.refresh(); 
 
-//	attachNodeEvents();
-//	attachEdgeEvents();
 }
 
 
@@ -86,8 +221,10 @@ function createGraph(initial_data){
  * @param updated_data Graph JSON
  */
 function refreshGraph(updated_data){
+	
 	var nodes = updated_data.nodes;
 	var edges = updated_data.edges;	
+	
 	if(s !== null){		
 		if(s.graph.nodes().length === nodes.length){
 			//Create a HashMap of updated nodes
@@ -100,39 +237,47 @@ function refreshGraph(updated_data){
 				var graphNode = s.graph.nodes()[i];
 				graphNode.color = nodesMap[graphNode.id].color;
 				graphNode.size = nodesMap[graphNode.id].size;
-				graphNode.tag = nodesMap[graphNode.id].tag;
+				graphNode.streamMetricsMap = nodesMap[graphNode.id].streamMetricsMap;
 			}
+			
 			//This function will update the hover if it is currently being displayed
-			if(self.updateNodeTag)
-				self.updateNodeTag();
+			refreshNodeWatcher();
+			
 			//Same things for updating edges. But in edges, we need to manually change the color and size
 			var edgesMap = {};
 			for(var i=0; i<edges.length; i++){
 				edgesMap[edges[i].id] = edges[i];
 			}
+			var needsToRefresh = false;
 			for(var i=0; i<s.graph.edges().length; i++){
 				var graphEdge = s.graph.edges()[i];
-				graphEdge.color = edgesMap[graphEdge.id].color;
+				if (graphEdge.color !== edgesMap[graphEdge.id].color) {
+					needsToRefresh = true;
+					graphEdge.color = edgesMap[graphEdge.id].color;
+				}
 				graphEdge.size = edgesMap[graphEdge.id].size;
-				graphEdge.tag = edgesMap[graphEdge.id].tag;
-				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke",graphEdge.color);
-				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke-width",graphEdge.size);	
+				graphEdge.streamMetricsMap = edgesMap[graphEdge.id].streamMetricsMap;
 			}
-			if(self.updateEdgeTag)
-				self.updateEdgeTag();
+			
+			//The color of edge may change
+			if (needsToRefresh) {
+				s.refresh();
+			}
+			
+			//Refresh the watcher
+			refreshEdgeWatcher();
+			
 		}else{
 			//Clear the graph and add new nodes and edges. 
 			//we can use lastHoveredElement variable for displaying hover 
 			console.log("refreshGraph(): nodes number doesn't match.");
 			s.graph.clear();
-			for(var i=0; i<nodes.length; i++){	
-				console.log("nodes[" + i + "]:" + nodes[i]);
+			
+			for(var i = 0; i < nodes.length; i++){	
 				s.graph.addNode(nodes[i]);
 			}		
-			for(var i=0; i<edges.length; i++){			
-				s.graph.addEdge(edges[i]);
-				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
-				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
+			for(var i = 0; i < edges.length; i++){			
+				s.graph.addEdge(edges[i]);		
 			}
 			s.refresh();   
 		}		
@@ -143,68 +288,75 @@ function refreshGraph(updated_data){
 }
 
 
-/**
- * Attaches event handlers for all Events (currently mouse over and out) for each Node in the graph
- */
-function attachNodeEvents(){
-	//First function handles mouse over and second one handles mouse out
-	//On Mouse Over a tooltip is shown which can be customized as required
-	//And on mouse out, the tooltip is removed
-	$("circle").hover(function(e){
-		var nodeId = $(this)[0].attributes["data-node-id"].value;
-		var x = e.pageX - this.offsetLeft;
-		var y = e.pageY - this.offsetTop;
-
-		if(s.graph.nodes(nodeId).tag){
-			$("<div id=d"+nodeId+" class='tag'></div>")
-			.html(s.graph.nodes(nodeId).tag)
-			.appendTo('body')
-			.fadeIn('slow');
-			$('#d' + jq(nodeId)).css({ top: y, left: x, opacity:1 });
-		}
-		//This is used to update the tooltip automatically on hover
-		self.updateNodeTag = function() {
-			$(".tag").html(s.graph.nodes(nodeId).tag);
-		}
-
-	},function(e){
-		var nodeId = $(this)[0].attributes["data-node-id"].value;
-		$('#d' + jq(nodeId)).remove();
-		delete self.updateNodeTag;
+function refreshNodeWatcher() {
+	
+	var nodeId = null,
+	target = null,
+	nodes  = s.graph.nodes();
+	
+	if (nodeIdOnWatcher === null) {
+		return;
 	}
-	); 
+	
+	for (var i = 0; i < nodes.length; i++) {
+		if (nodes[i].id === nodeId) {
+			target = nodes[i];
+		}
+	}
+	
+	if (target === null) {
+		console.log("ERR: cannot find the node");
+		return;
+	}
+	
+	for (var stream in target.streamMetricsMap) {
+		
+		$(jq("#" + nodeId + stream + 'cpuUsage')).children().first().next().text(target.streamMetricsMap[stream]['cpuUsage']);
+		$(jq("#" + nodeId + stream + 'memUsage')).children().first().next().text(target.streamMetricsMap[stream]['memUsage']);
+		$(jq("#" + nodeId + stream + 'streamStatus')).children().first().next().text(target.streamMetricsMap[stream]['streamStatus']);
+		
+	}
+	
 }
 
-
-/**
- * Attaches event handlers for all Events (currently mouse over and out) for each Edge in the graph
- * TODO: Find a way to increase width of edges
- */
-function attachEdgeEvents(){
-	//First function handles mouse over and second one handles mouse out
-	//On Mouse Over a tooltip is shown which can be customized as required
-	//And on mouse out, the tooltip is removed
-	$("line").hover(function(e){
-		var lineId = $(this)[0].attributes["data-edge-id"].value;
-		var x = e.pageX - this.offsetLeft;
-		var y = e.pageY - this.offsetTop;
-		if(s.graph.edges(lineId).tag){			
-			$("<div id=d"+lineId+" class='tag'></div>")
-			.html(s.graph.edges(lineId).tag)
-			.appendTo('body')
-			.fadeIn('fast');
-			$('#d' + jq(lineId)).css({ top: y, left: x, opacity:1 });
-		}
-		//This is used to update the tooltip automatically on hover
-		self.updateEdgeTag = function() {
-			$(".tag").html(s.graph.edges(lineId).tag);
-		}
-	},function(e){
-		var lineId = $(this)[0].attributes["data-edge-id"].value;
-		$('#d' + jq(lineId)).remove();
-		delete self.updateEdgeTag;
+function refreshEdgeWatcher() {
+	
+	var edgeId = null,
+		target = null,
+		edges  = s.graph.edges();
+	
+	if (edgeIdOnWatcher === null) {
+		return;
 	}
-	);
+	
+	edgeId = edgeIdOnWatcher;
+	
+	for (var i = 0; i < edges.length; i++) {
+		if (edges[i].id === edgeId) {
+			target = edges[i];
+		}
+	}
+	
+	if (target === null) {
+		console.log('refreshEdgeWatcher: cannot find edge: ' + edgeId);
+		return;
+	}
+	
+	function updateAttr(target, attr) {
+		var td = $(jq("#" + edgeId + attr)).children().first().next();
+		for (var stream in target.streamMetricsMap) {
+			td.text(target.streamMetricsMap[stream][attr]);
+			td = td.next();
+		}
+	}
+	
+	updateAttr(target, 'averageTransferRate');
+	updateAttr(target, 'currentTransferRate');
+	updateAttr(target, 'averagePacketLoss');
+	updateAttr(target, 'currentPacketLoss');
+	updateAttr(target, 'avrEnd2EndLatency');
+	updateAttr(target, 'avrLnk2LnkLatency');
+	
 }
 
 
@@ -281,20 +433,6 @@ function initWarp(){
 	
 	console.log("finish init");
 
-//	/**
-//	 * Log Resource Handler - used to display log messages
-//	 */
-//	loggerResource.onmessage = function(m){
-//		//console.log(m);
-//		var entries = JSON.parse(m.dataAsString);
-//		//console.log(entries);
-//		for(var i=0; i<entries.length; i++){			
-//			if(entries[i].logger === "webclientgraph" || entries[i].logger === "master")
-//				$("#messages").prepend(entries[i].message + "<br/>");
-//		}		
-//	}
-	//Subscribe to logger plugin
-//	loggerResource.sendTo("warp://embedded:mdn-manager/_warp/plugins/logger", "POST");
 }
 /**
  * Init function

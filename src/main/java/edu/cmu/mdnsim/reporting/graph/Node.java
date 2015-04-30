@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import edu.cmu.mdnsim.messagebus.message.EventType;
-import edu.cmu.util.HtmlTags;
 
 public class Node{
 
@@ -49,11 +48,13 @@ public class Node{
 	/**
 	 * Key = Stream Id, Value = Metrics for that stream
 	 */
-	private Map<String, NodeMetrics> streamMetricsMap = new HashMap<String, NodeMetrics>();
+	public Map<String, NodeMetrics> streamMetricsMap = new HashMap<String, NodeMetrics>();
 	/**
 	 * The type of node - Source/Sink/Processing/Relay etc.
 	 */
 	public String nodeType;
+	
+	
 	public Node(String id, String nodeType, String color,  int size){
 		this.id = id;
 		label = id;
@@ -91,7 +92,7 @@ public class Node{
 	 * @param streamId
 	 * @param eventType
 	 */
-	public void updateToolTip(String streamId, EventType eventType, String cpuUsage, String memUsage) {
+	public void updateNode(String streamId, EventType eventType, String cpuUsage, String memUsage) {
 		NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
 		if(nodeMetrics == null){
 			nodeMetrics = new NodeMetrics();
@@ -102,19 +103,6 @@ public class Node{
 		nodeMetrics.memUsage = memUsage;
 
 	}
-	/**
-	 * Updates the latency (for the given stream) in Tooltip table shown on hover of node 
-	 * @param streamId
-	 * @param latency
-	 */
-	public void updateToolTip(String streamId, long latency) {
-		NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
-		if(nodeMetrics == null){
-			nodeMetrics = new NodeMetrics();
-			this.streamMetricsMap.put(streamId, nodeMetrics);
-		}
-		nodeMetrics.latency = String.valueOf(latency);
 
-	}
 
 }

@@ -306,7 +306,7 @@ public class Master extends TimerTask {
 			//synchronized(System.in){
 			try {
 				WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
-				msgBusSvr.send("/", webClientURI.toString() + "/create", "POST", msg);
+				msgBusSvr.send("/", webClientURI.toString() + "/update", "POST", msg);
 			} catch (MessageBusException e) {
 				e.printStackTrace();
 			}

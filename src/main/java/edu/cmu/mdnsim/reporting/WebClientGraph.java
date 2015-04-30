@@ -409,7 +409,7 @@ public class WebClientGraph {
 		Node n = this.getNode(nodeId);
 		if(n != null){
 			synchronized(n){
-				n.updateToolTip(streamId, eventType, cpuUsage, memUsage);
+				n.updateNode(streamId, eventType, cpuUsage, memUsage);
 			}
 		}
 	}
