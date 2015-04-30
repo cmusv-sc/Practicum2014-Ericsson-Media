@@ -53,13 +53,27 @@ function createGraph(initial_data){
 	  
 	  var 	nodeId = e.data.node.id,
 	  		nodes  = s.graph.nodes(),
-	  		target = null;
+	  		target = null,
+	  		head = "",
+	  		values = null,
+	  		counter = 0;
 	  
-	  function addRow(id, attr, val) {
-		  return '<tr id=' + id + '><td>' + attr + '</td><td>' + val + '</td></tr>';
+	  function addRow(id, attr, vals) {
+		  var html = '<tr id=' + id + '><td>' + attr + '</td>';
+		  for (var i = 0; i < vals.length; i++) {
+			  html += "<td>" + vals[i] + "</td>";
+		  }
+		  return html + '</tr>';
 	  }
 	  
 	  
+	  function findValues(target, attr) {
+		  var values = [];
+		  for (var stream in target.streamMetricsMap) {
+			  values.push(target.streamMetricsMap[stream][attr]);
+		  }
+		  return values;
+	  }
 	  
 	  for (var i = 0; i < nodes.length; i++) {
 		  if (nodes[i].id === nodeId) {
@@ -72,13 +86,32 @@ function createGraph(initial_data){
 		  return;
 	  }
 	  
-	  
-	  
+	  head = '<tr>';
 	  for (var stream in target.streamMetricsMap) {
-		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'cpuUsage', 'CUP', target.streamMetricsMap[stream]['cpuUsage']));
-		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'memUsage', 'MEM', target.streamMetricsMap[stream]['memUsage']));
-		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'streamStatus', 'Status', target.streamMetricsMap[stream]['streamStatus']));
+		  counter++;
+		  head += '<th>' + stream + '</th>';
 	  }
+	  
+	  head += '</tr>';
+	  console.log("head: ", head);
+	  $("#node-watcher-table").children().filter('thead').append(head);
+	  $('#node-watcher-table-value').attr("colspan", counter);
+	  
+	  
+	  values = findValues(target, 'cpuUsage');
+	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'cpuUsage', 'CUP', values));
+	  
+	  values = findValues(target, 'memUsage');
+	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'memUsage', 'MEM', values));
+	  
+	  values = findValues(target, 'streamStatus');
+	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'streamStatus', 'Status', values));
+	  
+//	  for (var stream in target.streamMetricsMap) {
+//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'cpuUsage', 'CUP', target.streamMetricsMap[stream]['cpuUsage']));
+//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'memUsage', 'MEM', target.streamMetricsMap[stream]['memUsage']));
+//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'streamStatus', 'Status', target.streamMetricsMap[stream]['streamStatus']));
+//	  }
 	  
 	  $("#node-watcher-table").children().filter("tbody").fadeIn();
 	  
@@ -173,10 +206,9 @@ function createGraph(initial_data){
 		
 		if (clickNode === false) {
 			$("#node-watcher-table").children().filter("tbody").empty();
+			$('#node-watcher-table').children().filter("thead").empty().append('<tr><th id="node-watcher-table-metrics" rowspan="2" style="vertical-align: middle;">Metrics</th><th id="node-watcher-table-value" colspan="1">Value</th></tr>');
 			nodeIdOnWatcher = null;
 		}
-		
-		
 	
 	});
 
@@ -197,6 +229,7 @@ function createGraph(initial_data){
 	  clickNode = false;
 	  nodeIdOnWatcher = null;
 	  $("#node-watcher-table").children().filter("tbody").empty();
+	  $('#node-watcher-table').children().filter("thead").empty().append('<tr><th id="node-watcher-table-metrics" rowspan="2" style="vertical-align: middle;">Metrics</th><th id="node-watcher-table-value" colspan="1">Value</th></tr>');
 	  
 	  
 	  clickEdge = false;
@@ -298,6 +331,7 @@ function refreshNodeWatcher() {
 		return;
 	}
 	
+	nodeId = nodeIdOnWatcher;
 	for (var i = 0; i < nodes.length; i++) {
 		if (nodes[i].id === nodeId) {
 			target = nodes[i];
@@ -309,13 +343,16 @@ function refreshNodeWatcher() {
 		return;
 	}
 	
-	for (var stream in target.streamMetricsMap) {
-		
-		$(jq("#" + nodeId + stream + 'cpuUsage')).children().first().next().text(target.streamMetricsMap[stream]['cpuUsage']);
-		$(jq("#" + nodeId + stream + 'memUsage')).children().first().next().text(target.streamMetricsMap[stream]['memUsage']);
-		$(jq("#" + nodeId + stream + 'streamStatus')).children().first().next().text(target.streamMetricsMap[stream]['streamStatus']);
-		
-	}
+	updateAttr(target, nodeId, 'cpuUsage');
+	updateAttr(target, nodeId, 'memUsage');
+	updateAttr(target, nodeId, 'streamStatus');
+//	for (var stream in target.streamMetricsMap) {
+//		
+//		$(jq("#" + nodeId + stream + 'cpuUsage')).children().first().next().text(target.streamMetricsMap[stream]['cpuUsage']);
+//		$(jq("#" + nodeId + stream + 'memUsage')).children().first().next().text(target.streamMetricsMap[stream]['memUsage']);
+//		$(jq("#" + nodeId + stream + 'streamStatus')).children().first().next().text(target.streamMetricsMap[stream]['streamStatus']);
+//		
+//	}
 	
 }
 
@@ -342,23 +379,22 @@ function refreshEdgeWatcher() {
 		return;
 	}
 	
-	function updateAttr(target, attr) {
-		var td = $(jq("#" + edgeId + attr)).children().first().next();
-		for (var stream in target.streamMetricsMap) {
-			td.text(target.streamMetricsMap[stream][attr]);
-			td = td.next();
-		}
-	}
-	
-	updateAttr(target, 'averageTransferRate');
-	updateAttr(target, 'currentTransferRate');
-	updateAttr(target, 'averagePacketLoss');
-	updateAttr(target, 'currentPacketLoss');
-	updateAttr(target, 'avrEnd2EndLatency');
-	updateAttr(target, 'avrLnk2LnkLatency');
+	updateAttr(target, edgeId, 'averageTransferRate');
+	updateAttr(target, edgeId, 'currentTransferRate');
+	updateAttr(target, edgeId, 'averagePacketLoss');
+	updateAttr(target, edgeId, 'currentPacketLoss');
+	updateAttr(target, edgeId, 'avrEnd2EndLatency');
+	updateAttr(target, edgeId, 'avrLnk2LnkLatency');
 	
 }
 
+function updateAttr(target, id, attr) {
+	var td = $(jq("#" + id + attr)).children().first().next();
+	for (var stream in target.streamMetricsMap) {
+		td.text(target.streamMetricsMap[stream][attr]);
+		td = td.next();
+	}
+}
 
 /**
  * Called on "reset" button
