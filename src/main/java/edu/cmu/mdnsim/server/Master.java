@@ -475,13 +475,22 @@ public class Master extends TimerTask {
 				 * changed
 				 */			
 				ListIterator<Map<String, String>> nodesReverseIterator = flow.getNodeList().listIterator(flow.getNodeList().size());
+				
 				while(nodesReverseIterator.hasPrevious()){
 					Map<String,String> nodeProperties = (Map<String,String>)nodesReverseIterator.previous();
 					String nodeId = nodeProperties.get(Flow.NODE_ID);
 					String nodeType = nodeProperties.get(Flow.NODE_TYPE);
 					
-					webClientGraph.addNode(nodeProperties);
-					webClientGraph.addEdge(nodeProperties);
+					Map<String, String> upstreamNodeProperties = flow.findNodeMap(nodeProperties.get(Flow.UPSTREAM_ID));
+					if (upstreamNodeProperties == null) {
+						webClientGraph.addEdge(Flow.SOURCE_UPSTREAM_ID, null, nodeProperties.get(Flow.NODE_ID), nodeProperties.get(Flow.NODE_TYPE));
+					} else {
+						webClientGraph.addEdge(upstreamNodeProperties.get(Flow.NODE_ID), 
+								upstreamNodeProperties.get(Flow.NODE_TYPE), nodeProperties.get(Flow.NODE_ID), 
+								nodeProperties.get(Flow.NODE_TYPE));
+					}
+					
+					
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
 						/*
 						 * If a node in the flow is not registered yet, add it to a list of nodes to be instantiated
@@ -504,6 +513,7 @@ public class Master extends TimerTask {
 						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
 					}
 				}
+				
 
 				if (!flowMap.containsKey(flowId)) {
 					flowMap.put(flowId, flow);

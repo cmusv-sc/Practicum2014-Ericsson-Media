@@ -97,15 +97,14 @@
 
 <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
-<!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
 <script type="text/javascript" src="js/displayGraph.js"></script>
 
 </head>
 
 <body>
-	<div class="container">
-
+	<div class="container" style="width: 90vw;">
 		<div class="hero-unit">
 			<h1>Media Delivery Network Simulator</h1>
 		</div>
@@ -133,10 +132,41 @@
 				value="Reset" />
 		</div>
 
-		<div id="svg" style="width: 1000px; height: 500px;"
+		<div id="svg" style="width: 60vw; height: 70vh; display: inline-block; float: left"
 			ondragstart="return false;" ondrop="return false;"></div>
 
-		<div id="messages" style="overflow: auto; height:400px;"></div>
+		<div id="watcher" style="width:20vw; height: 70vh; display: inline-block">
+			<div id="node-watcher-container" style="display: block">
+				<table id="node-watcher-table" class="table table-hover">
+				<caption>Node Watcher</caption>
+					<thead>
+						<tr>
+							<th>Attribute</th>
+							<th>Value</th>
+						</tr>
+					</thead>
+					<tbody>
+						
+					</tbody>
+				</table>
+			</div>
+			
+			<div id="edge-watcher" style="display: block">
+				<table id="edge-watcher-table" class="table table-hover">
+				<caption>Edge Watcher</caption>
+					<thead>
+						<tr>
+							<th>Attribute</th>
+							<th>Value</th>
+						</tr>
+					</thead>
+					<tbody>
+						
+					</tbody>
+				</table>
+				</table>
+			</div>
+		</div>
 
 
 	</div>

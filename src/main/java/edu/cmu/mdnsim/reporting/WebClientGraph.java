@@ -15,7 +15,8 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.util.HtmlTags;
+import edu.cmu.mdnsim.reporting.graph.Edge;
+import edu.cmu.mdnsim.reporting.graph.Node;
 /**
  * Represents the actual state of the graph displayed in the web client. 
  * Should not be used for JSON conversion.
@@ -33,441 +34,30 @@ import edu.cmu.util.HtmlTags;
 public class WebClientGraph {
 
 	Logger logger = LoggerFactory.getLogger("embedded.mdn-manager.webclientgraph");
-	/**
-	 * Represents the Node in the graph displayed in web client
-	 */
-	public class Node{
 
-		public static final String SRC_RGB = "rgb(0,204,0)";
-		public static final String SINK_RGB = "rgb(0,204,204)";
-		public static final String PROC_RGB = "rgb(204,204,0)";
-		public static final String RELAY_RGB = "rgb(204,0,204)";
-		public static final String TRANS_RGB = "rgb(102, 102, 0)";
-
-		public static final String SRC_MSG = "This is a Source Node";
-		public static final String SINK_MSG = "This is a Sink Node";
-		public static final String PROC_MSG = "This is a Processing Node";
-		public static final String RELAY_MSG = "This is a Relay Node";
-		public static final String TRANS_MSG = "This is a Transcoding Node";
-
-		public static final int NODE_SIZE_IN_GRAPH = 6;
-
-		/**
-		 * Unique value identifying the node
-		 */
-		public String id;
-		/**
-		 * This remains fixed i.e. always visible to user
-		 */
-		public String label;
-		/**
-		 * X location of the node in graph 
-		 */
-		public double x;
-		/**
-		 * Y location of the node in graph 
-		 */
-		public double y;
-		/**
-		 * Color of the node - specify in format "rgb(0,204,0)"
-		 */
-		public String color;
-		/**
-		 * Specifies size of the node (from 1 to 6). Not tried with large values (>6).
-		 */
-		public int size;
-		/**
-		 * Used to display tooltip on hover event. It can have html tags.
-		 */
-		public String tag;
-		/**
-		 * List of downstream nodes
-		 */
-		private List<Node> children;
-		/**
-		 * Key = Stream Id, Value = Metrics for that stream
-		 */
-		private Map<String, NodeMetrics> streamMetricsMap = new HashMap<String, NodeMetrics>();
-		/**
-		 * The type of node - Source/Sink/Processing/Relay etc.
-		 */
-		public String nodeType;
-		public Node(String id, String label, String nodeType, String color,  int size, String tag){
-			this(id,label,nodeType, color,size,tag,-1,-1);
-		}
-
-		public Node(String id, String label, String nodeType, String color, int size, String tag,
-				double x, double y){
-			this.id = id;
-			this.label = label;
-			this.x = x;
-			this.y = y;
-			this.color = color;
-			this.size = size;
-			this.tag = tag;
-			this.nodeType = nodeType;
-			this.children = new ArrayList<Node>();
-		}
-
-		/**
-		 * Adds a new node to the children. 
-		 * No validations done => Duplicates will be added multiple times.
-		 * @param childNode
-		 */
-		public void addChild(Node childNode) {
-			//if(!this.children.contains(childNode))
-			this.children.add(childNode);
-		}		
-		@Override
-		public int hashCode(){
-			int res = 17;
-			res = res*31 + this.id.hashCode();
-			return res;
-		}
-		
-		@Override
-		public boolean equals(Object other){
-			if (other == null) {
-				return false;
-			}
-			
-			if(!(other instanceof Node))
-				return false;
-			if(this == other)
-				return true;
-			
-			Node otherNode = (Node)other;
-			return this.id.equals(otherNode.id);
-		}
-		/**
-		 * Updates the status of given stream in Tooltip table shown on hover of node
-		 * @param streamId
-		 * @param eventType
-		 */
-		public void updateToolTip(String streamId, EventType eventType, String cpuUsage, String memUsage) {
-			NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
-			if(nodeMetrics == null){
-				nodeMetrics = new NodeMetrics();
-				this.streamMetricsMap.put(streamId, nodeMetrics);
-			}
-			nodeMetrics.streamStatus = eventType.toString();
-			nodeMetrics.cpuUsage = cpuUsage;
-			nodeMetrics.memUsage = memUsage;
-
-			this.tag = this.buildNodeTagHtml();
-		}
-		/**
-		 * Updates the latency (for the given stream) in Tooltip table shown on hover of node 
-		 * @param streamId
-		 * @param latency
-		 */
-		public void updateToolTip(String streamId, long latency) {
-			NodeMetrics nodeMetrics = this.streamMetricsMap.get(streamId);
-			if(nodeMetrics == null){
-				nodeMetrics = new NodeMetrics();
-				this.streamMetricsMap.put(streamId, nodeMetrics);
-			}
-			nodeMetrics.latency = String.valueOf(latency);
-			this.tag = this.buildNodeTagHtml();
-		}
-		/**
-		 * Builds HTML table to be shown on hover of node 
-		 * Latency is shown only for sink nodes and status and id are shown for all nodes.
-		 * @return String containing full HTML table element
-		 */
-		private String buildNodeTagHtml(){
-			StringBuilder sb = new StringBuilder();
-			sb.append(HtmlTags.TABLE_BEGIN);
-			sb.append(generateHeaderRow());
-			for(Map.Entry<String, NodeMetrics> entry : streamMetricsMap.entrySet()){
-				sb.append(HtmlTags.TR_BEGIN);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getKey()); //Stream Id
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().streamStatus); //Stream Status
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().cpuUsage);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().memUsage);
-				sb.append(HtmlTags.TD_END);
-				
-				
-				if(this.nodeType.toLowerCase().equals("sinknode")){
-					sb.append(HtmlTags.TD_BEGIN);
-					if(entry.getValue().latency != null){
-						sb.append(entry.getValue().latency);
-					}
-					sb.append(HtmlTags.TD_END);
-				}
-				sb.append(HtmlTags.TR_END);
-			}
-			sb.append(HtmlTags.TABLE_END);
-			return sb.toString();			
-		}
-		/**
-		 * Generates Header Row for tool tip table 
-		 * @return String containing HTML TR element 
-		 */
-		private String generateHeaderRow() {
-			StringBuilder sb = new StringBuilder();
-			sb.append(HtmlTags.TR_BEGIN);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Stream");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Status");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("CPU Usage");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Memory Usage");
-			sb.append(HtmlTags.TD_END);
-			
-			if(this.nodeType.toLowerCase().equals("sinknode")){
-				sb.append(HtmlTags.TD_BEGIN);sb.append("Latency");sb.append(HtmlTags.TD_END);
-			}
-			sb.append(HtmlTags.TR_END);
-			return sb.toString();
-		}
-	}
-	/**
-	 * Represents teh Edge between two nodes shown in graph
-	 * @author Jigar
-	 *
-	 */
-	public class Edge{
-		/**
-		 * Unique value representing Edge. Generated by combining the source and target nodes.
-		 */
-		public String id;
-		/**
-		 * Represents the source node id
-		 */
-		public String source;
-		/**
-		 * Represents the target node id
-		 */
-		public String target;
-		/**
-		 * Type of edge - can be used to draw different types of edges.
-		 * The value specified here can be used in javascript to modify the way edge is rendered.
-		 */
-//		public final String type = "curve";
-		/**
-		 * Used to display tooltip when mouse hovered over the edge. Can have html tags.
-		 */
-		public String tag;
-		/**
-		 * Indicates the stream status
-		 */
-		public String color;
-		/**
-		 * size of edge in numbers (it is relative size)
-		 */
-		public final int size = 10;
-		
-
-		public static final String EDGE_COLOR = "rgb(84,84,84)"; //Grey
-
-		public static final int EDGE_SIZE_IN_GRAPH = 5;
-		/**
-		 * Key = StreamId, Value = Metrics to be shown in tool tip for that edge
-		 */
-		private Map<String, EdgeMetrics> streamMetricsMap = new HashMap<String, EdgeMetrics>();
-
-		public Edge(String id, String source, String target, String type, String tag, String edgeColor, int size){
-			this.id = id;
-			this.source = source;
-			this.target = target;
-//			this.type = type;
-			this.tag = tag;
-			this.color = edgeColor;
-//			this.size = size;
-		}
-		@Override
-		public int hashCode(){
-			int res = 17;
-			res = res*31 + this.id.hashCode();
-			return res;
-		}
-		@Override
-		public boolean equals(Object other){
-			if(this == other)
-				return true;
-			if(!(other instanceof Edge))
-				return false;
-			Edge otherEdge = (Edge)other;
-			return this.id.equals(otherEdge.id);
-		}
-		/**
-		 * Updates the status of given stream in Tooltip table shown on hover of edge
-		 * @param streamId
-		 * @param eventType
-		 */
-		public void updateToolTip(String streamId, EventType eventType) {
-			EdgeMetrics edgeMetrics = this.streamMetricsMap.get(streamId);
-			if(edgeMetrics == null){
-				edgeMetrics = new EdgeMetrics();
-				this.streamMetricsMap.put(streamId, edgeMetrics);
-			}
-			edgeMetrics.streamStatus = eventType.toString();
-			this.tag = this.buildEdgeTagHtml();
-		}
-		/**
-		 * Updates the different metrics of given stream in Tooltip table shown on hover of edge
-		 * @param streamId
-		 * @param averagePacketLoss
-		 * @param currentPacketLoss
-		 * @param averageTransferRate
-		 * @param currentTransferRate
-		 */
-		public void updateToolTip(String streamId, String averagePacketLoss, String currentPacketLoss,
-				String averageTransferRate, String currentTransferRate, String avrLnk2LnkLatency, 
-				String avrEnd2EndLatency) {
-			
-			EdgeMetrics edgeMetrics = this.streamMetricsMap.get(streamId);
-			if(edgeMetrics == null){
-				edgeMetrics = new EdgeMetrics();
-				this.streamMetricsMap.put(streamId, edgeMetrics);
-			}
-			edgeMetrics.averagePacketLoss = averagePacketLoss;
-			edgeMetrics.currentPacketLoss = currentPacketLoss;
-			edgeMetrics.averageTransferRate = averageTransferRate;
-			edgeMetrics.currentTransferRate = currentTransferRate;
-			edgeMetrics.avrLnk2LnkLatency = avrLnk2LnkLatency;
-			edgeMetrics.avrEnd2EndLatency = avrEnd2EndLatency;
-			
-			this.tag = this.buildEdgeTagHtml();
-		}
-		/**
-		 * Builds HTML table to be shown on hover of edge 
-		 * @return String containing full HTML table element
-		 */
-		private String buildEdgeTagHtml(){
-			StringBuilder sb = new StringBuilder();
-			sb.append(HtmlTags.TABLE_BEGIN);
-			sb.append(generateHeaderRow());
-			for(Map.Entry<String, EdgeMetrics> entry : streamMetricsMap.entrySet()){
-				sb.append(HtmlTags.TR_BEGIN);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getKey()); //Stream Id
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().streamStatus);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().averagePacketLoss);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().currentPacketLoss);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().averageTransferRate);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().currentTransferRate);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().avrLnk2LnkLatency);
-				sb.append(HtmlTags.TD_END);
-				
-				sb.append(HtmlTags.TD_BEGIN);
-				sb.append(entry.getValue().avrEnd2EndLatency);
-				sb.append(HtmlTags.TD_END);
-				
-				
-				sb.append(HtmlTags.TR_END);
-			}
-			sb.append(HtmlTags.TABLE_END);
-			return sb.toString();			
-		}
-		/**
-		 * Builds HTML table to be shown on hover of node 
-		 * @return String containing full HTML table element
-		 */
-		private String generateHeaderRow() {
-			
-			StringBuilder sb = new StringBuilder();
-			
-			sb.append(HtmlTags.TR_BEGIN);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Stream");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Status");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Avg Packet Loss");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Instant Packet Loss");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Avg Transfer Rate");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Instant Transfer Rate");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Avg Link Latency");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TD_BEGIN);
-			sb.append("Avg End2End Latency");
-			sb.append(HtmlTags.TD_END);
-			
-			sb.append(HtmlTags.TR_END);
-			return sb.toString();
-		}
-		/**
-		 * Gets Stream Status (One of {@link}edu.cmu.mdnsim.messagebus.message.EventType) values
-		 * @param streamId
-		 * @return String format of the EventType value
-		 */
-		public String getStreamStatus(String streamId) {
-			if(this.streamMetricsMap.get(streamId) != null)
-				return this.streamMetricsMap.get(streamId).streamStatus;
-			return null;
-		}
-	}
 	/**
 	 * Key = Node Id, Value = Node
 	 */
-	private ConcurrentHashMap<String,Node> nodesMap;
+	private Map<String,Node> nodesMap;
+	
+//	
+//	/**
+//	 * key: the node ID; value: the edges from the upstream
+//	 */
+//	private Map<Node, Set<Edge>> upstreamNodes;
+	
 	/**
-	 * Key = Edge Id, Value = Edge
+	 * key: the node ID; value: the edges from the upstream
 	 */
-	private ConcurrentHashMap<String,Edge> edgesMap;
+	private ConcurrentHashMap<Node, Set<Edge>> downstreamNodes;
+	
 	/**
 	 * Virtual Root Node used for calculating node locations
 	 */
 	private Node root;
+	
+	
+	
 	private int lastUsedXLocation = 0;
 	/**
 	 * Key = NodeType, Value = default node class based on its type
@@ -479,11 +69,12 @@ public class WebClientGraph {
 	private WebClientGraph(){
 		//TODO: Specify appropriate load factor, concurrency level for the maps 
 		nodesMap = new ConcurrentHashMap<String,Node>();
-		edgesMap = new ConcurrentHashMap<String,Edge>();
+//		upstreamNodes = new ConcurrentHashMap<Node,Set<Edge>>();
+		downstreamNodes = new ConcurrentHashMap<Node, Set<Edge>>();
 
 		//Create a virtual root node and add it to nodes Map.
 		//Required for calculating node locations
-		root = new Node("","Virtual Root Node","","",0,"");
+		root = new Node("virtual root","","",0);
 		nodesMap.put(root.id, root);
 
 		defaultNodeProperties = new HashMap<String,Node>();
@@ -496,20 +87,20 @@ public class WebClientGraph {
 	 */
 	private void init() {
 		defaultNodeProperties.put(WorkConfig.SOURCE_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.SOURCE_NODE_TYPE_INPUT,Node.SRC_RGB,
-						Node.NODE_SIZE_IN_GRAPH,Node.SRC_MSG));
+				new Node("virtual root",WorkConfig.SOURCE_NODE_TYPE_INPUT,Node.SRC_RGB,
+						Node.NODE_SIZE_IN_GRAPH));
 		defaultNodeProperties.put(WorkConfig.PROC_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.PROC_NODE_TYPE_INPUT,Node.PROC_RGB,
-						Node.NODE_SIZE_IN_GRAPH,Node.PROC_MSG));
+				new Node("virtual root",WorkConfig.PROC_NODE_TYPE_INPUT,Node.PROC_RGB,
+						Node.NODE_SIZE_IN_GRAPH));
 		defaultNodeProperties.put(WorkConfig.RELAY_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.RELAY_NODE_TYPE_INPUT,Node.RELAY_RGB,
-						Node.NODE_SIZE_IN_GRAPH,Node.RELAY_MSG));
+				new Node("virtual root",WorkConfig.RELAY_NODE_TYPE_INPUT,Node.RELAY_RGB,
+						Node.NODE_SIZE_IN_GRAPH));
 		defaultNodeProperties.put(WorkConfig.SINK_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.SINK_NODE_TYPE_INPUT,Node.SINK_RGB,
-						Node.NODE_SIZE_IN_GRAPH,Node.SINK_MSG));
+				new Node("virtual root",WorkConfig.SINK_NODE_TYPE_INPUT,Node.SINK_RGB,
+						Node.NODE_SIZE_IN_GRAPH));
 		defaultNodeProperties.put(WorkConfig.TRANS_NODE_TYPE_INPUT, 
-				new Node("","",WorkConfig.TRANS_NODE_TYPE_INPUT,Node.TRANS_RGB,
-						Node.NODE_SIZE_IN_GRAPH,Node.TRANS_MSG));
+				new Node("virtual root",WorkConfig.TRANS_NODE_TYPE_INPUT,Node.TRANS_RGB,
+						Node.NODE_SIZE_IN_GRAPH));
 
 	}
 	public final static WebClientGraph INSTANCE = new WebClientGraph();
@@ -521,6 +112,7 @@ public class WebClientGraph {
 	 * Used for setting Y location of each node
 	 */
 	private static final double VERTICAL_DISTANCE_BETWEEN_NODES = 10;
+	
 
 	/**
 	 * Gets the node from the graph. Returns null if not present.
@@ -529,28 +121,6 @@ public class WebClientGraph {
 	 */
 	public Node getNode(String nodeId){
 		return nodesMap.get(nodeId);
-	}
-	/**
-	 * If the node already exists it it over written
-	 * @param n
-	 */
-	public void addNode(Node n) {
-		nodesMap.put(n.id, n);
-	}
-	/**
-	 * If the edge already exists it is overwritten
-	 * @param e
-	 */
-	public void addEdge(Edge e) {
-		edgesMap.put(e.id, e);
-	}
-	public void removeNode(Node n){
-		nodesMap.remove(n.id);
-		//TODO: Check if we need to remove corresponding edges here or let the user of this class handle it?
-	}
-	public void removeEdge(Edge e){
-		edgesMap.remove(e.id);
-		//TODO: Check if we need to remove corresponding nodes or let the user of this class handle it?
 	}
 
 	/**
@@ -562,10 +132,27 @@ public class WebClientGraph {
 	 */
 	public WebClientUpdateMessage getUpdateMessage(){
 		WebClientUpdateMessage msg = new WebClientUpdateMessage();
-		msg.setNodes(this.nodesMap.values());
-		msg.setEdges(this.edgesMap.values());
+		Set<Node> nodes = new HashSet<Node>(); 
+		for (Node n : this.nodesMap.values()) {
+			if (n != root) {
+				nodes.add(n);
+			}
+		}
+		msg.setNodes(nodes);
+		
+		Set<Edge> edges = new HashSet<Edge>();
+		for (Node node : this.nodesMap.values()) {
+			downstreamNodes.computeIfAbsent(node, (foo) -> new HashSet<Edge>());
+			for (Edge e : downstreamNodes.get(node)) {
+				if (!e.source.equals(root.id)) {
+					edges.add(e);
+				}
+			}
+		}
+		msg.setEdges(edges);
 		return msg;
 	}
+	
 
 	/**
 	 * Used to generate WebClient Update Message - 
@@ -576,34 +163,29 @@ public class WebClientGraph {
 	 * @return
 	 */
 	public WebClientUpdateMessage getUpdateMessage(Set<String> operationalNodes) {
+		
 		WebClientUpdateMessage msg = new WebClientUpdateMessage();
+		
 		List<Node> operationalNodeSet = new ArrayList<Node>();
 		List<Edge> operationalEdgeSet = new ArrayList<Edge>();
 
 		for (String nodeId : operationalNodes)
 			operationalNodeSet.add(this.getNode(nodeId));
+		
 		msg.setNodes(operationalNodeSet);
-
-		/* Add the edge to be displayed in the graph only if both end points of 
-		 * the edge are up
-		 */
-		for (Edge e : this.edgesMap.values()) {
-			String[] nodes = e.id.split("-");
-			if (operationalNodes.contains(nodes[0]) && operationalNodes.contains(nodes[1]))
-				operationalEdgeSet.add(e);
+		
+		for (Node v : operationalNodeSet) {
+			for (Edge e : downstreamNodes.get(v)) {
+				if (operationalNodes.contains(e.target)) {
+					operationalEdgeSet.add(e);
+				}
+			}
 		}
+
 		msg.setEdges(operationalEdgeSet);
 		return msg;
 	}
 
-	/**
-	 * Returns edge if available else null
-	 * @param edgeId
-	 * @return
-	 */
-	public Edge getEdge(String edgeId){
-		return edgesMap.get(edgeId);
-	}
 
 	/**
 	 * Check whether the node is contained in the graph.
@@ -619,90 +201,72 @@ public class WebClientGraph {
 	 * If the node already exists it doesn't add the node to the graph
 	 * @param n
 	 */
-	public void addNode(Map<String, String> nodePropertiesMap) {
-		String nodeId = nodePropertiesMap.get(Flow.NODE_ID);
+	private void addNode(String nodeId, String nodeType) {
+		
 		if (this.containsNode(nodeId)) {
 			return;
 		}
-		String nodeType = nodePropertiesMap.get(Flow.NODE_TYPE);
 
-		Node newNode = new Node(nodeId, nodeId, nodeType,
+		Node newNode = new Node(nodeId, nodeType,
 				this.defaultNodeProperties.get(nodeType).color, 
-				this.defaultNodeProperties.get(nodeType).size, 
-				this.defaultNodeProperties.get(nodeType).tag);
-		newNode.y = this.defaultNodeProperties.get(nodeType).y;
+				this.defaultNodeProperties.get(nodeType).size);
+		
+		//TODO: do we really need this?
+//		newNode.y = this.defaultNodeProperties.get(nodeType).y;
+		
 		nodesMap.put(newNode.id, newNode);		
 
 	}
+	
 	/**
 	 * If the edge already exists it doesn't add it to the graph.
 	 * Both the nodes should be added to the web client graph other wise it will behave abnormally
 	 * This function will also set the children property of the nodes involved.
 	 * @param e
 	 */
-	public void addEdge(Map<String, String> nodeMap) {
+	public void addEdge(String srcNodeId, String srcNodeType, String dstNodeId, String dstNodeType) {
 		
-		String nodeId = nodeMap.get(Flow.NODE_ID);
-		String upStreamNodeId = nodeMap.get(Flow.UPSTREAM_ID);
-		String edgeId = getEdgeId(upStreamNodeId, nodeId);
-
-		if (containsEdge(edgeId)) {
-			return;
+		if (srcNodeId.equals(Flow.SOURCE_UPSTREAM_ID)) {
+			srcNodeId = root.id;
 		}
 		
-		//Consider Source Node when setting children property as Source nodes will be child of Virtual root
-		//But do a duplicate check for source nodes as the edge 
-		// between virtual root and source nodes is not part of edgesMap
-		if(!upStreamNodeId.equals(Flow.SOURCE_UPSTREAM_ID) || !isChildOf(nodeId, upStreamNodeId))
-			addChild(nodeId, upStreamNodeId);
-		//Ignore Source nodes when adding edges to be displayed in graph
-		// because it is creating issues in displaying the graph
-		if(!upStreamNodeId.equals(Flow.SOURCE_UPSTREAM_ID)){
-			Edge newEdge = new Edge(edgeId, upStreamNodeId, 
-					nodeId, "", edgeId, Edge.EDGE_COLOR, 
-					Edge.EDGE_SIZE_IN_GRAPH);
-
-			edgesMap.put(newEdge.id, newEdge);
+		if (!nodesMap.containsKey(srcNodeId)) {
+			addNode(srcNodeId, srcNodeType);
 		}
-	}
+		
+		if (!nodesMap.containsKey(dstNodeId)) {
+			addNode(dstNodeId, dstNodeType);
+		}
+		
+		Node srcNode = nodesMap.get(srcNodeId);
+		Node dstNode = nodesMap.get(dstNodeId);
+		
+		if (!downstreamNodes.containsKey(srcNode)) {
+			downstreamNodes.put(srcNode, new HashSet<Edge>());
+		}
+		
+		if (!downstreamNodes.containsKey(dstNode)) {
+			downstreamNodes.put(dstNode, new HashSet<Edge>());
+		}
+		
+		// If the edge existed, do nothing
+		for(Edge e : downstreamNodes.get(srcNode)) {
+			if (e.target.equals(dstNodeId)) {
+				return;
+			}
+		}
+		
+		downstreamNodes.get(srcNode).add(new Edge(getEdgeId(srcNodeId, dstNodeId), srcNodeId, dstNodeId));
+		
+		nodesMap.get(srcNodeId).size += 1;
 
-	public boolean containsEdge(String edgeId) {
-		return edgesMap.containsKey(edgeId);
 	}
 
 	public static String getEdgeId(String srcId, String dstId) {
 		return srcId + "-" + dstId;
 	}
-	/**
-	 * Adds the node with id = nodeId as child of node with id = parentNodeId.
-	 * If the nodes are not present in the graph, does nothing.
-	 * it does not check for duplicates
-	 * @param nodeId
-	 * @param parentNodeId
-	 */
-	private void addChild(String nodeId, String parentNodeId) {
-		if(this.getNode(nodeId) != null){
-			if(parentNodeId.equals(Flow.SOURCE_UPSTREAM_ID)){				
-				root.addChild(this.getNode(nodeId));
-			}else{
-				if(this.getNode(parentNodeId) != null)
-					this.getNode(parentNodeId).addChild(this.getNode(nodeId));
-			}
-		}
-	}
-	/**
-	 * Returns true if Node with id=nodeId is child of Node with id = parentNodeId 	
-	 * @param nodeId
-	 * @param parentNodeId
-	 * @return
-	 */
-	private boolean isChildOf(String nodeId, String parentNodeId) {
-		for(Node c : root.children){
-			if(c.equals(this.getNode(nodeId)))
-				return true;
-		}
-		return false;
-	}
+	
+	
 	/**
 	 * Sets the X & Y location for all the nodes in graph based on tree concept with virtual node as root
 	 * Ensure that all nodes are part of the graph 
@@ -729,31 +293,41 @@ public class WebClientGraph {
 	private void setLocations(Node n, double yLocation, Set<String> visitedNodes) {
 		
 		if(n == null) return;
+		
+		visitedNodes.add(n.id);
+		
 		n.y = yLocation + VERTICAL_DISTANCE_BETWEEN_NODES;
-
-		if(n.children.size() > 0){
-			for(Node child : n.children){
-				if(!visitedNodes.contains(child.id))
-					setLocations(child, n.y,visitedNodes);
+		
+		Set<Edge> downstreamEdges = downstreamNodes.get(n);
+		
+		if(downstreamEdges.size() > 0){
+			
+			for (Edge e : downstreamEdges) {
+				if (!visitedNodes.contains(e.target)) {
+					setLocations(nodesMap.get(e.target), n.y, visitedNodes);
+				}
 			}
-			if(n.children.size() == 1){
-				//Place it just above the child
-				n.x = (n.children.get(0).x + 0.1);				
-			}else{
-				//Place the node in middle of leftmost and rightmost children
-				n.x = n.children.get(0).x + ((n.children.get(n.children.size()-1).x - n.children.get(0).x)/2); 
-			}			
+			
+			double minX = Double.MAX_VALUE, maxX = Double.MIN_NORMAL;
+			
+			for (Edge e : downstreamEdges) {
+				minX = Math.min(minX, nodesMap.get(e.target).x);
+				maxX = Math.max(maxX, nodesMap.get(e.target).x);
+			}
+			
+			n.x = (minX + maxX) / 2 + (Math.random() - 0.5);
+						
 		}else{
-			//For leaf nodes, just add fixed value to last X value
-			n.x = (this.lastUsedXLocation  + HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES + 0.1);	
+			
+			n.x = (this.lastUsedXLocation  + (Math.random() - 0.5));	
 			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
-		visitedNodes.add(n.id);
+		
 	}
 	/**
 	 * Used to update the Edge Tooltip and color. This function is called for updating progress reports.
-	 * @param nodeId
-	 * @param destinationNodeId
+	 * @param srcId
+	 * @param dstId
 	 * @param streamId
 	 * @param edgeColor
 	 * @param averagePacketLoss
@@ -761,25 +335,38 @@ public class WebClientGraph {
 	 * @param averageTransferRate
 	 * @param currentTransferRate
 	 */
-	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
+	public void updateEdge(String srcId, String dstId, String streamId,
 			String edgeColor, double averagePacketLoss, double currentPacketLoss,
 			double averageTransferRate, double currentTransferRate, double avrLnk2LnkLatency, 
 			double avrEnd2EndLatency) {
 		
-		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
+		if (srcId.equals(Flow.SOURCE_UPSTREAM_ID)) {
+			srcId = root.id;
+		}
 		
-		if (e != null) {
-			synchronized(e){
-				String streamStatus = e.getStreamStatus(streamId);
-				if(streamStatus != null){
-					//Update the Edge only if the receiving node is not done receiving
-					if(!streamStatus.equals(EventType.RECEIVE_END.toString())){
-						e.color = edgeColor;
-						e.updateToolTip(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
-								String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate),
-								String.format("%.2f", avrLnk2LnkLatency), String.format("%.2f", avrEnd2EndLatency));
-					}
-				}
+		Set<Edge> downstreamEdges = downstreamNodes.computeIfAbsent(nodesMap.get(srcId), (foo)->(new HashSet<Edge>()));
+		Edge e = null;
+		
+		for (Edge tmp : downstreamEdges) {
+			if (tmp.target.equals(dstId)) {
+				e = tmp;
+				break;
+			}
+		}
+		
+		if (e == null) {
+			throw new RuntimeException("cannot find edge from " + srcId + " to " + dstId);
+		}
+
+
+		String streamStatus = e.getStreamStatus(streamId);
+		if(streamStatus != null){
+			//Update the Edge only if the receiving node is not done receiving
+			if(!streamStatus.equals(EventType.RECEIVE_END.toString())){
+				e.color = edgeColor;
+				e.updateMetrics(streamId, String.format("%.2f",averagePacketLoss), String.format("%.2f",currentPacketLoss), 
+						String.format("%.2f",averageTransferRate), String.format("%.2f",currentTransferRate),
+						String.format("%.2f", avrLnk2LnkLatency), String.format("%.2f", avrEnd2EndLatency));
 			}
 		}
 	}
@@ -793,13 +380,23 @@ public class WebClientGraph {
 	 */
 	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
 			String edgeColor,EventType eventType) {
-		Edge e = this.getEdge(getEdgeId(nodeId , destinationNodeId));
-		if (e != null) {
-			synchronized(e){
-				e.color = edgeColor;
-				e.updateToolTip(streamId, eventType);
+		
+		Set<Edge> downstreamEdges = downstreamNodes.get(nodesMap.get(nodeId));
+		Edge e = null;
+		for (Edge tmp : downstreamEdges) {
+			if (tmp.target.equals(destinationNodeId)) {
+				e = tmp;
+				break;
 			}
 		}
+		
+		if (e == null) {
+			throw new RuntimeException("cannot find edge from " + nodeId + " to " + destinationNodeId);
+		}
+		
+		e.color = edgeColor;
+		e.updateStreamStatus(streamId, eventType);
+		
 	}
 	/**
 	 * Used to update Tooltip of the Node. Called when node start/stops sending/receiving data
@@ -818,10 +415,12 @@ public class WebClientGraph {
 	}
 
 	public synchronized WebClientUpdateMessage resetWebClientGraph() {
+		
 		nodesMap.clear();
-		edgesMap.clear();
+		downstreamNodes.clear();
 
-		root = new Node("","Virtual Root Node","","",0,"");
+		root = new Node("virtual root","","",0);
+		
 		nodesMap.put(root.id, root);
 
 		init();

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.cmu.mdnsim.reporting;
+package edu.cmu.mdnsim.reporting.graph;
 
 /**
  * Metrics used to display tool tip when user hovers over an Edge

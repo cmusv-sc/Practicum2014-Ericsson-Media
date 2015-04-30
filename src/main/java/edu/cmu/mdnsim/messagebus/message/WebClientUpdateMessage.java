@@ -2,8 +2,8 @@ package edu.cmu.mdnsim.messagebus.message;
 
 import java.util.Collection;
 
-import edu.cmu.mdnsim.reporting.WebClientGraph.Edge;
-import edu.cmu.mdnsim.reporting.WebClientGraph.Node;
+import edu.cmu.mdnsim.reporting.graph.Edge;
+import edu.cmu.mdnsim.reporting.graph.Node;
 /**
  * Represents sets of nodes and edges as required by the web client.
  * This class is used only for creating JSON message as required by the WebClient Node

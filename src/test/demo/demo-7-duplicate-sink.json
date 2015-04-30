@@ -1,0 +1,57 @@
+{
+	"SimId":"demo",
+	"StreamList":
+	[
+
+	{
+		"StreamId":"Stream1",
+		"DataSize":"2000000000",
+		"KiloBitRate":"10000",
+		"FlowList":
+		[
+
+		
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink2",
+				"UpstreamId":"orange:relay4"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay4",
+				"UpstreamId":"lemon:source1",
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		},
+		{
+			"NodeList":
+			[
+			{
+				"NodeType":"SinkNode",
+				"NodeId":"tomato:sink2",
+				"UpstreamId":"orange:relay1"
+			},
+			{
+				"NodeType":"RelayNode",
+				"NodeId":"orange:relay1",
+				"UpstreamId":"lemon:source1"
+			},
+			{
+				"NodeType":"SourceNode",
+				"NodeId":"lemon:source1",
+				"UpstreamId":"NULL"
+			}
+			]
+		}
+		]
+	}
+	]
+}

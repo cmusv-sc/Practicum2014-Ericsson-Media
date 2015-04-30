@@ -19,51 +19,130 @@ var cam = null;
 function createGraph(initial_data){
 	
 	console.log('createGraph called', initial_data);
+
+	s = new sigma({
+		  graph: initial_data,
+		  renderer: {
+		    container: document.getElementById('svg'),
+		    type: 'canvas'
+		  },
+		  settings: {
+		    doubleClickEnabled: false,
+		    minEdgeSize: 0.5,
+		    maxEdgeSize: 4,
+		    enableEdgeHovering: true,
+		    edgeHoverColor: 'edge',
+		    defaultEdgeHoverColor: '#000',
+		    edgeHoverSizeRatio: 2,
+		    edgeHoverExtremities: true,
+		    edgeHoverPrecision: 5,
+		  }
+	});
+
+	// Bind the events:
+	s.bind('overNode clickNode doubleClickNode rightClickNode', function(e) {
+	  console.log(e.type, e.data.node.label, e.data.captor);
+	  var nodeId = e.data.node.id;
+	  
+	  var x = e.pageX - e.captor.offsetLeft;
+	  var y = e.pageY - this.offsetTop;
+
+		if(s.graph.nodes(nodeId).tag){
+			$("<div id=d"+nodeId+" class='tag'></div>")
+			.html(s.graph.nodes(nodeId).tag)
+			.appendTo('body')
+			.fadeIn('slow');
+			$('#d' + jq(nodeId)).css({position: absolute, top: y, left: x, opacity:1 });
+		}
+		//This is used to update the tooltip automatically on hover
+		self.updateNodeTag = function() {
+			$(".tag").html(s.graph.nodes(nodeId).tag);
+		}
+	});
 	
-	if(s){
-		s.graph.clear();		
-		s.graph.read(initial_data);		
-	}else{
+	s.bind('outNode', function(e) {
 		
-		s = new sigma({
-			  graph: initial_data,
-			  renderer: {
-			    container: document.getElementById('svg'),
-			    type: 'canvas'
-			  },
-			  settings: {
-			    doubleClickEnabled: false,
-			    minEdgeSize: 0.5,
-			    maxEdgeSize: 4,
-			    enableEdgeHovering: true,
-			    edgeHoverColor: 'edge',
-			    defaultEdgeHoverColor: '#000',
-			    edgeHoverSizeRatio: 2,
-			    edgeHoverExtremities: true,
-			    edgeHoverPrecision: 200,
-			  }
-		});
+	});
+	
+	s.bind('overEdge outEdge clickEdge doubleClickEdge rightClickEdge', function(e) {
+	  console.log(e.type, e.data.edge, e.data.captor);
+	});
+	s.bind('clickStage', function(e) {
+	  console.log(e.type, e.data.captor);
+	});
+	s.bind('doubleClickStage rightClickStage', function(e) {
+	  console.log(e.type, e.data.captor);
+	});
 
-		// Bind the events:
-		s.bind('overNode outNode clickNode doubleClickNode rightClickNode', function(e) {
-		  console.log(e.type, e.data.node.label, e.data.captor);
-		});
-		s.bind('overEdge outEdge clickEdge doubleClickEdge rightClickEdge', function(e) {
-		  console.log(e.type, e.data.edge, e.data.captor);
-		});
-		s.bind('clickStage', function(e) {
-		  console.log(e.type, e.data.captor);
-		});
-		s.bind('doubleClickStage rightClickStage', function(e) {
-		  console.log(e.type, e.data.captor);
-		});
-
-	}
 	s.refresh(); 
 
 //	attachNodeEvents();
 //	attachEdgeEvents();
 }
+
+
+/**
+ * Refreshes the graph based on updated JSON
+ * @param updated_data Graph JSON
+ */
+function refreshGraph(updated_data){
+	var nodes = updated_data.nodes;
+	var edges = updated_data.edges;	
+	if(s !== null){		
+		if(s.graph.nodes().length === nodes.length){
+			//Create a HashMap of updated nodes
+			var nodesMap = {};			
+			for(var i = 0; i < nodes.length; i++){
+				nodesMap[nodes[i].id] = nodes[i];
+			}
+			//Update the graph nodes with new values for color, size and tooltip (tag)
+			for(var i = 0; i < s.graph.nodes().length; i++){
+				var graphNode = s.graph.nodes()[i];
+				graphNode.color = nodesMap[graphNode.id].color;
+				graphNode.size = nodesMap[graphNode.id].size;
+				graphNode.tag = nodesMap[graphNode.id].tag;
+			}
+			//This function will update the hover if it is currently being displayed
+			if(self.updateNodeTag)
+				self.updateNodeTag();
+			//Same things for updating edges. But in edges, we need to manually change the color and size
+			var edgesMap = {};
+			for(var i=0; i<edges.length; i++){
+				edgesMap[edges[i].id] = edges[i];
+			}
+			for(var i=0; i<s.graph.edges().length; i++){
+				var graphEdge = s.graph.edges()[i];
+				graphEdge.color = edgesMap[graphEdge.id].color;
+				graphEdge.size = edgesMap[graphEdge.id].size;
+				graphEdge.tag = edgesMap[graphEdge.id].tag;
+				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke",graphEdge.color);
+				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke-width",graphEdge.size);	
+			}
+			if(self.updateEdgeTag)
+				self.updateEdgeTag();
+		}else{
+			//Clear the graph and add new nodes and edges. 
+			//we can use lastHoveredElement variable for displaying hover 
+			console.log("refreshGraph(): nodes number doesn't match.");
+			s.graph.clear();
+			for(var i=0; i<nodes.length; i++){	
+				console.log("nodes[" + i + "]:" + nodes[i]);
+				s.graph.addNode(nodes[i]);
+			}		
+			for(var i=0; i<edges.length; i++){			
+				s.graph.addEdge(edges[i]);
+				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
+				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
+			}
+			s.refresh();   
+		}		
+	} else { //sigma instance is null
+		updated_data = {"nodes":nodes,"edges":edges};
+		createGraph(updated_data);
+	}
+}
+
+
 /**
  * Attaches event handlers for all Events (currently mouse over and out) for each Node in the graph
  */
@@ -128,66 +207,7 @@ function attachEdgeEvents(){
 	);
 }
 
-/**
- * Refreshes the graph based on updated JSON
- * @param updated_data Graph JSON
- */
-function refreshGraph(updated_data){
-	//console.log(updated_data);
-	var nodes = updated_data.nodes;
-	var edges = updated_data.edges;	
-	if(s != null){		
-		if(s.graph.nodes().length == nodes.length){
-			//Create a HashMap of updated nodes
-			var nodesMap = {};			
-			for(var i=0; i<nodes.length; i++){
-				nodesMap[nodes[i].id] = nodes[i];
-			}
-			//Update the graph nodes with new values for color, size and tooltip (tag)
-			for(var i=0; i<s.graph.nodes().length; i++){
-				var graphNode = s.graph.nodes()[i];
-				graphNode.color = nodesMap[graphNode.id].color;
-				graphNode.size = nodesMap[graphNode.id].size;
-				graphNode.tag = nodesMap[graphNode.id].tag;
-			}
-			//This function will update the hover if it is currently being displayed
-			if(self.updateNodeTag)
-				self.updateNodeTag();
-			//Same things for updating edges. But in edges, we need to manually change the color and size
-			var edgesMap = {};
-			for(var i=0; i<edges.length; i++){
-				edgesMap[edges[i].id] = edges[i];
-			}
-			for(var i=0; i<s.graph.edges().length; i++){
-				var graphEdge = s.graph.edges()[i];
-				graphEdge.color = edgesMap[graphEdge.id].color;
-				graphEdge.size = edgesMap[graphEdge.id].size;
-				graphEdge.tag = edgesMap[graphEdge.id].tag;
-				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke",graphEdge.color);
-				$( "line[data-edge-id='"+graphEdge.id+"']" ).css("stroke-width",graphEdge.size);	
-			}
-			if(self.updateEdgeTag)
-				self.updateEdgeTag();
-		}else{
-			//Clear the graph and add new nodes and edges. 
-			//we can use lastHoveredElement variable for displaying hover 
-			s.graph.clear();
-			for(var i=0; i<nodes.length; i++){			
-				s.graph.addNode(nodes[i]);
-			}		
-			for(var i=0; i<edges.length; i++){			
-				s.graph.addEdge(edges[i]);
-				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke",edges[i].color);
-				$( "line[data-edge-id='"+edges[i].id+"']" ).css("stroke-width",edges[i].size);			
-			}
-			s.graph.read(updated_data);		
-			s.refresh();   
-		}		
-	}else{
-		updated_data = {"nodes":nodes,"edges":edges};
-		createGraph(updated_data);
-	}
-}
+
 /**
  * Called on "reset" button
  */
@@ -255,7 +275,7 @@ function initWarp(){
 	 */
 
 	loggerResource.create("update").on("POST", function(m) {
-		console.log("Got update: ");
+		console.log("Got update: ", m.object);
 		refreshGraph(m.object);
 	});
 	
