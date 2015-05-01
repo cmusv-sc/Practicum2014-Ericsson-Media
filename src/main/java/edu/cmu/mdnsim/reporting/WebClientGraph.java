@@ -3,8 +3,10 @@ package edu.cmu.mdnsim.reporting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -257,8 +259,6 @@ public class WebClientGraph {
 		}
 		
 		downstreamNodes.get(srcNode).add(new Edge(getEdgeId(srcNodeId, dstNodeId), srcNodeId, dstNodeId));
-		
-		nodesMap.get(srcNodeId).size += 1;
 
 	}
 
@@ -294,33 +294,39 @@ public class WebClientGraph {
 		
 		if(n == null) return;
 		
-		visitedNodes.add(n.id);
+		Queue<Node> currLayer	= new LinkedList<Node>(),
+					nextLayer	= new LinkedList<Node>();
+		Set<String>   visited	= new HashSet<String>();
 		
-		n.y = yLocation + VERTICAL_DISTANCE_BETWEEN_NODES;
+		double currLayerNodeNum = 1;
+		double currLayerNodeSeq = 1;
+		int    currLayerSeq     = 1;
 		
-		Set<Edge> downstreamEdges = downstreamNodes.get(n);
+		currLayer.offer(root);
+		visited.add(root.id);
 		
-		if(downstreamEdges.size() > 0){
-			
-			for (Edge e : downstreamEdges) {
-				if (!visitedNodes.contains(e.target)) {
-					setLocations(nodesMap.get(e.target), n.y, visitedNodes);
+		
+		while(!currLayer.isEmpty()) {
+			Node tmp = currLayer.poll();
+			for (Edge e : downstreamNodes.get(tmp)) {
+				if (!visited.contains(e.target)) {
+					nextLayer.offer(nodesMap.get(e.target));
+					visited.add(e.target);
 				}
 			}
-			
-			double minX = Double.MAX_VALUE, maxX = Double.MIN_NORMAL;
-			
-			for (Edge e : downstreamEdges) {
-				minX = Math.min(minX, nodesMap.get(e.target).x);
-				maxX = Math.max(maxX, nodesMap.get(e.target).x);
+			tmp.x = 100 / (currLayerNodeNum + 1) * currLayerNodeSeq + (Math.random() - 0.5);
+			tmp.y = 10 * currLayerSeq;
+			currLayerNodeSeq++;
+			if(currLayer.isEmpty()) {
+				Queue<Node> tmpQ = currLayer;
+				currLayer = nextLayer;
+				nextLayer = tmpQ;
+				nextLayer.clear();
+				currLayerNodeNum = currLayer.size();
+				currLayerNodeSeq = 1;
+				currLayerSeq++;
 			}
 			
-			n.x = (minX + maxX) / 2 + (Math.random() - 0.5);
-						
-		}else{
-			
-			n.x = (this.lastUsedXLocation  + (Math.random() - 0.5));	
-			this.lastUsedXLocation += HORIZANTAL_DISTANCE_BETWEEN_LEAF_NODES;
 		}
 		
 	}

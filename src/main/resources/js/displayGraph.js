@@ -103,7 +103,7 @@ function createGraph(initial_data){
 	  
 	  
 	  values = findValues(target, 'cpuUsage');
-	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'cpuUsage', 'CUP', values));
+	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'cpuUsage', 'CPU', values));
 	  
 	  values = findValues(target, 'memUsage');
 	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'memUsage', 'MEM', values));
@@ -111,11 +111,6 @@ function createGraph(initial_data){
 	  values = findValues(target, 'streamStatus');
 	  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+'streamStatus', 'Status', values));
 	  
-//	  for (var stream in target.streamMetricsMap) {
-//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'cpuUsage', 'CUP', target.streamMetricsMap[stream]['cpuUsage']));
-//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'memUsage', 'MEM', target.streamMetricsMap[stream]['memUsage']));
-//		  $("#node-watcher-table").children().filter("tbody").append(addRow(nodeId+stream+'streamStatus', 'Status', target.streamMetricsMap[stream]['streamStatus']));
-//	  }
 	  
 	  $("#node-watcher-table").children().filter("tbody").fadeIn();
 	  

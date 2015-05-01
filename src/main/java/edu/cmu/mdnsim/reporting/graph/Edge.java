@@ -39,7 +39,7 @@ public class Edge {
 
 	public static final String DEFAULT_EDGE_COLOR = "rgb(84,84,84)"; //Grey
 
-	public static final int DEFAULT_EDGE_SIZE_IN = 5;
+	public static final int DEFAULT_EDGE_SIZE_IN = 1;
 	
 	
 	/**
