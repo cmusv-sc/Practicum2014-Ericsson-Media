@@ -348,6 +348,11 @@ public class WebClientGraph {
 			srcId = root.id;
 		}
 		
+		if (nodesMap.get(srcId) == null) {
+			logger.debug("updateEdge(): Try to update a edge from node[" + srcId + "] that doesn't exist in the graph.");
+			return;
+		}
+		
 		Set<Edge> downstreamEdges = downstreamNodes.computeIfAbsent(nodesMap.get(srcId), (foo)->(new HashSet<Edge>()));
 		Edge e = null;
 		
