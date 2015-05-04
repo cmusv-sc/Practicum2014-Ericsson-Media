@@ -61,7 +61,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 					udpInfo.getPublicIP()+":"+udpInfo.getPublicPort());
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
-			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+//			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 		} catch (ClassNotFoundException | IOException e1) {
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());

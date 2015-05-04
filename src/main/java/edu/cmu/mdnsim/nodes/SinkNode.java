@@ -44,7 +44,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	
 
 	@Override
-	public synchronized void executeTask(MbMessage request, Stream stream) {
+	public void executeTask(MbMessage request, Stream stream) {
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
