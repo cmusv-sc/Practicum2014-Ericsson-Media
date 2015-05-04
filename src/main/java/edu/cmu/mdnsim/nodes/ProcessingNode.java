@@ -41,7 +41,7 @@ public class ProcessingNode extends AbstractNode implements NodeRunnableCleaner{
 	 * even if Processing node exists in multiple flows.
 	 */
 	@Override
-	public void executeTask(MbMessage request, Stream stream) {
+	public synchronized void executeTask(MbMessage request, Stream stream) {
 
 		Flow flow = stream.findFlow(getFlowId(request));
 		Map<String, String> nodePropertiesMap = flow.findNodeMap(getNodeId());

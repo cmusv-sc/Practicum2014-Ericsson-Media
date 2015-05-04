@@ -154,13 +154,13 @@ public abstract class AbstractNode {
 	 * @return the DatagramSocket that the stream is binded with
 	 */
 	public DatagramSocket getAvailableSocket(String streamId) {
-		logger.debug("AbstractNode.getAvailableSocket(): Obtain available socket for receiving upstreaming data.");
+//		logger.debug("AbstractNode.getAvailableSocket(): Obtain available socket for receiving upstreaming data.");
 		DatagramSocket udpSocket = null;
 		for(int i = 0; i < RETRY_CREATING_SOCKET_NUMBER; i++){
 			try {
 				udpSocket = new DatagramSocket(0, getHostAddr());
-				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket should be bind to: " + getHostAddr());
-				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket is bind to: " + udpSocket.getInetAddress());
+//				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket should be bind to: " + getHostAddr());
+//				System.out.println("AbstractNode.getAvailableSocket(): receiverSocket is bind to: " + udpSocket.getInetAddress());
 			} catch (SocketException e) {
 				logger.warn("Failed" + (i + 1) + "times to bind a port to a socket");
 				e.printStackTrace();

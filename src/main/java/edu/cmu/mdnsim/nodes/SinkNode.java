@@ -44,7 +44,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 	
 
 	@Override
-	public void executeTask(MbMessage request, Stream stream) {
+	public synchronized void executeTask(MbMessage request, Stream stream) {
 
 		logger.debug(this.getNodeId() + " Sink received a StreamSpec for Stream : " + stream.getStreamId());
 
@@ -66,7 +66,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 					udpInfo.getPublicIP()+":"+udpInfo.getPublicPort());
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
-			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
+//			logger.debug("UDPINFO: " + udpInfo.getPublicIP() + ":" + udpInfo.getPublicPort() + "/NATIVEINFO: " + super.getHostAddr().getHostAddress() + ":" + receiveSocket.getLocalPort());
 		} catch (ClassNotFoundException | IOException e1) {
 			upstreamNodePropertiesMap.put(Flow.RECEIVER_LOCAL_IP_PORT, 
 					super.getHostAddr().getHostAddress()+":"+receiveSocket.getLocalPort());
@@ -81,6 +81,7 @@ public class SinkNode extends AbstractNode implements NodeRunnableCleaner{
 		try {
 			msgBusClient.send("/" + getNodeId() + "/tasks/" + flow.getFlowId(), 
 					nodePropertiesMap.get(Flow.UPSTREAM_URI)+"/tasks", "PUT", stream);
+			logger.debug("SinkNode.executeTask(): " + this.nodeId + " started the stream[" + stream.getStreamId() + "]");
 		} catch (MessageBusException e) {
 			logger.debug("Could not send work config spec to upstream node." + e.toString());
 		}

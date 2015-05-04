@@ -139,7 +139,7 @@ public class NodeContainer {
 		
 		Class<?> objectiveNodeClass = null;
 		for (Class<?> nodeClass : scan) {
-			logger.debug("NodeContainer.createNode(): To instantiate " + nodeClass.getName());
+//			logger.debug("NodeContainer.createNode(): To instantiate " + nodeClass.getName());
 			if (nodeClass.getName().equals(req.getNodeClass())) {
 				objectiveNodeClass = nodeClass;
 				break;
@@ -147,8 +147,8 @@ public class NodeContainer {
 		}
 		
 		if (objectiveNodeClass == null) {
-			throw new ClassNotFoundException("Class (" + req.getNodeClass() + ") cannot"
-					+ " be found.");
+//			throw new ClassNotFoundException("Class (" + req.getNodeClass() + ") cannot"
+//					+ " be found.");
 		}
 		
 		Constructor<?> constructor = objectiveNodeClass.getConstructor(new Class<?>[] {String.class, String.class});
