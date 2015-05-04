@@ -611,9 +611,11 @@ $(document).ready(function() {
 			foo.StreamList.push(stream);
 
 			loggerResource.message().method("POST").to("/mdnsim/work_config").data(foo).send();
+			
+			console.log('start stream[' + stream.StreamId + ']');
 
 		};
-		fn("stream" + streamCounter++);
+		fn(streamCounter++);
 	})
 	/*
 	 * When the input file element is reset when flow action is changed, the event handlers

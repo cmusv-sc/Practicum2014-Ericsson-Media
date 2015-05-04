@@ -804,7 +804,6 @@ public class Master extends TimerTask {
 		for (String nc : nodeContainerTbl.keySet()) {
 			list.add(new NodeContainerInfo(nc, nodeContainerTbl.get(nc)));
 		}
-		System.out.println(JSON.toJSON(list));
 		return JSON.toJSON(list);
 	}
 	
