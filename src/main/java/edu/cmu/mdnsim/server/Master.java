@@ -37,7 +37,7 @@ import edu.cmu.mdnsim.messagebus.message.StreamReportMessage;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
 import edu.cmu.mdnsim.nodes.AbstractNode;
 import edu.cmu.mdnsim.nodes.NodeContainer;
-import edu.cmu.mdnsim.reporting.WebClientGraph;
+import edu.cmu.mdnsim.reporting.graph.WebClientGraph;
 import edu.cmu.mdnsim.topology.CheckerResult;
 import edu.cmu.mdnsim.topology.GraphChecker;
 import edu.cmu.util.UDPHolePunchingServer;
@@ -103,7 +103,7 @@ public class Master extends TimerTask {
 	 * The flow is removed from this map once a node is registered and the flow is 
 	 * updated
 	 */
-	private Map<String, ArrayList<Flow>> flowsWithinANodeMap = new ConcurrentHashMap<String, ArrayList<Flow>>();
+	private Map<String, ArrayList<Flow>> nodeToFlows = new ConcurrentHashMap<String, ArrayList<Flow>>();
 
 	/**
 	 * Map of NodeId to node type. Used in instantiateNodes function to find class
@@ -300,19 +300,6 @@ public class Master extends TimerTask {
 			e.printStackTrace();
 		}
 
-		if (webClientURI != null) {
-			//Synchronization is required to ensure that we get latest values of the nodeNameToURITbl map 
-			//as it will be updated independently by the nodes as they come up
-			//synchronized(System.in){
-			try {
-				WebClientUpdateMessage msg = webClientGraph.getUpdateMessage(nodeNameToURITbl.keySet());
-				msgBusSvr.send("/", webClientURI.toString() + "/update", "POST", msg);
-			} catch (MessageBusException e) {
-				e.printStackTrace();
-			}
-			//}
-		}
-
 		// remove the node from nodesToInstantiate Map
 		this.nodesToInstantiate.remove(nodeName);
 
@@ -322,9 +309,9 @@ public class Master extends TimerTask {
 		 *  register itself), update the flow with the nodeUri.
 		 *  If all the nodes in a flow are up, start the flow
 		 */
-		if (flowsWithinANodeMap.containsKey(nodeName)) {
+		if (nodeToFlows.containsKey(nodeName)) {
 			ArrayList<Flow> flowList = new ArrayList<Flow>();
-			for (Flow flow : flowsWithinANodeMap.get(nodeName)) {
+			for (Flow flow : nodeToFlows.get(nodeName)) {
 				flow.updateFlowWithNodeUri(nodeName, registMsg.getURI());
 				if (flow.canRun()) {
 					/*
@@ -332,14 +319,14 @@ public class Master extends TimerTask {
 					 * if the flow can run, meaning if all the nodes from sink to source
 					 * are up and registered with the master, then start the flow.
 					 */
-					this.runFlow(flow);
+					runFlow(flow);
 				} else {
 					// add this flow to a list of flows that cannot run yet
 					flowList.add(flow);
 				}
 			}
 			// update the flowList with flows that cannot run yet
-			flowsWithinANodeMap.put(nodeName, flowList);
+			nodeToFlows.put(nodeName, flowList);
 		}
 
 	}
@@ -397,7 +384,7 @@ public class Master extends TimerTask {
 		streamMap.clear();
 		flowMap.clear();
 		runningFlowMap.clear();
-		flowsWithinANodeMap.clear();
+		nodeToFlows.clear();
 		nodesToInstantiate.clear();
 		
 
@@ -407,16 +394,16 @@ public class Master extends TimerTask {
 			try {
 				msgBusSvr.send("/", webClientURI.toString(), "DELETE", resetMsg);
 			} catch (MessageBusException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 
-		logger.debug("[DEBUG] MDNManager.resetSimulation(): Reset Complete");
+		logger.debug("Reset completes at master but may not complete for all node container");
 	}
 
 	/**
-	 * This method is the listener for RESET functionality
+	 * 		This method notifies the nodes in each node container to terminate all streams and remove the nodes.
+	 * 
 	 */
 	public void removeAllNodes() {
 
@@ -453,15 +440,13 @@ public class Master extends TimerTask {
 		System.err.println("Pass the test");
 		
 		
-		
-		
-		logger.debug("startWorkConfig(): Receive a simulation request.");
+//		logger.debug("startWorkConfig(): Receive a simulation request.");
 		try {
 		for (Stream stream : wc.getStreamList()) {
 			String streamId = stream.getStreamId();
 			String kiloBitRate = stream.getKiloBitRate();
 			String dataSize = stream.getDataSize();
-			logger.debug("startWorkConfig(): Try to start streamID: " + streamId);
+			logger.debug("startWorkConfig(): Try to start stream[" + streamId  + "]");
 			for (Flow flow : stream.getFlowList()) {
 				flow.updateFlowWithDownstreamIds();
 				flow.setStreamId(streamId);
@@ -490,7 +475,6 @@ public class Master extends TimerTask {
 								nodeProperties.get(Flow.NODE_TYPE));
 					}
 					
-					
 					if(!this.nodeNameToURITbl.containsKey(nodeId)) {
 						/*
 						 * If a node in the flow is not registered yet, add it to a list of nodes to be instantiated
@@ -500,14 +484,14 @@ public class Master extends TimerTask {
 						
 						// update existing flowList
 						ArrayList<Flow> flowList;
-						if (this.flowsWithinANodeMap.containsKey(nodeId)) {
-							flowList = this.flowsWithinANodeMap.get(nodeId);
+						if (this.nodeToFlows.containsKey(nodeId)) {
+							flowList = this.nodeToFlows.get(nodeId);
 						} else {
 							// create a new flowList and add it to the map
 							flowList = new ArrayList<Flow>();
 						}
 						flowList.add(flow);
-						this.flowsWithinANodeMap.put(nodeId, flowList);
+						this.nodeToFlows.put(nodeId, flowList);
 					} else {
 						/* update the flow with the nodeUri */
 						flow.updateFlowWithNodeUri(nodeId, this.nodeNameToURITbl.get(nodeId));
@@ -541,7 +525,7 @@ public class Master extends TimerTask {
 			}
 			
 			for (Flow flow : stream.getFlowList()) {
-				if (flow.canRun()) { runFlow(flow); System.out.println("Master(): Started a flow as all nodes are available."); }
+				if (flow.canRun()) { runFlow(flow); logger.debug("Started a flow as all nodes are available."); }
 			}
 		}
 		} catch (RuntimeException e) {

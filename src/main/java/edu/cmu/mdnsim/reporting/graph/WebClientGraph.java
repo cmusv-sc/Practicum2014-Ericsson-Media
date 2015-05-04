@@ -1,4 +1,4 @@
-package edu.cmu.mdnsim.reporting;
+package edu.cmu.mdnsim.reporting.graph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,8 +17,6 @@ import edu.cmu.mdnsim.config.Flow;
 import edu.cmu.mdnsim.config.WorkConfig;
 import edu.cmu.mdnsim.messagebus.message.EventType;
 import edu.cmu.mdnsim.messagebus.message.WebClientUpdateMessage;
-import edu.cmu.mdnsim.reporting.graph.Edge;
-import edu.cmu.mdnsim.reporting.graph.Node;
 /**
  * Represents the actual state of the graph displayed in the web client. 
  * Should not be used for JSON conversion.

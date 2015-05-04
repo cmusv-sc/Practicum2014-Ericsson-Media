@@ -176,15 +176,12 @@ public class NodeContainer {
 		System.out.println("[DEBUG]NodeContainer.reset(): Total node number = " + nodeMap.size());
 		for (String nodeId : nodeMap.keySet()) {
 			System.out.println("[DEBUG]NodeContainer.reset(): Clean the " + nodeId);
-			stopNode(nodeId);
+			AbstractNode node = nodeMap.get(nodeId);
+			node.reset();
+			nodeMap.remove(nodeId);
 		}
 	}
-	
-	private void stopNode(String nodeId) {
-		AbstractNode node = nodeMap.get(nodeId);
-		node.reset();
-		nodeMap.remove(nodeId);
-	}
+
 	
 	
 	private static MessageBusClient instantiateMsgBusClient (String className, String masterIP) throws MessageBusException {
