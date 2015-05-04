@@ -131,6 +131,8 @@ public abstract class NodeRunnable implements Runnable {
 	public synchronized void reset() {
 		this.killed = true;
 		this.reset = true;
+		
+		logger.debug("reset(): Reset the " + this.nodeId);
 	}
 
 	public synchronized boolean isReset() {

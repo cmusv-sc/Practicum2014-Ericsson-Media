@@ -246,8 +246,11 @@ class RelayRunnable extends NodeRunnable {
 	 * @param destPort
 	 */
 	public void addNewDestination(String downStreamUri, InetAddress destAddress, int destPort) {
+		
 		downStreamUriToReceiveSocketAddress.put(downStreamUri, 
 				new InetSocketAddress(destAddress, destPort));
+		
+		logger.debug("RelayRunnable.addNewDestination(): Add " + destAddress.getHostName() +":" + destPort);
 	}
 	/**
 	 * Initializes the receive DatagramSocket
