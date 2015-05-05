@@ -14,11 +14,11 @@ class ReportTaskHandler {
 		reportRunnable = runnable;
 	}
 
-	public void kill() {
+	public synchronized void kill() {
 		reportRunnable.kill();
 	}
 
-	public boolean isDone() {
+	public synchronized boolean isDone() {
 		return reportFuture.isDone();
 	}
 

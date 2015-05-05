@@ -437,9 +437,6 @@ public class Master extends TimerTask {
 		}
 		
 		
-		System.err.println("Pass the test");
-		
-		
 //		logger.debug("startWorkConfig(): Receive a simulation request.");
 		try {
 		for (Stream stream : wc.getStreamList()) {
