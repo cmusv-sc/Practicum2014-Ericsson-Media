@@ -176,7 +176,7 @@ public class RelayNode extends AbstractNode implements NodeRunnableCleaner {
 			streamTask.reset();
 			while(!streamTask.isDone());
 			streamTask.clean();
-			logger.debug("Reset streamRunnable:" + streamTask.getStreamId());
+			logger.debug("Reset streamTask:" + streamTask.getStreamId());
 		}
 
 		msgBusClient.removeResource("/" + getNodeId());

@@ -68,7 +68,7 @@ public class NodeReporter implements Runnable {
 	@Override
 	public void run() {
 
-		while (!killed) {
+		while (!isKilled()) {
 			calculateAndReport();
 			try {
 				Thread.sleep(intervalInMillisecond);
@@ -78,13 +78,16 @@ public class NodeReporter implements Runnable {
 			}
 		}
 		calculateAndReport();
-		System.out.println("ReportRateRunnable.run(): " + this.nodeRunnable.getNodeId() + " report thread has been interrupted.");
-		System.err.println("ReportRateRunnable.run(): Total recorded packet loss:" + packetLostTracker.getLostPacketNum());
+		System.out.println("NodeReporter.run(): Node[" + this.nodeRunnable.getNodeId() + "]'s report thread has been killed.");
 		
 	}
 
-	public void kill() {
+	public synchronized void kill() {
 		this.killed = true;
+	}
+	
+	public synchronized boolean isKilled() {
+		return this.killed;
 	}
 
 	/**

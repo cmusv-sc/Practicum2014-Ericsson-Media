@@ -390,6 +390,11 @@ public class WebClientGraph {
 	public void updateEdge(String nodeId, String destinationNodeId, String streamId,
 			String edgeColor,EventType eventType) {
 		
+		if (nodesMap.get(nodeId) == null) {
+			logger.debug("updateEdge(): Try to update a edge from node[" + nodeId + "] that doesn't exist in the graph.");
+			return;
+		}
+		
 		Set<Edge> downstreamEdges = downstreamNodes.get(nodesMap.get(nodeId));
 		Edge e = null;
 		for (Edge tmp : downstreamEdges) {
